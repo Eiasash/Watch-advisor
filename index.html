@@ -477,6 +477,8 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   /* Season penalty for off-season items */
   var _csn=(function(){var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
   items.forEach(function(it){var s=it.seasons;if(s&&s.length>0&&s.length<4&&!s.includes(_csn))fs-=1});
+  /* Context/vibe match — boost items tagged for current context, penalize mismatches */
+  items.forEach(function(it){var cx=it.cx;if(cx&&cx.length>0){if(cx.includes(ctx))fs+=1.5;else if(cx.length<=2)fs-=0.5}});
   /* Freshness penalty — discourage recently-worn garments for variety */
   var _now=Date.now();
   items.forEach(function(it){if(it.lastWorn){var daysAgo=Math.floor((_now-new Date(it.lastWorn).getTime())/(864e5));if(daysAgo<=1)fs-=2;else if(daysAgo<=3)fs-=0.8;else if(daysAgo<=5)fs-=0.3;else if(daysAgo>=14)fs+=0.3}});
@@ -537,6 +539,16 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets preferred over leather");
   if(isWindy)wxWarns.push("💨 High wind — secure light items");
   return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,items,wxWarns:wxWarns};
+}
+/* Standalone fit score for live swap recalc (no watch scoring) */
+function fitScore(fit){
+  var top=fit.top,bot=fit.bot,shoe=fit.shoe;var fs=0;
+  if(top&&bot)fs+=compat(top.color,bot.color)*3;
+  if(top&&shoe)fs+=compat(top.color,shoe.color)*2;
+  if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
+  if(bot&&bot.garmentType==="Jeans")fs+=0.8;
+  if(top&&bot){var tp=(top.pattern||"solid"),bp=(bot.pattern||"solid");if(tp!=="solid"&&bp!=="solid")fs-=1.5;else if((tp==="textured"||bp==="textured")&&(tp==="solid"||bp==="solid"))fs+=0.8;else if(tp==="striped"&&bp==="solid")fs+=0.4}
+  return Math.round(fs*10)/10;
 }
 
 function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
@@ -1180,6 +1192,9 @@ function App(){
         React.createElement("label",{className:"lbl"},"Seasons"),
         React.createElement("div",{style:{display:"flex",gap:6,marginBottom:16}},
           ["spring","summer","fall","winter"].map(function(s){var icons={spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"};var arr=f.seasons||[];var on=arr.includes(s);return React.createElement("span",{key:s,className:"chip "+(on?"on":""),onClick:function(){set("seasons",on?arr.filter(function(x){return x!==s}):arr.concat([s]))},style:{flex:1,justifyContent:"center",padding:"6px 4px",fontSize:10}},icons[s]+" "+s)})),
+        React.createElement("label",{className:"lbl"},"Vibes / Context"),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}},activeCxIds.map(function(c){var arr=f.cx||[];var on=arr.includes(c);return React.createElement("span",{key:c,className:"chip "+(on?"on":""),onClick:function(){set("cx",on?arr.filter(function(x){return x!==c}):arr.concat([c]))}},
+          (activeCxIcons[c]||"")+" "+c)})),
         React.createElement("label",{className:"lbl"},"Last Worn"),
         React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:14}},
           React.createElement("input",{className:"inp",type:"date",value:f.lastWorn||"",onChange:function(e){set("lastWorn",e.target.value)},style:{marginBottom:0,maxWidth:180,fontSize:11,flex:1}}),
@@ -1868,7 +1883,7 @@ function App(){
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
               React.createElement("div",{style:{display:"flex",gap:6,marginTop:4},className:"hscroll"},
-                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);nf.fs=Math.round(fitScore(nf)*10)/10;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
+                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);var recalc=makeOutfit(nf.items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);nf.fs=recalc.fs;nf.watches=recalc.watches;nf.allW=recalc.allW;nf.wxWarns=recalc.wxWarns;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
