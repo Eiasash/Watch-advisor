@@ -2,196 +2,209 @@
 
 **AI-Powered Watch & Outfit Coordinator for Watch Enthusiasts**
 
-> Pair your luxury timepieces with your wardrobe using intelligent color matching, weather insights, and AI-powered styling recommendations.
+## 🚀 **[Try it now: https://eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)**
 
-## 🌐 Live Application
+### What is Watch Advisor?
 
-**Access the app here:** [https://eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)
+Watch Advisor helps you **pair your watches with your clothes**. Upload photos of your wardrobe, add your watch collection, and get AI-powered outfit suggestions that match your timepieces perfectly.
 
-## 📖 Overview
+Perfect for watch geeks who want to coordinate their luxury pieces with their everyday style.
 
-Watch Advisor is a sophisticated Progressive Web App (PWA) designed for watch collectors and style enthusiasts who want to coordinate their timepieces with their wardrobe. Whether you own genuine pieces or replicas, this app helps you create cohesive outfits that complement your watch collection.
+---
+
+## 🎯 Quick Start Guide
+
+### 1. **Add Your Watches** ⌚
+- Click the "Watches" tab
+- Add each watch with its dial color (black, blue, white, etc.)
+- Set matching colors (what looks good with this watch)
+- Choose contexts (formal, casual, date night, etc.)
+
+### 2. **Build Your Wardrobe** 👔
+- Go to "Wardrobe" tab
+- **Take photos of your clothes** - the app will automatically identify colors and patterns
+- Or add items manually
+- Include shirts, pants, shoes, jackets, etc.
+
+### 3. **Get Outfit Suggestions** ✨
+- Navigate to "Fits" tab
+- Pick a watch from your collection
+- Select your occasion (work, date, weekend)
+- **Get instant outfit combinations** that pair perfectly with your watch
+
+### 4. **Plan Your Week** 📅
+- Check the 7-day weather forecast
+- Set your weekly schedule (meetings, dates, casual days)
+- Get a full week of coordinated watch + outfit combinations
+
+---
 
 ## ✨ Key Features for Watch Geeks
 
 ### 🎯 Watch Collection Management
-- **Comprehensive Watch Database**: Store unlimited watches with detailed specifications
-  - Dial color, case material, bracelet/strap options
-  - Color temperature (warm/cool tones)
-  - Matching colors (MC) and avoiding colors (AC)
-  - Context suitability (formal, casual, weekend, date, etc.)
-  - Weather appropriateness (light/mid/heavy layers)
-  - Status tracking (active, incoming, service, sold, etc.)
-- **Smart Color Matching**: Pre-configured matching and avoiding colors for each watch
-- **Custom Emojis**: Personalize each watch with emoji identifiers
-- **Genuine vs Replica Tracking**: Separate your authentic pieces from homages
+- **Track unlimited watches** with detailed specs (dial color, bracelet/strap, material)
+- **Smart color matching** - define which clothing colors work (or clash) with each watch
+- **Context tags** - mark watches for specific occasions (formal, sport, casual, date)
+- **Genuine vs Replica tracking** - organize your collection properly
+- **Status management** - track active pieces, incoming purchases, watches in service, or sold items
+- **Weather ratings** - know which watches work in different climates
 
 ### 👔 Wardrobe Coordination
-- **Garment Library**: Build your complete wardrobe
-  - Tops: Shirts, Polos, T-Shirts, Sweaters/Knits, Jackets/Blazers
-  - Bottoms: Pants/Trousers, Chinos, Jeans, Shorts
-  - Shoes: All footwear types
-- **Photo-Based Import**: Upload photos of your clothes for AI-powered identification
-  - Automatic color detection from 40+ color options
-  - Pattern recognition (solid, plaid, striped, checked, print, textured)
-  - Material inference (cotton, linen, wool, cashmere, silk, denim, leather, etc.)
-  - Season suggestions based on garment type and material
-- **Context-Aware Sorting**: Organize clothes by occasion (formal, casual, date, travel, etc.)
+- **Photo-based import** - snap pictures of your clothes, AI identifies them automatically
+  - Recognizes 40+ colors (navy, charcoal, burgundy, olive, camel, etc.)
+  - Detects patterns (solid, plaid, striped, checked)
+  - Identifies materials (cotton, linen, wool, cashmere, leather, denim)
+- **Complete garment library** - store all your tops, bottoms, and shoes
+- **Seasonal tagging** - mark items for spring, summer, fall, winter
 
-### 🤖 AI-Powered Outfit Generation
-- **Intelligent Matching Algorithm**: 
-  - Color harmony analysis between watch and clothing
-  - Context appropriateness scoring
-  - Material and pattern coordination
-  - Season compatibility checking
-- **Claude AI Integration**: Get vivid, editorial-style outfit descriptions
-  - Cinematic vision of your complete look
-  - Color interplay analysis
-  - Risk assessment for potential clashes
-  - Strap/bracelet recommendations for specific outfits
-- **Multiple Outfit Suggestions**: Generate several options for each watch
+### 🤖 AI-Powered Outfit Matching
+- **Intelligent color harmony** - analyzes dial color vs. clothing colors
+- **Context scoring** - ensures outfit matches the occasion
+- **Material coordination** - pairs watch materials (steel, gold, leather) with clothing fabrics
+- **Claude AI descriptions** - get editorial-style feedback on your complete look
+- **Risk assessment** - alerts you to potential color clashes
+- **Strap recommendations** - suggests bracelet vs. leather based on outfit
 
-### 🌤️ Weather Integration
-- **7-Day Forecast Planning**: Plan your weekly watch rotation with weather in mind
-  - Real-time weather data integration
-  - Temperature-based layering recommendations
-  - Rain detection for bracelet vs. leather strap decisions
-- **Smart Seasonal Recommendations**: 
-  - Heavy layers (≤5°C): Leather straps stay warm
-  - Mid layers (6-24°C): Versatile options
-  - Light layers (25°C+): Steel bracelets preferred
+### 🌤️ Weather-Smart Planning
+- **7-day forecast** - plan your weekly watch rotation with weather in mind
+- **Temperature layering** - get suggestions based on actual weather (5°C = heavy layers, 25°C = light fabrics)
+- **Rain detection** - recommends steel bracelets over leather straps when it's wet
+- **Seasonal advice** - helps you avoid wearing the wrong materials for the weather
 
-### 📊 Insights & Analytics
-- **Wear Tracking**: 28-day visual calendar showing which watch you wore each day
-- **Rotation Statistics**: See your most and least worn pieces
-- **Never Worn Alerts**: Identify watches that haven't been logged
-- **Context Analysis**: Track which occasions you dress for most
+### 📊 Rotation Analytics
+- **28-day wear calendar** - visual history of what watch you wore each day
+- **Rotation statistics** - see your most and least worn pieces
+- **Never worn alerts** - identifies watches you haven't logged recently
+- **Balance your collection** - ensure every piece gets wrist time
 
-### 💾 Data Persistence
-- **Local Storage**: All your data stays on your device
-- **Import/Export**: Backup and restore your complete collection
-- **Offline Capable**: PWA works without internet (except AI features)
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Modern web browser (Chrome, Safari, Firefox, Edge)
-- Optional: Claude API key for AI outfit descriptions ([Get one here](https://console.anthropic.com))
-
-### Installation
-
-1. **Web Access**: Simply visit [https://eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)
-
-2. **Install as PWA** (Recommended):
-   - **iOS**: Safari → Share → "Add to Home Screen"
-   - **Android**: Chrome → Menu → "Add to Home Screen"
-   - **Desktop**: Click the install icon in the address bar
-
-### First-Time Setup
-
-1. **Add Your Watches**:
-   - Go to "Watches" tab
-   - Click "+" to add a watch
-   - Fill in details: name, dial color, bracelet/strap
-   - Set matching colors (colors that work well)
-   - Set avoiding colors (colors that clash)
-   - Choose appropriate contexts (formal, casual, etc.)
-   - Select weather weights
-
-2. **Build Your Wardrobe**:
-   - Navigate to "Wardrobe" tab
-   - Use "Add from Photo" to scan your clothes
-   - Or manually add garments with details
-   - The app will auto-suggest materials and seasons
-
-3. **Configure AI (Optional)**:
-   - Go to Settings
-   - Add your Claude API key for outfit descriptions
-   - This enables detailed styling feedback
-
-## 💡 Usage Guide
-
-### Creating Outfits
-
-1. **Go to "Fits" Tab**: Main outfit generation interface
-2. **Select Context**: Choose your occasion (formal, casual, date, etc.)
-3. **Pick a Watch**: Select from your collection
-4. **Generate Outfits**: App creates multiple coordinated looks
-5. **Review AI Feedback**: Get styling insights and risk assessments
-6. **Save Favorites**: Store winning combinations for later
-
-### Planning Your Week
-
-1. **Check Weather**: 7-day forecast automatically loads
-2. **Set Contexts**: Assign occasions to each day
-3. **Lock Watches** (Optional): Fix specific watches for certain days
-4. **Generate Plan**: Get a full week of coordinated outfits
-5. **Avoid Repeats**: Algorithm prevents wearing same outfit on consecutive days
-
-### Tracking Your Rotation
-
-1. **Log Wear**: Record which watch you wore today
-2. **View Calendar**: See 28-day history at a glance
-3. **Check Stats**: Identify rotation patterns
-4. **Balance Collection**: Ensure all pieces get wrist time
-
-## 🎨 Color Matching Tips
-
-### For Watch Geeks:
-- **Black/Charcoal Dials**: Versatile – pair with almost anything
-- **White/Cream Dials**: Elegant – best with neutrals, avoid earth tones
-- **Blue Dials**: Cool – navy, grey, white; avoid warm browns
-- **Green Dials**: Nature – olive, khaki, cream, tan
-- **Gold/Bronze**: Warm – browns, creams, burgundy; avoid cool greys
-- **Silver/Steel**: Cool – greys, blues, blacks, whites
-
-### Bracelet vs. Strap:
-- **Steel Bracelets**: Perfect for hot weather, rain, casual/sport contexts
-- **Leather Straps**: Formal occasions, cooler weather, dressy looks
-- **NATO/Fabric**: Casual, travel, summer, versatile
-
-## 🔧 Technical Details
-
-### Built With
-- **React 18**: Modern UI framework
-- **Vanilla JS**: No build step required
-- **Claude AI**: Anthropic's language model for styling
-- **Open-Meteo API**: Weather data
-- **Service Workers**: Offline functionality
-
-### Browser Compatibility
-- ✅ Chrome/Edge (recommended)
-- ✅ Safari (iOS/macOS)
-- ✅ Firefox
-- ✅ All modern mobile browsers
-
-### Data Storage
-- Uses browser localStorage
-- Typical size: ~1-5MB depending on collection
-- No server-side storage – your data stays private
-
-## 📱 Progressive Web App Features
-
-- **Offline Mode**: Browse collection and create outfits without internet
-- **Home Screen Icon**: Install like a native app
-- **Fast Loading**: Service worker caching
-- **Responsive Design**: Works on phone, tablet, desktop
-- **No Installation Required**: Just visit the URL
-
-## 🤝 Contributing
-
-This is a personal project, but feedback and suggestions are welcome! 
-
-## 📄 License
-
-All rights reserved. Personal use only.
-
-## 🙏 Acknowledgments
-
-- Weather data powered by [Open-Meteo](https://open-meteo.com/)
-- AI insights powered by [Anthropic Claude](https://www.anthropic.com/)
-- Built for watch enthusiasts, by watch enthusiasts
 
 ---
 
-**Happy coordinating! May your watches always match your fits. ⌚✨**
+## 💡 How to Pair Watches with Your Clothes
+
+### Color Matching Guide for Watch Collectors
+
+**Black/Charcoal Dials** → Most versatile
+- ✅ Pairs with: Almost everything - grey suits, navy blazers, white shirts, black jeans
+- ❌ Avoid: Rarely any issues
+
+**White/Cream Dials** → Classic elegance  
+- ✅ Pairs with: Navy, charcoal, grey, white, light blue, burgundy
+- ❌ Avoid: Brown, tan, olive (creates muddy look)
+
+**Blue Dials** → Cool sophistication
+- ✅ Pairs with: Navy, grey, white, light blue, charcoal
+- ❌ Avoid: Warm browns, orange, rust
+
+**Green Dials** → Natural warmth
+- ✅ Pairs with: Olive, khaki, cream, tan, brown, navy
+- ❌ Avoid: Bright colors, neon
+
+**Gold/Bronze Cases** → Warm luxury
+- ✅ Pairs with: Brown, cream, burgundy, navy, white, tan
+- ❌ Avoid: Cool greys, light blue
+
+**Steel/Silver** → Cool modern
+- ✅ Pairs with: Grey, black, navy, white, blue, charcoal
+- ❌ Avoid: Rarely any issues
+
+### Bracelet vs. Strap Selection
+
+**Steel Bracelets** - Best for:
+- 🌞 Hot weather (25°C+)
+- 🌧️ Rainy days
+- 👟 Casual/sport outfits
+- 🏖️ Summer activities
+
+**Leather Straps** - Best for:
+- ❄️ Cooler weather (below 20°C)
+- 👔 Formal occasions
+- 🎩 Dressy outfits
+- 🍷 Date nights
+
+---
+
+## 🚀 Getting Started
+
+### No Installation Required
+1. Visit **[https://eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)**
+2. Start adding watches and clothes
+3. Generate your first outfit combination
+
+### Install as Mobile App (Optional)
+- **iPhone**: Safari → Share → "Add to Home Screen"
+- **Android**: Chrome → Menu → "Add to Home Screen"  
+- **Desktop**: Click install icon in address bar
+
+### Optional: Enable AI Descriptions
+1. Get a free Claude API key at [console.anthropic.com](https://console.anthropic.com)
+2. Add it in Settings
+3. Get detailed styling feedback for each outfit
+
+---
+
+## 💾 Your Data Stays Private
+
+- Everything stored locally in your browser
+- No server uploads
+- No account required
+- Export/backup your collection anytime
+- Works offline (except AI features)
+
+---
+
+## 🎨 Example Use Cases
+
+**Monday Morning Meeting**
+- Watch: Steel Rolex Submariner (black dial)
+- Outfit: Navy suit + white shirt + black oxfords
+- Weather: 15°C, cloudy
+- Result: Classic professional look with versatile sports watch
+
+**Friday Date Night**
+- Watch: Tank-style dress watch (white dial, leather strap)
+- Outfit: Charcoal wool trousers + burgundy sweater + brown loafers
+- Weather: 10°C, clear
+- Result: Elegant, formal coordination
+
+**Weekend Casual**
+- Watch: G-Shock (black, rubber strap)
+- Outfit: Olive chinos + grey t-shirt + white sneakers
+- Weather: 22°C, sunny
+- Result: Relaxed, functional style
+
+---
+
+## 🔧 Technical Details
+
+**Built With:**
+- React 18 (no build required)
+- Claude AI (Anthropic)
+- Open-Meteo Weather API
+- Progressive Web App technology
+
+**Works On:**
+- ✅ Chrome, Safari, Firefox, Edge
+- ✅ iPhone, Android, Desktop
+- ✅ Offline mode (after first load)
+
+---
+
+## 📱 Features Overview
+
+| Feature | Description |
+|---------|-------------|
+| **Watch Database** | Unlimited watches with full specs |
+| **Photo Import** | AI identifies clothes from photos |
+| **Color Matching** | 40+ colors, smart pairing |
+| **Weather Forecast** | 7-day planning integration |
+| **AI Outfit Advice** | Claude-powered descriptions |
+| **Wear Tracking** | 28-day calendar history |
+| **Offline Mode** | Works without internet |
+| **No Account** | Privacy-first, local storage |
+
+---
+
+**Start coordinating your watches with your wardrobe today! ⌚✨**
+
+[**→ Open Watch Advisor**](https://eiasash.github.io/Watch-advisor/)
