@@ -42,10 +42,13 @@ input,select,textarea{font-size:16px!important}
 .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;touch-action:manipulation}
 .swatch:active{transform:scale(0.9)}
 .swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
-.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none;transition:all .15s}
 .btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
+.btn-gold:hover:not(:disabled){background:linear-gradient(135deg,#d4b85c,#b8982a)}
 .btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
+.btn-ghost:hover:not(:disabled){background:rgba(201,168,76,0.05);border-color:rgba(201,168,76,0.3)}
 .outfit-slot{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:10px;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .2s}
 .outfit-slot.filled{border-style:solid;border-color:var(--border)}
 .outfit-slot.active{border-color:var(--gold);background:#0a0918}
@@ -507,6 +510,21 @@ function compressImage(dataUrl,maxDim,quality){
 var _lastAiError="";
 function getLastAiError(){return _lastAiError}
 
+/* ══════ RETRY WRAPPER FOR API CALLS ══════ */
+async function retryAsync(fn,retries,delay){
+  for(var i=0;i<=retries;i++){
+    try{
+      var result=await fn();
+      if(result!==null)return result;
+      if(i<retries)await new Promise(function(r){setTimeout(r,delay)});
+    }catch(e){
+      if(i===retries)throw e;
+      await new Promise(function(r){setTimeout(r,delay)});
+    }
+  }
+  return null;
+}
+
 async function aiID(b64,mime,apiKey){
   _lastAiError="";
   try{
@@ -770,6 +788,7 @@ function App(){
   const[rotLock,setRotLock]=useState([null,null,null,null,null,null,null]);
   const[editDayIdx,setEditDayIdx]=useState(null);
   const[editDayMode,setEditDayMode]=useState(null);
+  const[undoStack,setUndoStack]=useState([]);
   const[expandDay,setExpandDay]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
@@ -838,12 +857,20 @@ function App(){
 
   const updateW=useCallback(async function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n).then(function(ok){if(ok)showToast("✓ Watch saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
-  const removeW=useCallback(function(id){if(!confirm("Delete this watch? This cannot be undone."))return;setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n).then(function(){showToast("✓ Watch deleted","success")});return n})},[ps,showToast]);
+  const removeW=useCallback(function(id){if(!confirm("Delete this watch?"))return;var deleted=W.find(function(w){return w.id===id});setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n});setUndoStack(function(s){return[{type:"watch",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success")},[ps,showToast,W]);
 
   const saveWd=useCallback(function(n){setWd(n);ps("wd_"+SK,n)},[ps]);
-  const rmG=useCallback(function(id){if(!confirm("Delete this garment? This cannot be undone."))return;setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n).then(function(){showToast("✓ Garment deleted","success")});return n})},[ps,showToast]);
+  const rmG=useCallback(function(id){if(!confirm("Delete this garment?"))return;var deleted=wd.find(function(i){return i.id===id});setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n});setUndoStack(function(s){return[{type:"garment",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success")},[ps,showToast,wd]);
   const updG=useCallback(async function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n).then(function(ok){if(ok)showToast("✓ Garment saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const addGarment=useCallback(function(item){setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
+
+  const undoDelete=useCallback(function(){
+    if(!undoStack.length)return;
+    var last=undoStack[0];
+    if(last.type==="watch"){setW(function(p){var n=p.concat([last.item]);ps("w_"+SK,n);return n});showToast("✓ Watch restored","success")}
+    else if(last.type==="garment"){setWd(function(p){var n=p.concat([last.item]);ps("wd_"+SK,n);return n});showToast("✓ Garment restored","success")}
+    setUndoStack(function(s){return s.slice(1)});
+  },[undoStack,ps,showToast]);
 
   const logWear=useCallback(function(watchId,dateStr){
     setWearLog(function(p){
@@ -1143,7 +1170,7 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){if(!confirm("Import will replace all current data. Export a backup first?"))return;var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}showToast("✓ Data imported successfully","success")}catch(e){showToast("✗ Import failed: Invalid file","error")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
 
     /* TOAST NOTIFICATION */
-    toast&&React.createElement("div",{style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:toast.type==="success"?"rgba(122,184,122,0.95)":toast.type==="error"?"rgba(200,90,58,0.95)":"rgba(201,168,76,0.95)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:13,fontFamily:"var(--f)",fontWeight:600,boxShadow:"0 4px 12px rgba(0,0,0,0.3)",animation:"slideDown .3s ease",maxWidth:"90vw",textAlign:"center"}},toast.msg),
+    toast&&React.createElement("div",{onClick:function(){if(toast.msg.includes("undo")&&undoStack.length>0){undoDelete()}else{setToast(null)}},style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:toast.type==="success"?"rgba(122,184,122,0.95)":toast.type==="error"?"rgba(200,90,58,0.95)":"rgba(201,168,76,0.95)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:13,fontFamily:"var(--f)",fontWeight:600,boxShadow:"0 4px 12px rgba(0,0,0,0.3)",animation:"slideDown .3s ease",maxWidth:"90vw",textAlign:"center",cursor:toast.msg.includes("undo")?"pointer":"default"}},toast.msg,toast.msg.includes("undo")&&React.createElement("span",{style:{marginLeft:8,textDecoration:"underline"}},"UNDO")),
 
     /* HEADER */
     React.createElement("div",{style:{background:"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
@@ -1206,7 +1233,7 @@ function App(){
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
             [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id)}},f.l)}),
-            React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
+            React.createElement("button",{onClick:function(){if(confirm("Clear all garments? This cannot be undone.")){saveWd([]);setWFilt("all");showToast("✓ All garments cleared","success")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
           /* Material quick-filter */
           (function(){var mc={};wd.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,6);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(m[0])}},m[0]+" ×"+m[1])})):null})(),
 
