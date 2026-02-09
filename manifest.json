@@ -1,14 +1,12 @@
 {
   "name": "Watch Advisor",
-  "short_name": "WatchAdv",
-  "description": "AI-powered watch & outfit coordinator",
-  "id": "/",
-  "scope": "/",
+  "short_name": "WatchAdvisor",
+  "description": "AI-Powered Watch & Outfit Coordinator — 17 advanced features for the strategic watch collector",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#07060a",
-  "theme_color": "#c9a84c",
+  "background_color": "#12101a",
+  "theme_color": "#1a1814",
   "icons": [
     {
       "src": "icon-192.png",
