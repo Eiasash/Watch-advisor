@@ -62,26 +62,8 @@ input,select,textarea{font-size:16px!important}
 </head>
 <body>
 <div id="root"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js">
-// PWA Service Worker Registration
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').then(function(r){
-      console.log('SW registered:',r.scope);
-    }).catch(function(e){console.log('SW failed:',e)});
-  });
-}
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js">
-// PWA Service Worker Registration
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').then(function(r){
-      console.log('SW registered:',r.scope);
-    }).catch(function(e){console.log('SW failed:',e)});
-  });
-}
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
 const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
 
