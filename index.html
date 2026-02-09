@@ -25,6 +25,7 @@ input,select,textarea{font-size:16px!important}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideDown{from{opacity:0;transform:translate(-50%,-20px)}to{opacity:1;transform:translate(-50%,0)}}
 .fu{animation:fadeUp .3s ease both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#2a2530;border-radius:4px}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.hscroll::-webkit-scrollbar{display:none}
@@ -41,10 +42,13 @@ input,select,textarea{font-size:16px!important}
 .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;touch-action:manipulation}
 .swatch:active{transform:scale(0.9)}
 .swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
-.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none;transition:all .15s}
 .btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
+.btn-gold:hover:not(:disabled){background:linear-gradient(135deg,#d4b85c,#b8982a)}
 .btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
+.btn-ghost:hover:not(:disabled){background:rgba(201,168,76,0.05);border-color:rgba(201,168,76,0.3)}
 .outfit-slot{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:10px;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .2s}
 .outfit-slot.filled{border-style:solid;border-color:var(--border)}
 .outfit-slot.active{border-color:var(--gold);background:#0a0918}
@@ -506,6 +510,22 @@ function compressImage(dataUrl,maxDim,quality){
 var _lastAiError="";
 function getLastAiError(){return _lastAiError}
 
+/* ══════ RETRY WRAPPER FOR API CALLS ══════ */
+/* Reserved for future use - can be applied to aiID and aiVision calls for automatic retry on failure */
+async function retryAsync(fn,retries,delay){
+  for(var i=0;i<=retries;i++){
+    try{
+      var result=await fn();
+      if(result!==null)return result;
+      if(i<retries)await new Promise(function(r){setTimeout(r,delay)});
+    }catch(e){
+      if(i===retries)throw e;
+      await new Promise(function(r){setTimeout(r,delay)});
+    }
+  }
+  return null;
+}
+
 async function aiID(b64,mime,apiKey){
   _lastAiError="";
   try{
@@ -769,16 +789,26 @@ function App(){
   const[rotLock,setRotLock]=useState([null,null,null,null,null,null,null]);
   const[editDayIdx,setEditDayIdx]=useState(null);
   const[editDayMode,setEditDayMode]=useState(null);
+  const[undoStack,setUndoStack]=useState([]);
   const[expandDay,setExpandDay]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
+  const[toast,setToast]=useState(null);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
+  const toastTimer=useRef(null);
+
+  /* Toast notifications */
+  const showToast=useCallback(function(msg,type){
+    if(toastTimer.current)clearTimeout(toastTimer.current);
+    setToast({msg:msg,type:type||"info"});
+    toastTimer.current=setTimeout(function(){setToast(null)},3000);
+  },[]);
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){}}},[]);
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}return true}catch(e){try{localStorage.setItem(k,j);return true}catch(e2){console.error("Save failed:",e2);return false}}},[]);
   const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){(async function(){
@@ -802,8 +832,8 @@ function App(){
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
   })()},[]);
 
-  useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(){},{timeout:5000})}catch(e){}},[]);
-  useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7");var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){}})()},[loc]);
+  useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(err){console.log("Location error:",err)},{timeout:5000})}catch(e){console.log("Geolocation not available:",e)}},[]);
+  useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7",{signal:AbortSignal.timeout(10000)});if(!r.ok){console.error("Weather API error:",r.status);return}var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch error:",e)}})()},[loc]);
 
   const tier=useMemo(function(){if(planDay===0&&weather)return getWT(weather.feels);if(planDay>0&&forecast[planDay])return getWT(forecast[planDay].feelsAvg);return weather?getWT(weather.feels):null},[weather,forecast,planDay]);
   const ww=tier?tier.weight:"mid";
@@ -826,14 +856,22 @@ function App(){
   const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
-  const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
+  const updateW=useCallback(async function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n).then(function(ok){if(ok)showToast("✓ Watch saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
-  const removeW=useCallback(function(id){setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
+  const removeW=useCallback(function(id){if(!confirm("Delete this watch?"))return false;var deleted=W.find(function(w){return w.id===id});setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n});setUndoStack(function(s){return[{type:"watch",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success");return true},[ps,showToast,W]);
 
   const saveWd=useCallback(function(n){setWd(n);ps("wd_"+SK,n)},[ps]);
-  const rmG=useCallback(function(id){setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n})},[ps]);
-  const updG=useCallback(function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
+  const rmG=useCallback(function(id){if(!confirm("Delete this garment?"))return false;var deleted=wd.find(function(i){return i.id===id});setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n});setUndoStack(function(s){return[{type:"garment",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success");return true},[ps,showToast,wd]);
+  const updG=useCallback(async function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n).then(function(ok){if(ok)showToast("✓ Garment saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const addGarment=useCallback(function(item){setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
+
+  const undoDelete=useCallback(function(){
+    if(!undoStack.length)return;
+    var last=undoStack[0];
+    if(last.type==="watch"){setW(function(p){var n=p.concat([last.item]);ps("w_"+SK,n);return n});showToast("✓ Watch restored","success")}
+    else if(last.type==="garment"){setWd(function(p){var n=p.concat([last.item]);ps("wd_"+SK,n);return n});showToast("✓ Garment restored","success")}
+    setUndoStack(function(s){return s.slice(1)});
+  },[undoStack,ps,showToast]);
 
   const logWear=useCallback(function(watchId,dateStr){
     setWearLog(function(p){
@@ -860,6 +898,7 @@ function App(){
   const processFiles=useCallback(async function(files){
     var arr=Array.from(files);var pids=arr.map(function(_,i){return Date.now()+i});
     setProc(function(p){return p.concat(pids)});
+    showToast("📸 Processing "+arr.length+" photo"+(arr.length>1?"s":"")+"...","info");
     for(var i=0;i<arr.length;i++){
       var f=arr[i],pid=pids[i];
       try{
@@ -872,25 +911,28 @@ function App(){
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
-          if(aiResult.length>1)setAiErr("📸 Found "+aiResult.length+" items in photo");
+          if(aiResult.length>1){showToast("✓ Found "+aiResult.length+" items","success")}
+          else showToast("✓ Item added","success");
         }else{
           var item={garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb,id:pid,needsEdit:true,ts:Date.now(),aiError:getLastAiError()};
           setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n});
           setAiErr(getLastAiError());
+          showToast("⚠ Needs manual classification","error");
         }
       }catch(e){
         try{var thumb2=await compressImage(await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(f)}),400,0.5);
         setWd(function(p){var n=p.concat([{garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb2,id:pid,needsEdit:true,ts:Date.now(),aiError:"FileReader: "+String(e)}]);ps("wd_"+SK,n);return n})}catch(e2){}
         setAiErr("File error: "+String(e));
+        showToast("✗ Upload failed","error");
       }
       setProc(function(p){return p.filter(function(x){return x!==pid})});
       // Delay between items to avoid rate limit
       if(i<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
     }
-  },[ps]);
+  },[ps,showToast]);
 
-  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
-  const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
+  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n).then(function(){showToast("✓ Outfit saved","success")});return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx,showToast]);
+  const delSaved=useCallback(function(id){if(!confirm("Delete this saved outfit?"))return;setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n).then(function(){showToast("✓ Outfit deleted","success")});return n})},[ps,showToast]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
@@ -945,7 +987,7 @@ function App(){
           f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setEditG(null);setView("fits");setMode("auto")},title:"Lock for fits"},"🔒"),
           item.photoUrl&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:retry,disabled:retrying},retrying?"⏳":"🔄"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var dup=Object.assign({},f,{id:Date.now(),ts:Date.now(),name:(f.name||"")+" copy"});addGarment(dup);setEditG(null)},title:"Duplicate"},"📋"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){rmG(item.id);setEditG(null)}},"🗑️")));
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(rmG(item.id))setEditG(null)}},"🗑️")));
     };
     return React.createElement(GE,{key:item.id});
   }
@@ -1010,7 +1052,7 @@ function App(){
         React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}},EMOJIS.map(function(e){return React.createElement("span",{key:e,onClick:function(){set("i",e)},style:{fontSize:22,cursor:"pointer",opacity:f.i===e?1:0.25,padding:3,minWidth:30,textAlign:"center"}},e)})),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setEditW(null)}},"Save"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(confirm("Delete watch?")){removeW(w.id);setEditW(null)}}},"🗑️")));
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(removeW(w.id))setEditW(null)}},"🗑️")));
     };
     return React.createElement(WE,{key:w.id});
   }
@@ -1106,8 +1148,8 @@ function App(){
       React.createElement("label",{className:"lbl"},"Anthropic API Key"),
       React.createElement("input",{className:"inp",type:"password",value:apiKey,onChange:function(e){setApiKey(e.target.value);apiKeyRef.current=e.target.value},placeholder:"sk-ant-...",style:{marginBottom:12,fontFamily:"monospace"}}),
       React.createElement("div",{style:{display:"flex",gap:8,marginBottom:16}},
-        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey);apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
-        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","")}},"Clear")),
+        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey).then(function(){showToast("✓ API key saved","success")});apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
+        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","").then(function(){showToast("✓ API key cleared","success")})}},"Clear")),
       React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"ℹ️ Get your key at console.anthropic.com → API Keys"),
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"Cost: ~$0.01 per photo (Sonnet vision)"),
@@ -1125,8 +1167,11 @@ function App(){
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click();showToast("✓ Data exported","success")}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){if(!confirm("Import will replace all current data. Export a backup first?"))return;var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);var valid=true;if(!d||typeof d!=="object"){valid=false}if(d.watches&&!Array.isArray(d.watches)){valid=false}if(d.wardrobe&&!Array.isArray(d.wardrobe)){valid=false}if(d.outfits&&!Array.isArray(d.outfits)){valid=false}if(!valid){showToast("✗ Invalid backup file format","error");return}if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}var imported=[];if(d.watches)imported.push(d.watches.length+" watches");if(d.wardrobe)imported.push(d.wardrobe.length+" garments");if(d.outfits)imported.push(d.outfits.length+" outfits");showToast("✓ Imported: "+imported.join(", "),"success")}catch(e){showToast("✗ Import failed: "+String(e.message||"Invalid JSON"),"error")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+
+    /* TOAST NOTIFICATION */
+    toast&&React.createElement("div",{onClick:function(){if(toast.msg.includes("undo")&&undoStack.length>0){undoDelete()}else{setToast(null)}},style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:toast.type==="success"?"rgba(122,184,122,0.95)":toast.type==="error"?"rgba(200,90,58,0.95)":"rgba(201,168,76,0.95)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:13,fontFamily:"var(--f)",fontWeight:600,boxShadow:"0 4px 12px rgba(0,0,0,0.3)",animation:"slideDown .3s ease",maxWidth:"90vw",textAlign:"center",cursor:toast.msg.includes("undo")?"pointer":"default"}},toast.msg,toast.msg.includes("undo")&&React.createElement("span",{style:{marginLeft:8,textDecoration:"underline"}},"UNDO")),
 
     /* HEADER */
     React.createElement("div",{style:{background:"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
@@ -1189,7 +1234,7 @@ function App(){
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
             [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id)}},f.l)}),
-            React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
+            React.createElement("button",{onClick:function(){if(confirm("Clear all garments? This cannot be undone.")){saveWd([]);setWFilt("all");showToast("✓ All garments cleared","success")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
           /* Material quick-filter */
           (function(){var mc={};wd.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,6);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(m[0])}},m[0]+" ×"+m[1])})):null})(),
 
