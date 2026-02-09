@@ -25,6 +25,7 @@ input,select,textarea{font-size:16px!important}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideDown{from{opacity:0;transform:translate(-50%,-20px)}to{opacity:1;transform:translate(-50%,0)}}
 .fu{animation:fadeUp .3s ease both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#2a2530;border-radius:4px}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.hscroll::-webkit-scrollbar{display:none}
@@ -773,12 +774,21 @@ function App(){
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
+  const[toast,setToast]=useState(null);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
+  const toastTimer=useRef(null);
+
+  /* Toast notifications */
+  const showToast=useCallback(function(msg,type){
+    if(toastTimer.current)clearTimeout(toastTimer.current);
+    setToast({msg:msg,type:type||"info"});
+    toastTimer.current=setTimeout(function(){setToast(null)},3000);
+  },[]);
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){}}},[]);
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}return true}catch(e){try{localStorage.setItem(k,j);return true}catch(e2){console.error("Save failed:",e2);return false}}},[]);
   const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){(async function(){
@@ -826,13 +836,13 @@ function App(){
   const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
-  const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
+  const updateW=useCallback(async function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n).then(function(ok){if(ok)showToast("✓ Watch saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
-  const removeW=useCallback(function(id){setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
+  const removeW=useCallback(function(id){if(!confirm("Delete this watch? This cannot be undone."))return;setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n).then(function(){showToast("✓ Watch deleted","success")});return n})},[ps,showToast]);
 
   const saveWd=useCallback(function(n){setWd(n);ps("wd_"+SK,n)},[ps]);
-  const rmG=useCallback(function(id){setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n})},[ps]);
-  const updG=useCallback(function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
+  const rmG=useCallback(function(id){if(!confirm("Delete this garment? This cannot be undone."))return;setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n).then(function(){showToast("✓ Garment deleted","success")});return n})},[ps,showToast]);
+  const updG=useCallback(async function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n).then(function(ok){if(ok)showToast("✓ Garment saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
   const addGarment=useCallback(function(item){setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
 
   const logWear=useCallback(function(watchId,dateStr){
@@ -860,6 +870,7 @@ function App(){
   const processFiles=useCallback(async function(files){
     var arr=Array.from(files);var pids=arr.map(function(_,i){return Date.now()+i});
     setProc(function(p){return p.concat(pids)});
+    showToast("📸 Processing "+arr.length+" photo"+(arr.length>1?"s":"")+"...","info");
     for(var i=0;i<arr.length;i++){
       var f=arr[i],pid=pids[i];
       try{
@@ -872,25 +883,28 @@ function App(){
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
-          if(aiResult.length>1)setAiErr("📸 Found "+aiResult.length+" items in photo");
+          if(aiResult.length>1){setAiErr("📸 Found "+aiResult.length+" items in photo");showToast("✓ Found "+aiResult.length+" items","success")}
+          else showToast("✓ Item added","success");
         }else{
           var item={garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb,id:pid,needsEdit:true,ts:Date.now(),aiError:getLastAiError()};
           setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n});
           setAiErr(getLastAiError());
+          showToast("⚠ Needs manual classification","error");
         }
       }catch(e){
         try{var thumb2=await compressImage(await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(f)}),400,0.5);
         setWd(function(p){var n=p.concat([{garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb2,id:pid,needsEdit:true,ts:Date.now(),aiError:"FileReader: "+String(e)}]);ps("wd_"+SK,n);return n})}catch(e2){}
         setAiErr("File error: "+String(e));
+        showToast("✗ Upload failed","error");
       }
       setProc(function(p){return p.filter(function(x){return x!==pid})});
       // Delay between items to avoid rate limit
       if(i<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
     }
-  },[ps]);
+  },[ps,showToast]);
 
-  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
-  const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
+  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n).then(function(){showToast("✓ Outfit saved","success")});return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx,showToast]);
+  const delSaved=useCallback(function(id){if(!confirm("Delete this saved outfit?"))return;setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n).then(function(){showToast("✓ Outfit deleted","success")});return n})},[ps,showToast]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
@@ -1010,7 +1024,7 @@ function App(){
         React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}},EMOJIS.map(function(e){return React.createElement("span",{key:e,onClick:function(){set("i",e)},style:{fontSize:22,cursor:"pointer",opacity:f.i===e?1:0.25,padding:3,minWidth:30,textAlign:"center"}},e)})),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setEditW(null)}},"Save"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(confirm("Delete watch?")){removeW(w.id);setEditW(null)}}},"🗑️")));
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){removeW(w.id);setEditW(null)}},"🗑️")));
     };
     return React.createElement(WE,{key:w.id});
   }
@@ -1106,8 +1120,8 @@ function App(){
       React.createElement("label",{className:"lbl"},"Anthropic API Key"),
       React.createElement("input",{className:"inp",type:"password",value:apiKey,onChange:function(e){setApiKey(e.target.value);apiKeyRef.current=e.target.value},placeholder:"sk-ant-...",style:{marginBottom:12,fontFamily:"monospace"}}),
       React.createElement("div",{style:{display:"flex",gap:8,marginBottom:16}},
-        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey);apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
-        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","")}},"Clear")),
+        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey).then(function(){showToast("✓ API key saved","success")});apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
+        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","").then(function(){showToast("✓ API key cleared","success")})}},"Clear")),
       React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"ℹ️ Get your key at console.anthropic.com → API Keys"),
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"Cost: ~$0.01 per photo (Sonnet vision)"),
@@ -1125,8 +1139,11 @@ function App(){
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click();showToast("✓ Data exported","success")}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){if(!confirm("Import will replace all current data. Export a backup first?"))return;var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}showToast("✓ Data imported successfully","success")}catch(e){showToast("✗ Import failed: Invalid file","error")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+
+    /* TOAST NOTIFICATION */
+    toast&&React.createElement("div",{style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:toast.type==="success"?"rgba(122,184,122,0.95)":toast.type==="error"?"rgba(200,90,58,0.95)":"rgba(201,168,76,0.95)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:13,fontFamily:"var(--f)",fontWeight:600,boxShadow:"0 4px 12px rgba(0,0,0,0.3)",animation:"slideDown .3s ease",maxWidth:"90vw",textAlign:"center"}},toast.msg),
 
     /* HEADER */
     React.createElement("div",{style:{background:"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
