@@ -156,7 +156,7 @@ Perfect for watch geeks who want to coordinate their luxury pieces with their ev
 ## 🎨 Example Use Cases
 
 **Monday Morning Meeting**
-- Watch: Steel Rolex Submariner (black dial)
+- Watch: Steel dive watch (black dial, bracelet)
 - Outfit: Navy suit + white shirt + black oxfords
 - Weather: 15°C, cloudy
 - Result: Classic professional look with versatile sports watch
@@ -168,7 +168,7 @@ Perfect for watch geeks who want to coordinate their luxury pieces with their ev
 - Result: Elegant, formal coordination
 
 **Weekend Casual**
-- Watch: G-Shock (black, rubber strap)
+- Watch: Digital sports watch (black, rubber strap)
 - Outfit: Olive chinos + grey t-shirt + white sneakers
 - Weather: 22°C, sunny
 - Result: Relaxed, functional style
