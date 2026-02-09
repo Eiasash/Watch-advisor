@@ -255,8 +255,8 @@ function backupToIDB(data){if(!_idb)return;try{var tx=_idb.transaction("appData"
 function restoreFromIDB(){if(!_idb)return Promise.resolve(null);return new Promise(function(resolve){try{var tx=_idb.transaction("appData","readonly");var req=tx.objectStore("appData").get("backup");req.onsuccess=function(){resolve(req.result||null)};req.onerror=function(){resolve(null)}}catch(e){resolve(null)}})}
 
 /* ═══ DUPLICATE DETECTION ═══ */
-function findDuplicates(wardrobe){var groups=[];var checked=new Set();for(var i=0;i<wardrobe.length;i++){if(checked.has(i))continue;var dupes=[i];for(var j=i+1;j<wardrobe.length;j++){if(checked.has(j))continue;if(isSimilarItem(wardrobe[i],wardrobe[j])){dupes.push(j);checked.add(j)}}if(dupes.length>1){groups.push(dupes);dupes.forEach(function(d){checked.add(d)})}}return groups}
-function isSimilarItem(a,b){if(a.garmentType!==b.garmentType)return false;var na=(a.name||"").toLowerCase(),nb=(b.name||"").toLowerCase();if(na&&nb&&(na===nb||na.includes(nb)||nb.includes(na)))return true;if(a.color&&b.color&&a.color===b.color&&a.garmentType===b.garmentType){var wa=na.split(/\s+/),wb=nb.split(/\s+/);var overlap=wa.filter(function(w){return wb.includes(w)}).length;if(overlap>0)return true}return false}
+function findDuplicates(wardrobe){var groups=[];var checked=new Set();for(var i=0;i<wardrobe.length;i++){if(checked.has(i))continue;var dupes=[i];for(var j=i+1;j<wardrobe.length;j++){if(checked.has(j))continue;if(dupeSimilarity(wardrobe[i],wardrobe[j])>=0.7){dupes.push(j);checked.add(j)}}if(dupes.length>1){groups.push(dupes);dupes.forEach(function(d){checked.add(d)})}}return groups}
+function dupeSimilarity(a,b){if(a.garmentType!==b.garmentType)return 0;var score=0;var na=(a.name||"").toLowerCase().trim(),nb=(b.name||"").toLowerCase().trim();if(!na||!nb)return 0;if(na===nb)return 1;var sameColor=a.color&&b.color&&a.color.toLowerCase()===b.color.toLowerCase();var colorA=(a.color||"").toLowerCase(),colorB=(b.color||"").toLowerCase();/* Strip color words and common filler from names for core comparison */var stopWords=["knit","sweater","shirt","pants","trousers","jeans","jacket","coat","dress","top","bottom","shoe","casual","formal","button","up","the","a","an","in","zip","cable","crew","round","neck","v-neck"];var coreA=na.split(/[\s\-\/]+/).filter(function(w){return!stopWords.includes(w)&&w!==colorA&&w.length>1});var coreB=nb.split(/[\s\-\/]+/).filter(function(w){return!stopWords.includes(w)&&w!==colorB&&w.length>1});/* Name containment check */if(na.includes(nb)||nb.includes(na)){score+=0.5}else{/* Jaccard similarity on significant words */var wordsA=na.split(/[\s\-\/]+/).filter(function(w){return w.length>1});var wordsB=nb.split(/[\s\-\/]+/).filter(function(w){return w.length>1});var union=new Set(wordsA.concat(wordsB));var inter=wordsA.filter(function(w){return wordsB.includes(w)});score+=union.size>0?(inter.length/union.size)*0.4:0}/* Color match is critical — different colors = different items */if(sameColor){score+=0.4}else if(a.color&&b.color){score-=0.3}/* Pattern match bonus */if(a.pattern&&b.pattern&&a.pattern===b.pattern)score+=0.1;/* Photo hash similarity: if both lack photos and match on everything else, boost */if(!a.photoUrl&&!b.photoUrl)score+=0.05;return Math.min(score,1)}
 
 const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜"];
 const STS=[{id:"active",l:"Active",c:"var(--good)"},{id:"incoming",l:"Incoming",c:"#7ab8d8"},{id:"pending-trade",l:"Pending",c:"var(--warn)"},{id:"sold",l:"Sold",c:"var(--dim)"},{id:"service",l:"Service",c:"#b87ab8"}];
@@ -913,6 +913,8 @@ function App(){
   const[favorites,setFavorites]=useState([]);
   const[locVibe,setLocVibe]=useState(null);
   const[showDupes,setShowDupes]=useState(false);
+  const[photoModal,setPhotoModal]=useState(null);/* {src,name} */
+  const[dupeConfirm,setDupeConfirm]=useState(null);/* {item,idx} */
   const[showBatch,setShowBatch]=useState(false);
   const[batchResults,setBatchResults]=useState([]);
   const[batchProcessing,setBatchProcessing]=useState(false);
@@ -980,7 +982,7 @@ function App(){
   useEffect(function(){
     function handleKey(e){
       if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")return;
-      if(e.key==="Escape"){setEditG(null);setEditW(null);setAddG(false);setShowSettings(false);setSelFit(null);setShowProfile(false);setShowDupes(false);setShowBatch(false);return}
+      if(e.key==="Escape"){setEditG(null);setEditW(null);setAddG(false);setShowSettings(false);setSelFit(null);setShowProfile(false);setShowDupes(false);setShowBatch(false);setPhotoModal(null);return}
       if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();ps("w_"+SK,W);ps("wd_"+SK,wd);ps("of_"+SK,saved);showToast("✓ All data saved","success");return}
       var cxKeys={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7};
       if(cxKeys[e.key]!==undefined){var cxArr=userCx||(IS_SHARED?SHARE_DEFAULT_CX:DEFAULT_CX);var ci=cxKeys[e.key];if(ci<cxArr.length){setCtx(cxArr[ci].id);setView("fits");setSelFit(null)}}
@@ -1158,7 +1160,7 @@ function App(){
       };
       return React.createElement(Modal,{onClose:function(){setEditG(null)}},
         React.createElement("div",{style:{display:"flex",gap:14,marginBottom:16}},
-          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0}}),
+          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",onClick:function(e){e.stopPropagation();setPhotoModal({src:f.photoUrl,name:f.name||f.color||"Item"})},style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0,cursor:"pointer"}}),
           React.createElement("div",{style:{flex:1}},
             React.createElement("label",{className:"lbl"},"Name"),
             React.createElement("input",{className:"inp",value:f.name||"",onChange:function(e){set("name",e.target.value)},placeholder:"e.g. Navy plaid flannel"}))),
@@ -1423,15 +1425,22 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"10px 14px",fontSize:10,minHeight:36},onClick:function(){var dupes=findDuplicates(wd);if(dupes.length){setShowDupes(true);showToast("⚠️ Found "+dupes.length+" duplicate group(s)","error")}else{showToast("✓ No duplicates found","success")}}},"🔍 Find Dupes")),
 
         showDupes&&(function(){var dupes=findDuplicates(wd);return dupes.length?React.createElement("div",{style:{marginBottom:12}},
-          React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:6}},"⚠️ Possible Duplicates"),
+          React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:6}},"⚠️ Possible Duplicates ("+dupes.length+" group"+(dupes.length!==1?"s":"")+")"),
           dupes.map(function(group,gi){return React.createElement("div",{key:gi,className:"dup-group"},
-            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
               React.createElement("span",{className:"dup-badge"},group.length+" similar"),
               React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600}},wd[group[0]]?wd[group[0]].garmentType:"")),
-            group.map(function(idx){return wd[idx]?React.createElement("div",{key:idx,style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 0",fontSize:12,fontFamily:"var(--f)"}},
-              React.createElement("span",null,(wd[idx].name||"Unnamed")+" · "+(wd[idx].color||"?")),
-              React.createElement("button",{style:{background:"none",border:"none",color:"var(--warn)",cursor:"pointer",fontSize:12},onClick:function(){rmG(wd[idx].id)}},"✕")):null}))}),
-          React.createElement("button",{className:"btn btn-ghost",style:{marginTop:6,fontSize:10,minHeight:36},onClick:function(){setShowDupes(false)}},"Close")):null})(),
+            group.map(function(idx){var item=wd[idx];if(!item)return null;return React.createElement("div",{key:idx,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid var(--border)"}},
+              React.createElement("div",{onClick:function(){if(item.photoUrl)setPhotoModal({src:item.photoUrl,name:item.name||item.color})},style:{width:48,height:48,borderRadius:8,overflow:"hidden",flexShrink:0,cursor:item.photoUrl?"pointer":"default",background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--border)"}},
+                item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement(Dot,{color:item.color,size:16})),
+              React.createElement("div",{style:{flex:1,minWidth:0}},
+                React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},(item.name||"Unnamed")),
+                React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",display:"flex",gap:6,alignItems:"center"}},React.createElement(Dot,{color:item.color,size:6}),item.color||"?",item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")),
+              dupeConfirm&&dupeConfirm.id===item.id?React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}},
+                React.createElement("button",{style:{background:"rgba(200,60,60,0.15)",border:"1px solid rgba(200,60,60,0.4)",borderRadius:6,padding:"6px 10px",cursor:"pointer",color:"#e86050",fontFamily:"var(--f)",fontSize:10,minHeight:32},onClick:function(){rmG(item.id);setDupeConfirm(null)}},"Delete"),
+                React.createElement("button",{style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"6px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,minHeight:32},onClick:function(){setDupeConfirm(null)}},"Cancel"))
+              :React.createElement("button",{style:{background:"none",border:"1px solid rgba(200,60,60,0.3)",borderRadius:6,padding:"6px 10px",cursor:"pointer",color:"#a06050",fontFamily:"var(--f)",fontSize:10,flexShrink:0,minHeight:32},onClick:function(){setDupeConfirm({id:item.id})}},"✕ Remove"))}))}),
+          React.createElement("button",{className:"btn btn-ghost",style:{marginTop:6,fontSize:10,minHeight:36},onClick:function(){setShowDupes(false);setDupeConfirm(null)}},"Close")):null})(),
         weather&&React.createElement("div",{style:{background:"linear-gradient(135deg,#0d1018,#0a0914)",border:"1px solid "+(planWx&&planWx.rain?"rgba(100,150,220,0.4)":"var(--border)"),borderRadius:12,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}},
           React.createElement("span",{style:{fontSize:22}},planWx&&planWx.cond?planWx.cond.i:tier?tier.icon:""),
           React.createElement("div",null,React.createElement("div",{style:{fontSize:18,fontWeight:600,fontFamily:"var(--f)"}},planTemp?planTemp.temp+"°C":weather.temp+"°C"),React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},"Feels "+(planTemp?planTemp.feels:weather.feels)+"°C · "+loc.name+(planDay>0&&forecast[planDay]?" · "+forecast[planDay].date:""))),
@@ -1853,13 +1862,13 @@ function App(){
           var swaps=getSwaps(wd,selFit,o.slot);
           return React.createElement("div",{key:o.slot,style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px",marginBottom:8}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:64,height:64,objectFit:"cover",borderRadius:10}}),
+              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(){setPhotoModal({src:o.item.photoUrl,name:o.item.name||o.item.color})},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"pointer",border:"2px solid transparent",transition:"border 0.2s"}}),
               React.createElement("div",{style:{flex:1}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
               React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
               React.createElement("div",{style:{display:"flex",gap:6,marginTop:4},className:"hscroll"},
-                swaps.map(function(s){return React.createElement("div",{key:s.id,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0}},
+                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);nf.fs=Math.round(fitScore(nf)*10)/10;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
@@ -2332,7 +2341,13 @@ function App(){
           React.createElement("div",{style:{marginBottom:20}},
             React.createElement("label",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em",display:"block",marginBottom:4}},"BIO"),
             React.createElement("textarea",{value:profileBio,onChange:function(e){setProfileBio(e.target.value)},placeholder:"Watch enthusiast...",rows:3,style:{width:"100%",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",color:"var(--text)",fontFamily:"var(--f)",fontSize:12,resize:"vertical",boxSizing:"border-box"}})),
-          React.createElement("button",{className:"btn btn-gold",style:{width:"100%"},onClick:function(){saveProfile()}},"💾 Save Profile")))
+          React.createElement("button",{className:"btn btn-gold",style:{width:"100%"},onClick:function(){saveProfile()}},"💾 Save Profile"))),
+
+      /* ═══ PHOTO LIGHTBOX ═══ */
+      photoModal&&React.createElement("div",{onClick:function(){setPhotoModal(null)},style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.92)",zIndex:10000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,cursor:"pointer"}},
+        React.createElement("div",{style:{position:"absolute",top:16,right:16,color:"#fff8",fontSize:28,cursor:"pointer",zIndex:10001,minHeight:44,minWidth:44,display:"flex",alignItems:"center",justifyContent:"center"}},"✕"),
+        photoModal.name&&React.createElement("div",{style:{color:"#fff",fontSize:13,fontFamily:"var(--f)",marginBottom:12,textAlign:"center",fontWeight:500}},photoModal.name),
+        React.createElement("img",{src:photoModal.src,alt:"",style:{maxWidth:"90vw",maxHeight:"75vh",objectFit:"contain",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}))
 
   );
 }
