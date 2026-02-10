@@ -1,7 +1,7 @@
-# ⌚ Watch Advisor v14
+# ⌚ Watch Advisor v14.1
 
 AI-Powered Watch & Outfit Coordinator for the strategic watch collector.
-
+https://eiasash.github.io/Watch-advisor/
 ## What's New in v14
 
 - **Alpine Eagle 8HF** — Chopard's GPHG Sports Watch Prize winner added as incoming genuine piece (replaces GMT-II pending trade)
