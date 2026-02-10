@@ -30,7 +30,7 @@
 | 👤 | **Profile System** | Name, bio, avatar with first-initial display |
 | 💾 | **IndexedDB Backup** | Automatic backup/restore if localStorage corrupts |
 
-**File size:** 2,351 lines (up from 2,011)
+**File size:** 2,402 lines (up from 2,011)
 
 ---
 
