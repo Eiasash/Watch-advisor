@@ -159,14 +159,36 @@ const CATS={tops:["Shirt","Polo","T-Shirt","Sweater/Knit","Jacket/Blazer"],botto
 const ALL_T=[...CATS.tops,...CATS.bottoms,...CATS.shoes];
 const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":"other";
 const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜"];
+const STRAP_TYPES=[
+{id:"bracelet",l:"Bracelet",icon:"⛓️",mats:["steel","titanium","gold","rose gold","ceramic"]},
+{id:"leather",l:"Leather",icon:"🔗",mats:["calf leather","alligator","cordovan","suede","shell cordovan","nubuck"]},
+{id:"rubber",l:"Rubber",icon:"⬛",mats:["rubber","FKM rubber","silicone"]},
+{id:"nato",l:"NATO",icon:"🎗️",mats:["nylon"]},
+{id:"mesh",l:"Mesh",icon:"🔘",mats:["steel","titanium"]},
+{id:"canvas",l:"Canvas",icon:"📐",mats:["canvas","sailcloth"]},
+{id:"perlon",l:"Perlon",icon:"🧵",mats:["perlon"]}];
+const STRAP_COLORS=["black","brown","tan","navy","grey","green","teal","burgundy","blue","white","olive","orange","red","beige"];
+const STRAP_CTX={
+"formal":{bracelet:1,leather:3,rubber:-2,nato:-2,mesh:1,canvas:-2,perlon:-1},
+"clinic":{bracelet:2,leather:2,rubber:1,nato:0,mesh:1,canvas:0,perlon:0},
+"smart-casual":{bracelet:2,leather:2,rubber:0,nato:0,mesh:1,canvas:0,perlon:0},
+"date":{bracelet:1,leather:3,rubber:-1,nato:-1,mesh:1,canvas:-1,perlon:0},
+"casual":{bracelet:1,leather:1,rubber:1,nato:1,mesh:1,canvas:1,perlon:1},
+"weekend":{bracelet:1,leather:0,rubber:1,nato:2,mesh:0,canvas:1,perlon:1},
+"riviera":{bracelet:2,leather:-1,rubber:3,nato:2,mesh:1,canvas:1,perlon:1},
+"travel":{bracelet:1,leather:0,rubber:2,nato:2,mesh:0,canvas:1,perlon:1},
+"event":{bracelet:1,leather:3,rubber:-2,nato:-2,mesh:1,canvas:-2,perlon:0},
+"flex":{bracelet:2,leather:1,rubber:0,nato:0,mesh:1,canvas:0,perlon:0},
+"office":{bracelet:1,leather:2,rubber:-1,nato:-1,mesh:1,canvas:-1,perlon:0}
+};
 const STS=[{id:"active",l:"Active",c:"var(--good)"},{id:"incoming",l:"Incoming",c:"#7ab8d8"},{id:"pending-trade",l:"Pending",c:"var(--warn)"},{id:"sold",l:"Sold",c:"var(--dim)"},{id:"service",l:"Service",c:"#b87ab8"}];
 const WT_TIERS=[
 {max:5,label:"Freezing",icon:"🥶",weight:"heavy",advice:"Heavy layers. Leather straps stay warm."},
 {max:12,label:"Cold",icon:"🧥",weight:"heavy",advice:"Layer up: jacket + sweater."},
 {max:18,label:"Cool",icon:"🧣",weight:"mid",advice:"Light jacket or sweater."},
 {max:24,label:"Mild",icon:"👔",weight:"mid",advice:"Shirt sleeves or light knit."},
-{max:30,label:"Warm",icon:"☀️",weight:"light",advice:"Light fabrics. Bracelets > leather."},
-{max:50,label:"Hot",icon:"🔥",weight:"light",advice:"Steel bracelets only."},
+{max:30,label:"Warm",icon:"☀️",weight:"light",advice:"Light fabrics. Bracelets/rubber > leather."},
+{max:50,label:"Hot",icon:"🔥",weight:"light",advice:"Steel bracelets or rubber only."},
 ];
 const getWT=t=>WT_TIERS.find(x=>t<=x.max)||WT_TIERS[5];
 /* WMO Weather Code decoder */
@@ -253,7 +275,20 @@ const _OWNER_DEFAULTS=[
 {id:"op-yellow",n:"Rolex OP Yellow",t:"replica",d:"Yellow",c:"#d4b82a",br:true,sc:[],mt:"cool",i:"🌻",mc:["navy","white","cream","light blue","olive","tan","denim"],ac:["formal"],cx:["casual","weekend","riviera"],sg:"Navy anchor.",wt:["light","mid"],active:true,status:"active"},
 {id:"breguet",n:"Breguet Tradition",t:"replica",d:"Black",c:"#0a0a0a",br:false,sc:["black"],mt:"cool",i:"⚫",mc:["black","charcoal","white"],ac:["color","casual"],cx:["formal","date"],sg:"Black shoes only.",wt:["mid","heavy"],active:true,status:"active"},
 ];
-const DEFAULTS=IS_SHARED?[]:_OWNER_DEFAULTS;
+function migrateStraps(w){
+  if(w.straps&&w.straps.length){
+    var o=Object.assign({},w);
+    o.br=o.straps.some(function(s){return s.type==="bracelet"});
+    o.sc=o.straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color});
+    return o;
+  }
+  var straps=[];
+  if(w.br)straps.push({type:"bracelet",color:"silver",material:"steel"});
+  if(w.sc&&w.sc.length)w.sc.forEach(function(c){straps.push({type:"leather",color:c,material:"calf leather"})});
+  if(!straps.length)straps.push({type:"bracelet",color:"silver",material:"steel"});
+  return Object.assign({},w,{straps:straps});
+}
+const DEFAULTS=IS_SHARED?[]:_OWNER_DEFAULTS.map(migrateStraps);
 
 /* ══════ SCORING (null-safe) ══════ */
 const CP={
@@ -338,6 +373,13 @@ function scoreW(w,items,ctx,reps){
     if(sB&&hB){s+=3;bd.strap=3}if(sB&&!hB&&!hN){s-=3;bd.strap=-3}if(sBr&&hBr){s+=3;bd.strap=3}if(sBr&&hB&&!hBr){s-=3;bd.strap=-3}if(sB&&hN){s+=1;bd.strap+=1}
   }
   if(w.br){s+=1;bd.br=1}
+  /* Strap type × context fitness */
+  if(ctx&&w.straps&&w.straps.length){
+    var ctxMap=STRAP_CTX[ctx]||{};
+    var bestStrapFit=Math.max.apply(null,w.straps.map(function(st){return ctxMap[st.type]||0}));
+    if(bestStrapFit>0){s+=Math.min(bestStrapFit,2);bd.strap+=Math.min(bestStrapFit,2)}
+    else if(bestStrapFit<0&&w.straps.length===1){s+=bestStrapFit;bd.strap+=bestStrapFit}
+  }
   /* Watch size × context scoring — expanded */
   var sz=w.size?parseInt(w.size):0;
   if(sz>0){
@@ -360,23 +402,61 @@ function scoreW(w,items,ctx,reps){
   if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
   return{total:s,...bd};
 }
-function strapRec(w,items){
-  if(w.br)return{text:"Bracelet",type:"info"};
+function strapRec(w,items,ctx){
+  /* New straps-aware recommendation */
+  if(w.straps&&w.straps.length){
+    if(w.straps.length===1){
+      var s0=w.straps[0];var st0=STRAP_TYPES.find(function(t){return t.id===s0.type})||STRAP_TYPES[0];
+      return{text:s0.type==="bracelet"?(st0.icon+" Bracelet ("+s0.material+")"):(st0.icon+" "+s0.color+" "+s0.type),type:"info",strap:s0};
+    }
+    var shoe=items.find(function(i){return i.garmentType==="Shoes"});
+    var sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
+    var sm=(shoe&&(shoe.material||shoe.name)||"").toLowerCase();
+    var ctxMap=STRAP_CTX[ctx]||{};
+    var scored=w.straps.map(function(st){
+      var pts=ctxMap[st.type]||0;
+      var stc=st.color?st.color.toLowerCase():"";
+      /* Shoe-strap color matching */
+      if(st.type!=="bracelet"&&sc){
+        if(sc.includes("black")&&(stc.includes("black")||stc.includes("navy")))pts+=3;
+        if((sc.includes("brown")||sc.includes("tan")||sc.includes("cognac"))&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")))pts+=3;
+        if(sc.includes("black")&&(stc.includes("brown")||stc.includes("tan")))pts-=2;
+        if((sc.includes("brown")||sc.includes("tan"))&&stc.includes("black"))pts-=2;
+      }
+      /* Material harmony */
+      if(sm.includes("leather")&&(st.material||"").toLowerCase().match(/leather|alligator|cordovan|nubuck/))pts+=1;
+      if(sm.includes("suede")&&(st.material||"").toLowerCase().includes("suede"))pts+=1;
+      return{strap:st,score:pts};
+    }).sort(function(a,b){return b.score-a.score});
+    var best=scored[0];var stDef=STRAP_TYPES.find(function(t){return t.id===best.strap.type})||STRAP_TYPES[0];
+    var label=best.strap.type==="bracelet"?"Bracelet ("+best.strap.material+")":best.strap.color+" "+best.strap.type;
+    return{text:"→ "+stDef.icon+" "+label,type:"good",strap:best.strap,all:scored};
+  }
+  /* Legacy fallback */
+  if(w.br)return{text:"⛓️ Bracelet",type:"info"};
   if(!w.sc||!w.sc.length)return{text:"Default strap",type:"info"};
-  const shoe=items.find(i=>i.garmentType==="Shoes");const sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
+  const shoe2=items.find(i=>i.garmentType==="Shoes");const sc2=shoe2&&shoe2.color?shoe2.color.toLowerCase():"";
   if(w.sc.length===1)return{text:w.sc[0]+" strap",type:"info"};
   for(const st of w.sc){
-    if(sc.includes("black")&&(st.includes("black")||st.includes("navy")))return{text:"→ "+st,type:"good"};
-    if((sc.includes("brown")||sc.includes("tan"))&&(st.includes("brown")||st.includes("tan")||st.includes("teal")||st.includes("burgundy")))return{text:"→ "+st,type:"good"};
+    if(sc2.includes("black")&&(st.includes("black")||st.includes("navy")))return{text:"→ "+st,type:"good"};
+    if((sc2.includes("brown")||sc2.includes("tan"))&&(st.includes("brown")||st.includes("tan")||st.includes("teal")||st.includes("burgundy")))return{text:"→ "+st,type:"good"};
   }
   return{text:w.sc.join(" / "),type:"info"};
 }
 function getWarns(w,items){
   const ws=[];const shoe=items.find(i=>i.garmentType==="Shoes");
-  if(!w.br&&shoe&&shoe.color){const sc=shoe.color.toLowerCase();
-    if(sc.includes("white"))ws.push("⚠️ Strap+white shoes");
-    if(sc.includes("brown")&&w.sc&&w.sc.every(x=>x.includes("black")||x.includes("navy")))ws.push("🚫 Brown shoes+dark strap");
-    if(sc.includes("black")&&w.sc&&w.sc.every(x=>x.includes("brown")||x.includes("tan")||x.includes("teal")))ws.push("🚫 Black shoes+warm strap");
+  var hasLeather=w.straps?w.straps.some(function(s){return s.type==="leather"}):!w.br;
+  var nonBrStraps=w.straps?w.straps.filter(function(s){return s.type!=="bracelet"}):[];
+  if(hasLeather&&shoe&&shoe.color){const sc=shoe.color.toLowerCase();
+    if(sc.includes("white"))ws.push("⚠️ Leather strap+white shoes");
+    var strapColors=nonBrStraps.length?nonBrStraps.map(function(s){return s.color.toLowerCase()}):w.sc||[];
+    if(sc.includes("brown")&&strapColors.length&&strapColors.every(function(x){return x.includes("black")||x.includes("navy")}))ws.push("🚫 Brown shoes+dark strap");
+    if(sc.includes("black")&&strapColors.length&&strapColors.every(function(x){return x.includes("brown")||x.includes("tan")||x.includes("teal")}))ws.push("🚫 Black shoes+warm strap");
+  }
+  /* Strap type formality warnings */
+  if(w.straps&&w.straps.length===1){
+    var onlyType=w.straps[0].type;
+    if((onlyType==="nato"||onlyType==="rubber"||onlyType==="canvas")&&w.cx&&(w.cx.includes("formal")||w.cx.includes("date")))ws.push("⚠️ "+onlyType+" strap may be too casual — consider adding a leather option");
   }
   /* Formality warnings */
   var hasShorts=items.some(function(it){return it.garmentType==="Shorts"});
@@ -468,17 +548,23 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   }
   const wr=watches.map(w=>{
     var sc=scoreW(w,items,ctx,reps);
-    /* Rain: penalize leather straps, boost bracelets */
+    /* Rain: penalize leather/suede, boost bracelets & rubber */
     if(isRainy){
-      if(w.br){sc.total+=2;sc.br+=2} /* bracelet bonus in rain */
-      else{sc.total-=2;sc.strap-=2} /* leather strap penalty */
+      if(w.straps&&w.straps.length){
+        var hasWR=w.straps.some(function(s){return s.type==="bracelet"||s.type==="rubber"||s.type==="mesh"});
+        var onlyLeather=w.straps.every(function(s){return s.type==="leather"});
+        if(hasWR){sc.total+=2;sc.br+=2}
+        if(onlyLeather){sc.total-=2;sc.strap-=2}
+      }else{
+        if(w.br){sc.total+=2;sc.br+=2}else{sc.total-=2;sc.strap-=2}
+      }
     }
-    return{...w,score:sc.total,bd:sc,sr:strapRec(w,items),wn:getWarns(w,items)}
+    return{...w,score:sc.total,bd:sc,sr:strapRec(w,items,ctx),wn:getWarns(w,items)}
   }).filter(w=>w.score>-1).sort((a,b)=>b.score-a.score);
   if(wr[0])fs+=wr[0].score*0.5;
   /* Rain warning */
   var wxWarns=[];
-  if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets preferred over leather");
+  if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets/rubber preferred over leather");
   if(isWindy)wxWarns.push("💨 High wind — secure light items");
   return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,outerTop:outerTop,tops:tops,items,wxWarns:wxWarns};
 }
@@ -594,7 +680,7 @@ async function aiVision(fit,watch,ctx,apiKey){
   }else if(top){prompt+="- Top: "+top.color+" "+(top.pattern||"solid")+" "+(top.garmentType||"")+(top.name?" ("+top.name+")":"")+(top.material?" ["+top.material+"]":"")+"\n"}
   if(bot)prompt+="- Bottom: "+bot.color+" "+(bot.pattern||"solid")+" "+(bot.garmentType||"")+(bot.name?" ("+bot.name+")":"")+(bot.material?" ["+bot.material+"]":"")+"\n";
   if(shoe)prompt+="- Shoes: "+shoe.color+" "+(shoe.name||shoe.garmentType||"shoes")+(shoe.material?" ["+shoe.material+"]":"")+"\n";
-  prompt+="- Watch: "+watch.n+" — "+watch.d+" dial, "+(watch.br?"steel bracelet":"leather strap"+(watch.sc?" ("+watch.sc.join("/")+")":""))+(IS_SHARED?"":", "+(watch.t==="replica"?"replica":"genuine"))+"\n";
+  prompt+="- Watch: "+watch.n+" — "+watch.d+" dial, "+(watch.straps&&watch.straps.length?watch.straps.map(function(s){return s.type+(s.material?" ("+s.material+")":"")+(s.color&&s.type!=="bracelet"?" in "+s.color:"")}).join(" + "):watch.br?"steel bracelet":"leather strap"+(watch.sc?" ("+watch.sc.join("/")+")":""))+(IS_SHARED?"":", "+(watch.t==="replica"?"replica":"genuine"))+"\n";
   prompt+="- Context: "+ctx+"\n\n";
   prompt+="Return ONLY valid JSON, no markdown fences:\n";
   prompt+='{"vision":"A 3-4 sentence cinematic, editorial description. Describe the man walking into the room — how fabrics drape, colors interact, and the watch catches light. Write like a luxury editorial spread.",';
@@ -621,7 +707,7 @@ async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
   var colors=Object.entries(colorCounts).sort(function(a,b){return b[1]-a[1]}).slice(0,10).map(function(e){return e[0]+" (×"+e[1]+")"}).join(", ");
   var types={};wardrobe.forEach(function(i){if(i.garmentType)types[i.garmentType]=(types[i.garmentType]||0)+1});
   var typeStr=Object.entries(types).sort(function(a,b){return b[1]-a[1]}).map(function(e){return e[0]+" ×"+e[1]}).join(", ");
-  var watchStr=watches.map(function(w){return w.n+" ("+w.d+" dial, "+(w.br?"bracelet":"strap")+")"}).join(", ");
+  var watchStr=watches.map(function(w){return w.n+" ("+w.d+" dial, "+(w.straps&&w.straps.length?w.straps.map(function(s){return s.type}).join("+"):w.br?"bracelet":"strap")+")"}).join(", ");
   var prompt="You are an expert luxury men's style advisor. Analyze this wardrobe and give specific actionable advice.\n\n";
   prompt+="WARDROBE ("+wardrobe.length+" items):\n- Types: "+typeStr+"\n- Colors: "+colors+"\n";
   prompt+="WATCHES: "+watchStr+"\n";
@@ -641,7 +727,7 @@ async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
 async function aiOccasionPlan(occasion,wardrobe,watches,apiKey){
   _lastAiError="";
   var items=wardrobe.filter(function(i){return i.color&&!i.needsEdit}).map(function(i){return{type:i.garmentType,name:i.name||i.color,color:i.color,pattern:i.pattern||"solid",material:i.material||""}});
-  var watchList=watches.map(function(w){return{name:w.n,dial:w.d,bracelet:w.br,strap_colors:w.sc||[]}});
+  var watchList=watches.map(function(w){return{name:w.n,dial:w.d,bracelet:w.br,strap_colors:w.sc||[],straps:w.straps?w.straps.map(function(s){return{type:s.type,color:s.color,material:s.material}}):[]}});
   var prompt="You are a luxury men's style advisor. A client needs outfit recommendations for a specific occasion.\n\n";
   prompt+="OCCASION: "+occasion+"\n\n";
   prompt+="AVAILABLE WARDROBE ("+items.length+" items):\n"+JSON.stringify(items.slice(0,30))+"\n\n";
@@ -769,7 +855,8 @@ const WCard=memo(function WCardC(props){
           React.createElement("div",{className:"score-bar",style:{marginBottom:6,width:"100%"}},React.createElement("div",{className:"score-fill",style:{width:pct+"%",background:barC}})),
           React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:4}},
             React.createElement("span",{style:{display:"inline-flex",alignItems:"center",gap:3,background:w.sr&&w.sr.type==="good"?"#1a2a1a":"var(--card)",borderRadius:6,padding:"4px 8px",border:"1px solid "+(w.sr&&w.sr.type==="good"?"#2a4a2a":"var(--border)")}},
-              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:w.sr&&w.sr.type==="good"?"var(--good)":"var(--sub)"}},(w.br?"⛓️":"🔗")+" "+(w.sr?w.sr.text:"")))),
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:w.sr&&w.sr.type==="good"?"var(--good)":"var(--sub)"}},w.sr?w.sr.text:(w.br?"⛓️ Bracelet":"🔗 Strap"))),
+            w.sr&&w.sr.strap&&w.sr.strap.material&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",background:"var(--bg)",borderRadius:4,padding:"2px 6px",border:"1px solid var(--border)"}},w.sr.strap.material)),
           detail&&w.bd&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}},
             w.bd.ctx>0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:"#0a1a0a",color:"var(--good)",borderRadius:4,padding:"2px 6px"}},"✓ ctx +"+w.bd.ctx),
             w.bd.color!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:w.bd.color>0?"#0a1a0a":"#1a0a0a",color:w.bd.color>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},(w.bd.color>0?"✓":"✗")+" color "+(w.bd.color>0?"+":"")+w.bd.color),
@@ -824,11 +911,14 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
         var lastWorn=dsw[w.id];
         if(lastWorn){var daysAgo=Math.floor((now-lastWorn)/(24*60*60*1000));if(daysAgo<=1)s-=4;else if(daysAgo<=3)s-=1;else if(daysAgo>=7)s+=2;else if(daysAgo>=14)s+=3}
         else{s+=1}
-        /* Weather condition scoring — rain favors bracelets */
+        /* Weather condition scoring — rain favors bracelets & rubber */
         var dayRain=fc&&fc.cond&&fc.cond.rain;
         if(dayRain){
-          if(w.br)s+=3; /* bracelet bonus in rain */
-          else s-=2; /* leather penalty in rain */
+          if(w.straps&&w.straps.length){
+            var _hasWR=w.straps.some(function(s2){return s2.type==="bracelet"||s2.type==="rubber"||s2.type==="mesh"});
+            var _onlyL=w.straps.every(function(s2){return s2.type==="leather"});
+            if(_hasWR)s+=3;if(_onlyL)s-=2;
+          }else{if(w.br)s+=3;else s-=2}
         }
         return Object.assign({},w,{rotScore:s});
       }).sort(function(a,b){return b.rotScore-a.rotScore});
@@ -844,7 +934,7 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
       altFits=dayFits.slice(1,4);
     }
     plan.push({day:d,dayIdx:dayIdx,dayName:dayName,date:fc?fc.date:"",context:cx,tier:dayTier,weight:dayWt,watch:pick,forecast:fc,outfit:dayFit,altOutfits:altFits,locked:!!lockedWatch,
-      strapPick:pick&&!pick.br&&pick.sc&&pick.sc.length>1&&dayFit?strapRec(pick,dayFit.items):pick&&!pick.br?{text:(pick.sc||[])[0]||"default",type:"info"}:null});
+      strapPick:(function(){if(!pick)return null;var pw=pick.straps&&pick.straps.length?pick:migrateStraps(pick);if(pw.straps&&pw.straps.length>1&&dayFit)return strapRec(pw,dayFit.items,cx);if(pw.straps&&pw.straps.length===1)return{text:pw.straps[0].type==="bracelet"?"⛓️ Bracelet"+(pw.straps[0].material?" ("+pw.straps[0].material+")":""):pw.straps[0].color+" "+pw.straps[0].type,type:"info",strap:pw.straps[0]};return null})()});
   }
   /* Cross-day dedup: if consecutive days share same top+bot, swap second day to alt */
   for(var dd=0;dd<plan.length-1;dd++){
@@ -937,11 +1027,11 @@ function App(){
   useEffect(function(){(async function(){
     var wLoaded=false,wdLoaded=false,ofLoaded=false;
     // Load current version
-    try{var p=await loadKey("w_"+SK);if(p&&p.length){setW(p);wLoaded=true}}catch(e){}
+    try{var p=await loadKey("w_"+SK);if(p&&p.length){setW(p.map(migrateStraps));wLoaded=true}}catch(e){}
     try{var p2=await loadKey("wd_"+SK);if(p2&&p2.length){setWd(p2);wdLoaded=true}}catch(e){}
     try{var p3=await loadKey("of_"+SK);if(p3&&p3.length){setSaved(p3);ofLoaded=true}}catch(e){}
     // Migrate from older versions (v12 first, then older)
-    if(!wLoaded){for(var vk of["w_v12","w_v11","w_v9","watches_v8"]){try{var pm=await loadKey(vk);if(pm&&pm.length){var mw=pm.map(function(w){return Object.assign({size:null,photoUrl:null},w)});setW(mw);ps("w_"+SK,mw);wLoaded=true;break}}catch(e){}}}
+    if(!wLoaded){for(var vk of["w_v12","w_v11","w_v9","watches_v8"]){try{var pm=await loadKey(vk);if(pm&&pm.length){var mw=pm.map(function(w){return migrateStraps(Object.assign({size:null,photoUrl:null},w))});setW(mw);ps("w_"+SK,mw);wLoaded=true;break}}catch(e){}}}
     if(!wdLoaded){for(var vk2 of["wd_v12","wd_v11","wd_v9","wd_v8"]){try{var pm2=await loadKey(vk2);if(pm2&&pm2.length){var mg=pm2.map(function(g){return Object.assign({material:null,seasons:[],positionHint:null,lastWorn:null},g)});setWd(mg);ps("wd_"+SK,mg);wdLoaded=true;break}}catch(e){}}}
     if(!ofLoaded){for(var vk3 of["of_v12","of_v11","of_v9","of_v8"]){try{var pm3=await loadKey(vk3);if(pm3&&pm3.length){setSaved(pm3);ps("of_"+SK,pm3);ofLoaded=true;break}}catch(e){}}}
     // Load API key
@@ -1172,9 +1262,14 @@ function App(){
   /* ═══ WATCH EDIT ═══ */
   function renderWatchEdit(w){
     var WE=function(){
-      const[f,setF]=useState(Object.assign({},w));
+      const[f,setF]=useState(Object.assign({},migrateStraps(w)));
       var set=function(k,v){setF(function(p){var o={};o[k]=v;return Object.assign({},p,o)})};
       var togArr=function(k,v){setF(function(p){var arr=p[k]||[];var o={};o[k]=arr.includes(v)?arr.filter(function(x){return x!==v}):arr.concat([v]);return Object.assign({},p,o)})};
+      const[addSt,setAddSt]=useState(false);
+      const[nSt,setNSt]=useState({type:"leather",color:"",material:"calf leather"});
+      var setNStF=function(k,v){setNSt(function(p){var o=Object.assign({},p);o[k]=v;if(k==="type"){var td=STRAP_TYPES.find(function(t){return t.id===v});o.material=td&&td.mats[0]?td.mats[0]:"";o.color=v==="bracelet"?"silver":""}return o})};
+      var addStrap=function(){if(!nSt.type)return;var s={type:nSt.type,color:nSt.color||"",material:nSt.material||""};setF(function(p){var ns=(p.straps||[]).concat([s]);return Object.assign({},p,{straps:ns,br:ns.some(function(x){return x.type==="bracelet"}),sc:ns.filter(function(x){return x.type!=="bracelet"}).map(function(x){return x.color})})});setAddSt(false);setNSt({type:"leather",color:"",material:"calf leather"})};
+      var rmStrap=function(si){setF(function(p){var ns=(p.straps||[]).filter(function(_,i){return i!==si});return Object.assign({},p,{straps:ns,br:ns.some(function(x){return x.type==="bracelet"}),sc:ns.filter(function(x){return x.type!=="bracelet"}).map(function(x){return x.color})})})};
       var wPhotoRef=useRef();
       var handleWPhoto=async function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=async function(e){var fl=e.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,300,0.6);set("photoUrl",compressed)};inp.click()};
       return React.createElement(Modal,{onClose:function(){setEditW(null)}},
@@ -1190,9 +1285,33 @@ function App(){
           React.createElement("div",null,React.createElement("label",{className:"lbl"},"Status"),React.createElement("select",{className:"sel",value:f.status,onChange:function(e){set("status",e.target.value)}},STS.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.l)}))),
           React.createElement("div",null,React.createElement("label",{className:"lbl"},"Case Size"),React.createElement("input",{className:"inp",value:f.size||"",onChange:function(e){set("size",e.target.value)},placeholder:"e.g. 40mm"})),
           !IS_SHARED&&React.createElement("div",null,React.createElement("label",{className:"lbl"},"Temp"),React.createElement("select",{className:"sel",value:f.mt,onChange:function(e){set("mt",e.target.value)}},React.createElement("option",{value:"cool"},"Cool"),React.createElement("option",{value:"warm"},"Warm"),React.createElement("option",{value:"mixed"},"Mixed")))),
-        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:12}},
-          React.createElement("button",{onClick:function(){set("br",!f.br)},style:{flex:1,background:f.br?"rgba(201,168,76,0.1)":"var(--bg)",border:"1px solid "+(f.br?"rgba(201,168,76,0.3)":"var(--border)"),borderRadius:8,padding:12,color:f.br?"var(--gold)":"var(--sub)",fontFamily:"var(--f)",fontSize:12,cursor:"pointer",minHeight:44}},f.br?"⛓️ Bracelet":"🔗 Strap"),
-          !f.br&&React.createElement("input",{className:"inp",value:(f.sc||[]).join(", "),onChange:function(e){set("sc",e.target.value.split(",").map(function(x){return x.trim()}).filter(Boolean))},placeholder:"grey, navy...",style:{flex:2}})),
+        React.createElement("div",{style:{marginBottom:12}},
+          React.createElement("label",{className:"lbl"},"Straps & Bracelets"),
+          (f.straps||[]).map(function(st,si){
+            var stDef=STRAP_TYPES.find(function(t){return t.id===st.type})||STRAP_TYPES[0];
+            return React.createElement("div",{key:si,style:{display:"flex",gap:6,alignItems:"center",background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:4,border:"1px solid var(--border)"}},
+              React.createElement("span",{style:{fontSize:14}},stDef.icon),
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",minWidth:55,fontWeight:600}},stDef.l),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},st.material),
+              st.type!=="bracelet"&&st.color&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},React.createElement(Dot,{color:st.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)"}},st.color)),
+              React.createElement("button",{onClick:function(){rmStrap(si)},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:6,padding:"3px 8px",cursor:"pointer",color:"#6a3a3a",fontSize:9,fontFamily:"var(--f)",minHeight:24}},"✕"))}),
+          !addSt&&React.createElement("button",{onClick:function(){setAddSt(true)},style:{width:"100%",background:"var(--bg)",border:"1px dashed var(--border)",borderRadius:8,padding:"10px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:11,marginTop:4,minHeight:36}},"+ Add Strap / Bracelet"),
+          addSt&&React.createElement("div",{style:{background:"var(--bg)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:8,padding:10,marginTop:4}},
+            React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}},
+              STRAP_TYPES.map(function(st){return React.createElement("span",{key:st.id,className:"chip "+(nSt.type===st.id?"on":""),onClick:function(){setNStF("type",st.id)},style:{fontSize:10,padding:"4px 8px"}},st.icon+" "+st.l)})),
+            React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+              nSt.type!=="bracelet"&&React.createElement("div",{style:{flex:1}},
+                React.createElement("label",{className:"lbl",style:{fontSize:8,marginBottom:2}},"Color"),
+                React.createElement("input",{className:"inp",value:nSt.color,onChange:function(e){setNSt(function(p){return Object.assign({},p,{color:e.target.value})})},placeholder:"brown, black...",style:{fontSize:10,padding:"6px 8px",marginBottom:4}}),
+                React.createElement("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},
+                  STRAP_COLORS.map(function(c){return React.createElement("span",{key:c,onClick:function(){setNSt(function(p){return Object.assign({},p,{color:c})})},style:{fontSize:7,fontFamily:"var(--f)",padding:"2px 5px",borderRadius:3,cursor:"pointer",background:nSt.color===c?"rgba(201,168,76,0.2)":"transparent",border:"1px solid "+(nSt.color===c?"rgba(201,168,76,0.3)":"var(--border)"),color:nSt.color===c?"var(--gold)":"var(--dim)"}},c)}))),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("label",{className:"lbl",style:{fontSize:8,marginBottom:2}},"Material"),
+                React.createElement("select",{className:"sel",value:nSt.material,onChange:function(e){setNSt(function(p){return Object.assign({},p,{material:e.target.value})})},style:{fontSize:10,padding:"6px 8px"}},
+                  (STRAP_TYPES.find(function(t){return t.id===nSt.type})||{mats:[]}).mats.map(function(m){return React.createElement("option",{key:m,value:m},m)})))),
+            React.createElement("div",{style:{display:"flex",gap:6}},
+              React.createElement("button",{onClick:addStrap,style:{flex:1,background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:6,padding:"8px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"+  Add"),
+              React.createElement("button",{onClick:function(){setAddSt(false)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"8px 14px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,minHeight:32}},"Cancel")))),
         !IS_SHARED&&React.createElement("label",{className:"lbl"},"Match Colors"),
         !IS_SHARED&&React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4,maxHeight:100,overflowY:"auto",marginBottom:12}},AC.map(function(c){return React.createElement("span",{key:c,className:"chip "+((f.mc||[]).includes(c)?"on":""),onClick:function(){togArr("mc",c)}},React.createElement(Dot,{color:c,size:6}),c)})),
         React.createElement("label",{className:"lbl"},"Contexts"),
@@ -1202,7 +1321,7 @@ function App(){
         React.createElement("label",{className:"lbl"},"Emoji"),
         React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}},EMOJIS.map(function(e){return React.createElement("span",{key:e,onClick:function(){set("i",e)},style:{fontSize:22,cursor:"pointer",opacity:f.i===e?1:0.25,padding:3,minWidth:30,textAlign:"center"}},e)})),
         React.createElement("div",{style:{display:"flex",gap:8}},
-          React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setEditW(null)}},"Save"),
+          React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=Object.assign({},f);if(sv.straps&&sv.straps.length){sv.br=sv.straps.some(function(s){return s.type==="bracelet"});sv.sc=sv.straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color})}if(IS_SHARED&&(!sv.mc||!sv.mc.length))sv.mc=autoMatchColors(sv.d);updateW(w.id,sv);setEditW(null)}},"Save"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(confirm("Delete watch?")){removeW(w.id);setEditW(null)}}},"🗑️")));
     };
     return React.createElement(WE,{key:w.id});
@@ -1212,7 +1331,7 @@ function App(){
   if(!onboarded){
     var obDotStyle=function(s){return{width:8,height:8,borderRadius:"50%",background:onboardStep>=s?"var(--gold)":"var(--border)"}};
     var obFinish=function(){
-      var nw=obWatches.map(function(pw){return Object.assign({},pw,{id:pw.id+"-"+Date.now()+Math.random().toString(36).slice(2,5),active:true,status:"active",t:"genuine"})});
+      var nw=obWatches.map(function(pw){return migrateStraps(Object.assign({},pw,{id:pw.id+"-"+Date.now()+Math.random().toString(36).slice(2,5),active:true,status:"active",t:"genuine"}))});
       var ng=obGarments.map(function(pg){var sd=smartDefaults(pg);return Object.assign({},sd,pg,{id:"g-"+Date.now()+Math.random().toString(36).slice(2,5),ts:Date.now()})});
       if(nw.length){setW(nw);ps("w_"+SK,nw)}
       if(ng.length){setWd(ng);ps("wd_"+SK,ng)}
@@ -1240,7 +1359,7 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"12px 14px",fontSize:11},onClick:function(){
             var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){
               var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){
-                try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
+                try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
           }},"📥 Import")));
     }
     /* Step 2: Closet */
@@ -1326,11 +1445,12 @@ function App(){
       React.createElement("img",{src:lightboxSrc,alt:"",style:{maxWidth:"92vw",maxHeight:lightboxItems.length>1?"60vh":"85vh",objectFit:"contain",borderRadius:8,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"},onClick:function(e){e.stopPropagation()}}),
       lightboxItems.length>0&&React.createElement("div",{onClick:function(e){e.stopPropagation()},style:{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:12,maxWidth:"92vw"}},
         lightboxItems.map(function(item){
-          return React.createElement("div",{key:item.id,style:{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",backdropFilter:"blur(8px)",borderRadius:10,padding:"8px 14px",border:"1px solid rgba(255,255,255,0.12)"}},
+          return React.createElement("div",{key:item.id,onClick:function(){setLightboxSrc(null);setLightboxItems([]);setEditG(item)},style:{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",backdropFilter:"blur(8px)",borderRadius:10,padding:"8px 14px",border:"1px solid rgba(255,255,255,0.12)",cursor:"pointer",transition:"background .15s"}},
             React.createElement("div",{style:{width:14,height:14,borderRadius:"50%",background:(CM[item.color]||{}).h||"#5a5a5a",border:"1px solid rgba(255,255,255,0.2)",flexShrink:0}}),
-            React.createElement("div",null,
+            React.createElement("div",{style:{flex:1}},
               React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",color:"#fff",fontWeight:600}},item.name||item.color),
               React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"rgba(255,255,255,0.5)"}},item.garmentType+(item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")+(item.material?" · "+item.material:""))),
+            React.createElement("span",{style:{fontSize:11,color:"rgba(255,255,255,0.4)",marginLeft:4}},"✏️"),
             item.positionHint&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"rgba(255,255,255,0.35)",marginLeft:4}},"📸 "+item.positionHint))}))),
 
     showSettings&&React.createElement(Modal,{onClose:function(){setShowSettings(false)}},
@@ -1359,7 +1479,7 @@ function App(){
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
 
     /* Floating Save Button */
     React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
@@ -1711,9 +1831,17 @@ function App(){
                       of&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:of.fs>=8?"var(--good)":of.fs>=5?"var(--gold)":"var(--warn)",background:of.fs>=8?"rgba(122,184,122,0.1)":of.fs>=5?"rgba(201,168,76,0.1)":"rgba(200,90,58,0.1)",borderRadius:4,padding:"1px 5px",border:"1px solid "+(of.fs>=8?"rgba(122,184,122,0.2)":of.fs>=5?"rgba(201,168,76,0.2)":"rgba(200,90,58,0.2)")}},of.fs>=8?"🔥":"👔"," "+of.fs)),
                     /* Strap + bracelet line */
                     React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},
-                      w.br?React.createElement("span",{style:{color:day.forecast&&day.forecast.cond&&day.forecast.cond.rain?"var(--good)":"var(--sub)"}},"⛓️ Bracelet"+(day.forecast&&day.forecast.cond&&day.forecast.cond.rain?" ✓":""))
-                      :sp?React.createElement("span",{style:{color:day.forecast&&day.forecast.cond&&day.forecast.cond.rain?"var(--warn)":sp.type==="good"?"var(--good)":"var(--sub)"}},(day.forecast&&day.forecast.cond&&day.forecast.cond.rain?"⚠️ ":"")+"🔗 "+sp.text+(day.forecast&&day.forecast.cond&&day.forecast.cond.rain?" — rain risk":""))
-                      :React.createElement("span",null,"🔗 "+(w.sc||[]).join(" / ")))),
+                      (function(){
+                        var isRain=day.forecast&&day.forecast.cond&&day.forecast.cond.rain;
+                        if(sp&&sp.strap){
+                          var stT=STRAP_TYPES.find(function(t){return t.id===sp.strap.type})||{icon:"🔗"};
+                          var isWR=sp.strap.type==="bracelet"||sp.strap.type==="rubber"||sp.strap.type==="mesh";
+                          var label=sp.strap.type==="bracelet"?"Bracelet"+(sp.strap.material?" ("+sp.strap.material+")":""):sp.strap.color+" "+sp.strap.type+(sp.strap.material?" ("+sp.strap.material+")":"");
+                          return React.createElement("span",{style:{color:isRain?(isWR?"var(--good)":"var(--warn)"):sp.type==="good"?"var(--good)":"var(--sub)"}},(isRain&&!isWR?"⚠️ ":"")+stT.icon+" "+label+(isRain&&!isWR?" — rain risk":isRain&&isWR?" ✓":""));
+                        }
+                        if(w.br)return React.createElement("span",{style:{color:isRain?"var(--good)":"var(--sub)"}},"⛓️ Bracelet"+(isRain?" ✓":""));
+                        return React.createElement("span",null,"🔗 "+(w.sc||[]).join(" / "));
+                      })())),
                   /* Lock/unlock button */
                   React.createElement("button",{onClick:function(){var nl=rotLock.slice();nl[i]=nl[i]?null:w.id;setRotLock(nl);ps("wa_rotlock_"+SK,nl)},style:{background:"none",border:"1px solid "+(day.locked?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:6,padding:"4px 8px",cursor:"pointer",color:day.locked?"var(--good)":"var(--dim)",fontSize:12,flexShrink:0,minWidth:32,minHeight:32,display:"flex",alignItems:"center",justifyContent:"center"}},day.locked?"🔒":"🔓")),
 
@@ -1795,7 +1923,7 @@ function App(){
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"6px 8px"}},
                         React.createElement("span",{style:{fontSize:16}},w.i),
                         React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},w.n),
-                        React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--sub)"}},w.d+" · "+(w.br?"Bracelet":(w.sc||[]).join("/")))))),
+                        React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--sub)"}},w.d+" · "+(w.straps&&w.straps.length?w.straps.map(function(s){return s.type}).join("+"):w.br?"Bracelet":(w.sc||[]).join("/")))))),
 
                   /* Expanded: alternative outfits */
                   expandDay===i&&day.altOutfits&&day.altOutfits.length>0&&React.createElement("div",{className:"fu",style:{marginTop:6}},
@@ -1859,7 +1987,8 @@ function App(){
           return React.createElement("div",{key:o.slot,style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px",marginBottom:8}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
               o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"zoom-in"}}),
-              React.createElement("div",{style:{flex:1}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
+              React.createElement("div",{onClick:function(){setEditG(o.item)},style:{flex:1,cursor:"pointer"}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
+              React.createElement("button",{onClick:function(e){e.stopPropagation();setEditG(o.item)},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"✏️ Edit"),
               React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
@@ -1921,7 +2050,7 @@ function App(){
               React.createElement("div",{style:{width:52,height:52,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:dailyPick.watch.c+"25",fontSize:26,border:"3px solid "+dailyPick.watch.c+"50"}},dailyPick.watch.i),
               React.createElement("div",{style:{flex:1}},
                 React.createElement("div",{style:{fontSize:18,fontWeight:600,color:"var(--gold)"}},dailyPick.watch.n),
-                React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},dailyPick.watch.d+" · "+(dailyPick.watch.br?"Bracelet":dailyPick.strap?dailyPick.strap.text:"Strap")+" · "+(CXI[dailyPick.context]||"")+dailyPick.context),
+                React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},dailyPick.watch.d+" · "+(dailyPick.strap&&dailyPick.strap.strap?((STRAP_TYPES.find(function(t){return t.id===dailyPick.strap.strap.type})||{icon:"🔗"}).icon+" "+(dailyPick.strap.strap.type==="bracelet"?"Bracelet ("+dailyPick.strap.strap.material+")":dailyPick.strap.strap.color+" "+dailyPick.strap.strap.type)):dailyPick.watch.br?"⛓️ Bracelet":dailyPick.strap?dailyPick.strap.text:"Strap")+" · "+(CXI[dailyPick.context]||"")+dailyPick.context),
                 !IS_SHARED&&dailyPick.watch.t==="replica"&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid #2a2520",borderRadius:3,padding:"1px 5px",marginTop:2,display:"inline-block"}},"REP"))),
             /* Outfit with mannequin */
             dailyPick.outfit&&React.createElement("div",{style:{display:"flex",gap:12,marginBottom:12,alignItems:"flex-start"}},
@@ -1997,7 +2126,7 @@ function App(){
               React.createElement("span",{style:{fontSize:24}},dailyPick.watch.i),
               React.createElement("div",{style:{flex:1}},
                 React.createElement("div",{style:{fontSize:14,fontWeight:600,color:"var(--gold)"}},dailyPick.watch.n),
-                React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},dailyPick.watch.d+" · "+(dailyPick.watch.br?"Bracelet":dailyPick.strap?dailyPick.strap.text:"Strap"))),
+                React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},dailyPick.watch.d+" · "+(dailyPick.strap&&dailyPick.strap.strap?((STRAP_TYPES.find(function(t){return t.id===dailyPick.strap.strap.type})||{icon:"🔗"}).icon+" "+(dailyPick.strap.strap.type==="bracelet"?"Bracelet":dailyPick.strap.strap.color+" "+dailyPick.strap.strap.type)):dailyPick.watch.br?"⛓️ Bracelet":dailyPick.strap?dailyPick.strap.text:"Strap"))),
               aiCritique&&aiCritique.impact>0&&React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(aiCritique.impact>=7?"var(--good)":aiCritique.impact>=4?"var(--gold)":"var(--warn)"),fontSize:14,fontFamily:"var(--f)",fontWeight:700,color:aiCritique.impact>=7?"var(--good)":aiCritique.impact>=4?"var(--gold)":"var(--warn)"}},aiCritique.impact)),
             React.createElement("div",{style:{textAlign:"center",marginTop:12}},
               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#2a2530",letterSpacing:"0.2em"}},"WATCH ADVISOR")))),
@@ -2296,7 +2425,7 @@ function App(){
                 React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"18",fontSize:16,flexShrink:0}},w.i),
                 React.createElement("div",{style:{flex:1,minWidth:0}},
                   React.createElement("span",{style:{fontSize:12,fontWeight:600}},w.n),
-                  React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:6}},w.d+" · "+(w.br?"Bracelet":"Strap")))),
+                  React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:6}},w.d+" · "+(w.straps&&w.straps.length?w.straps.length+" strap"+(w.straps.length>1?"s":""):w.br?"Bracelet":"Strap")))),
               scored.length>0&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:missingColors.length?6:0}},
                 React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--good)",alignSelf:"center"}},"✓ Best:"),
                 scored.map(function(x){return React.createElement("div",{key:x.g.id,style:{display:"flex",alignItems:"center",gap:3,background:"rgba(122,184,122,0.06)",borderRadius:6,padding:"3px 8px",border:"1px solid rgba(122,184,122,0.15)"}},
@@ -2433,7 +2562,7 @@ function App(){
         })(),
         React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}},
           (IS_SHARED?[{id:"all",l:"All "+W.length},{id:"incoming",l:"Incoming"},{id:"pending-trade",l:"Pending"}]:[{id:"all",l:"All "+W.length},{id:"genuine",l:"Gen"},{id:"replica",l:"Rep"},{id:"incoming",l:"Incoming"},{id:"pending-trade",l:"Pending"}]).map(function(f){return React.createElement(Pill,{key:f.id,on:wTab===f.id,onClick:function(){setWTab(f.id)}},f.l)}),
-          React.createElement("button",{onClick:function(){var nw={id:"c-"+Date.now(),n:"New Watch",t:"genuine",d:"",c:"#5a5a5a",br:true,sc:[],mt:"cool",i:"⌚",mc:IS_SHARED?autoMatchColors(""):[],ac:[],cx:["casual"],wt:IS_SHARED?["light","mid","heavy"]:["mid"],sg:"",active:true,status:"active"};setW(function(p){var u=p.concat([nw]);ps("w_"+SK,u);return u});setEditW(nw)},style:{marginLeft:"auto",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:20,padding:"8px 16px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"+ Add")),
+          React.createElement("button",{onClick:function(){var nw={id:"c-"+Date.now(),n:"New Watch",t:"genuine",d:"",c:"#5a5a5a",br:true,sc:[],straps:[{type:"bracelet",color:"silver",material:"steel"}],mt:"cool",i:"⌚",mc:IS_SHARED?autoMatchColors(""):[],ac:[],cx:["casual"],wt:IS_SHARED?["light","mid","heavy"]:["mid"],sg:"",active:true,status:"active"};setW(function(p){var u=p.concat([nw]);ps("w_"+SK,u);return u});setEditW(nw)},style:{marginLeft:"auto",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:20,padding:"8px 16px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"+ Add")),
         filtW.length===0&&React.createElement("div",{style:{textAlign:"center",padding:"40px 16px"}},React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--dim)"}},"No watches match filter")),
         filtW.map(function(w){var st=STS.find(function(s){return s.id===w.status});return React.createElement("div",{key:w.id,className:"card-lift",style:{background:w.active?"var(--card)":"#08070c",border:"1px solid "+(w.active?"var(--border)":"#121018"),borderRadius:12,padding:"14px 16px",opacity:w.active?1:0.5,marginBottom:8}},
           React.createElement("div",{style:{display:"flex",gap:12,alignItems:"flex-start"}},
@@ -2444,7 +2573,7 @@ function App(){
                 !IS_SHARED&&w.t==="replica"&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid #2a2520",borderRadius:3,padding:"1px 5px"}},"REP"),
                 React.createElement("span",{style:{width:8,height:8,borderRadius:"50%",background:w.c}}),
                 React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:st?st.c:"var(--dim)"}},st?st.l:"")),
-              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+" · "+(w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt),
+              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+" · "+(w.straps&&w.straps.length?w.straps.map(function(s){var td=STRAP_TYPES.find(function(t){return t.id===s.type});return(td?td.icon:"")+s.type+(s.type!=="bracelet"&&s.color?" "+s.color:"")}).join(", "):w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt),
               React.createElement("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},(w.cx||[]).map(function(c){return React.createElement("span",{key:c,style:{fontSize:8,fontFamily:"var(--f)",background:"var(--bg)",borderRadius:8,padding:"2px 6px",color:"var(--dim)"}},(CXI[c]||"")+c)}))),
             React.createElement("button",{onClick:function(e){e.stopPropagation();toggleW(w.id)},style:{width:44,height:26,borderRadius:13,background:w.active?"var(--gold)":"#1a1820",border:"none",cursor:"pointer",position:"relative",flexShrink:0,minHeight:26}},
               React.createElement("div",{style:{width:20,height:20,borderRadius:"50%",background:w.active?"var(--bg)":"#2a2830",position:"absolute",top:3,left:w.active?21:3,transition:"left .2s"}}))))}),
