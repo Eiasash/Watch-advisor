@@ -226,7 +226,7 @@ const TIP_ICONS=['💡','👔','✨','🎯','⌚','🔥','📐','🧱','🌤️'
 
 /* ═══ LOCATION VIBES ═══ */
 const LOC_VIBES={
-"🏥 Clinic":["clinic"],"🍽️ Restaurant":["smart-casual","date-night"],"🏖️ Beach":["weekend","casual"],
+"🏥 Clinic":["clinic"],"🍽️ Restaurant":["smart-casual","date"],"🏖️ Beach":["weekend","casual"],
 "🌆 City":["smart-casual"],"👨‍👩‍👧 Family":["casual","weekend"],"🕌 Religious":["formal","smart-casual"],
 "💼 Meeting":["formal","clinic"],"✈️ Travel":["casual","weekend"]
 };
@@ -239,8 +239,12 @@ const CX_DNA={
 "smart-casual":{Boldness:5,Versatility:7,Formality:5,Creativity:5,Consistency:6},
 "casual":{Boldness:3,Versatility:7,Formality:2,Creativity:4,Consistency:5},
 "weekend":{Boldness:4,Versatility:6,Formality:2,Creativity:5,Consistency:4},
-"date-night":{Boldness:7,Versatility:5,Formality:6,Creativity:7,Consistency:5},
+"date":{Boldness:7,Versatility:5,Formality:6,Creativity:7,Consistency:5},
 "riviera":{Boldness:7,Versatility:6,Formality:4,Creativity:8,Consistency:4},
+"flex":{Boldness:8,Versatility:7,Formality:5,Creativity:8,Consistency:4},
+"travel":{Boldness:4,Versatility:8,Formality:3,Creativity:5,Consistency:5},
+"event":{Boldness:6,Versatility:5,Formality:7,Creativity:6,Consistency:6},
+"office":{Boldness:3,Versatility:5,Formality:7,Creativity:2,Consistency:8},
 "sporty":{Boldness:4,Versatility:6,Formality:1,Creativity:3,Consistency:6}
 };
 
@@ -391,6 +395,12 @@ const CP={
 "silver":["black","charcoal","navy","white","grey","cobalt"],
 "cobalt":["white","cream","light grey","tan","khaki","beige","gold","camel"],
 "slate":["white","cream","light blue","navy","tan"],
+"blue":["white","cream","navy","grey","charcoal","light blue","tan","khaki","beige","light grey"],
+"green":["cream","ivory","tan","khaki","brown","olive","white","beige","navy","camel"],
+"purple":["cream","ivory","charcoal","grey","white","lavender","light grey","black","silver"],
+"yellow":["navy","charcoal","white","denim","grey","olive","cream","cobalt"],
+"pink":["charcoal","grey","navy","white","cream","black","light grey"],
+"chocolate":["cream","ivory","tan","khaki","beige","white","camel","light blue","gold","olive"],
 };
 function compat(c1,c2){
   if(!c1||!c2)return 0.1;
@@ -920,7 +930,7 @@ function App(){
   const[userCx,setUserCx]=useState(null);
   const[toast,setToast]=useState(null);
   /* ── NEW FEATURE STATE ── */
-  const[darkMode,setDarkMode]=useState(false);
+  const[darkMode,setDarkMode]=useState(true);
   const[profileName,setProfileName]=useState("");
   const[profileBio,setProfileBio]=useState("");
   const[favorites,setFavorites]=useState([]);
@@ -971,7 +981,7 @@ function App(){
     if(wLoaded||wdLoaded)setOnboarded(true);
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
     // Load new feature data
-    try{var dm=await loadKey("wa_darkmode");if(dm){setDarkMode(true);document.documentElement.setAttribute("data-theme","dark")}}catch(e){}
+    try{var dm=await loadKey("wa_darkmode");if(dm===false){setDarkMode(false);document.documentElement.setAttribute("data-theme","light")}}catch(e){}
     try{var pn=await loadKey("wa_profilename");if(pn)setProfileName(pn)}catch(e){}
     try{var pb=await loadKey("wa_profilebio");if(pb)setProfileBio(pb)}catch(e){}
     try{var fv=await loadKey("wa_favorites_"+SK);if(fv&&fv.length)setFavorites(fv)}catch(e){}
@@ -1000,7 +1010,7 @@ function App(){
       var cxKeys={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7};
       if(cxKeys[e.key]!==undefined){var cxArr=userCx||(IS_SHARED?SHARE_DEFAULT_CX:DEFAULT_CX);var ci=cxKeys[e.key];if(ci<cxArr.length){setCtx(cxArr[ci].id);setView("fits");setSelFit(null)}}
       if(e.key==="r"||e.key==="R"){setShuffleKey(function(k){return k+1});setSelFit(null)}
-      if(e.key==="d"||e.key==="D"){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"dark":"");ps("wa_darkmode",nv?true:null);return nv})}
+      if(e.key==="d"||e.key==="D"){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"":"light");ps("wa_darkmode",nv);return nv})}
     }
     document.addEventListener("keydown",handleKey);
     return function(){document.removeEventListener("keydown",handleKey)};
@@ -1134,7 +1144,7 @@ function App(){
   const isFav=useCallback(function(fitId){return favorites.some(function(f){return f.id===fitId})},[favorites]);
 
   /* ═══ DARK MODE TOGGLE ═══ */
-  const toggleDark=useCallback(function(){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"dark":"");ps("wa_darkmode",nv?true:null);return nv})},[ps]);
+  const toggleDark=useCallback(function(){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"":"light");ps("wa_darkmode",nv);return nv})},[ps]);
 
   /* ═══ SURPRISE ME ═══ */
   const surpriseMe=useCallback(function(){setShuffleKey(function(k){return k+1});setSelFit(null);setView("fits");showToast("🎲 Surprise!","success")},[showToast]);
@@ -2367,7 +2377,7 @@ function App(){
           React.createElement("div",{style:{marginBottom:20}},
             React.createElement("label",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em",display:"block",marginBottom:4}},"BIO"),
             React.createElement("textarea",{value:profileBio,onChange:function(e){setProfileBio(e.target.value)},placeholder:"Watch enthusiast...",rows:3,style:{width:"100%",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",color:"var(--text)",fontFamily:"var(--f)",fontSize:12,resize:"vertical",boxSizing:"border-box"}})),
-          React.createElement("button",{className:"btn btn-gold",style:{width:"100%"},onClick:function(){saveProfile()}},"💾 Save Profile"))),
+          React.createElement("button",{className:"btn btn-gold",style:{width:"100%"},onClick:function(){saveProfile(profileName,profileBio);setShowProfile(false)}},"💾 Save Profile"))),
 
       /* ═══ PHOTO LIGHTBOX ═══ */
       photoModal&&React.createElement("div",{onClick:function(){setPhotoModal(null)},style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.92)",zIndex:10000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,cursor:"pointer"}},
