@@ -1,151 +1,40 @@
 # ⌚ Watch Advisor v14
 
-**AI-Powered Watch & Outfit Coordinator for Strategic Watch Collectors**
-
-## 🚀 **[Launch App → https://eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)**
-
----
+AI-Powered Watch & Outfit Coordinator for the strategic watch collector.
 
 ## What's New in v14
 
-17 features ported from Style Compass v4.1 — the biggest update yet.
+- **Alpine Eagle 8HF** — Chopard's GPHG Sports Watch Prize winner added as incoming genuine piece (replaces GMT-II pending trade)
+- **Same-color scoring fix** — Monochrome outfits now score 0.6 (was 0.3). Intentional all-black no longer penalized
+- **Weather error handling** — Yellow banner with retry when geolocation fails, graceful degradation to mid-weight defaults
+- **Anti-repeat rotation** — Consecutive same-watch penalty hardened to -15, 2-day gap to -10
+- **Watch size context** — Formal/clinic bonus ≤39mm, date penalty ≥44mm, Riviera sweet spot 40-42mm
+- **Temperature-based seasons** — Uses actual weather data when available instead of crude month boundaries
+- **Storage cleanup** — Purges orphan keys from v8-v13 after migration
+- **Collection status badges** — 📦 incoming and 🔄 pending-trade counts in stats panel
 
-| # | Feature | What it does |
-|---|---------|-------------|
-| 🌙 | **Dark Mode** | Full theme toggle with CSS variable system. Press `D` to switch. |
-| 📡 | **Offline Banner** | Live connectivity status indicator |
-| ⌨️ | **Keyboard Shortcuts** | `1-8` vibes, `R` refresh, `D` dark mode, `Esc` close, `Ctrl+S` save |
-| ⭐ | **Favorites** | Quick-fav outfits with dedicated tab, sorted by recency |
-| 🎯 | **OOTD Generator** | Daily outfit suggestion seeded by date |
-| 🎲 | **Surprise Me** | Random outfit picker (also via pull-to-refresh) |
-| 📸 | **Batch Upload** | Multi-photo drag-drop with AI garment classification |
-| 🔍 | **Duplicate Detection** | Flags similar wardrobe items by type/color/name |
-| 💡 | **Daily Style Tips** | 21 rotating tips matched to day-of-year |
-| 🎨 | **Color Palette Analyzer** | Extracts outfit colors + harmony type (Complementary, Analogous, Triadic, Monochrome, Eclectic) |
-| 🧬 | **Style DNA Radar** | Canvas radar chart profiling 5 dimensions: Boldness, Versatility, Formality, Creativity, Consistency |
-| 🖼️ | **Composite Image** | Canvas-generated visual outfit preview, downloadable as PNG |
-| 🤖 | **AI Insights** | Claude API pattern analysis on outfit history — gaps, deployment strategy, color balance |
-| 👆 | **Pull to Refresh** | Touch gesture on home tab (80px swipe threshold) |
-| 📍 | **Location Vibes** | Context chips (🏥 Clinic, 🍽️ Restaurant, 🏖️ Beach, etc.) that filter outfit contexts |
-| 👤 | **Profile System** | Name, bio, avatar with first-initial display |
-| 💾 | **IndexedDB Backup** | Automatic backup/restore if localStorage corrupts |
+## Features
 
-**File size:** 2,402 lines (up from 2,011)
+- 25-piece collection management (genuine + replica tracking)
+- AI-powered outfit coordination with psychological impact scoring
+- 7-day rotation planner with wear history
+- Weather-aware recommendations (temperature, rain, UV)
+- Context-based scoring (clinic, formal, casual, Riviera, date night)
+- Wardrobe management with photo classification
+- Strap-shoe color enforcement (brown↔brown, black↔black)
+- Export/import full collection data
+- Dark/light theme with gold accent
 
----
+## Stack
 
-## Quick Start
+Single-file React app — no build step, no dependencies beyond CDN-loaded React + Babel.
 
-### 1. Add Your Watches ⌚
-- Click the **Watches** tab
-- Add each watch: dial color, matching colors, contexts (formal, casual, date night)
-- Set status: active, incoming, in service, sold
-- Track genuine vs. replica pieces
+## Install as PWA
 
-### 2. Build Your Wardrobe 👔
-- Go to **Closet** tab
-- **Take photos** — AI identifies colors, patterns, and materials automatically
-- Or use **Batch Upload** — drop multiple photos at once
-- Check for **duplicates** with the 🔍 button
+1. Open in Chrome on Android
+2. Tap ⋮ → **Add to Home Screen**
+3. Full-screen app, works offline
 
-### 3. Get Outfit Suggestions ✨
-- Navigate to **Fits** tab
-- Pick a watch + occasion
-- Get scored outfit combinations with color harmony analysis
-- ⭐ Favorite the ones you love
+## License
 
-### 4. Track Your Style 🧬
-- **Insights** tab shows your Style DNA radar
-- Hit **Analyze My Style** for AI-powered pattern insights
-- Daily tips rotate automatically
-
----
-
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `1` - `8` | Quick-select context vibes |
-| `R` | Refresh / regenerate |
-| `D` | Toggle dark mode |
-| `Esc` | Close modal |
-| `Ctrl+S` | Save current state |
-
----
-
-## Watch-Outfit Pairing Logic
-
-### Color Matching (40+ colors)
-
-| Dial | Best Pairings | Avoid |
-|------|--------------|-------|
-| **Black/Charcoal** | Almost everything — grey, navy, white, black | Rarely any issues |
-| **White/Cream** | Navy, charcoal, grey, light blue, burgundy | Brown, tan (muddy look) |
-| **Blue** | Navy, grey, white, charcoal | Warm browns, orange, rust |
-| **Green** | Olive, khaki, cream, tan, brown, navy | Bright/neon colors |
-| **Gold/Bronze** | Brown, cream, burgundy, navy, white | Cool greys, light blue |
-| **Steel/Silver** | Grey, black, navy, white, blue, charcoal | Rarely any issues |
-
-### Bracelet vs. Strap
-
-- **Steel bracelets** → Hot weather, rain, casual/sport, summer
-- **Leather straps** → Cooler weather, formal, dressy, date nights
-- **Leather rule:** Strap color must match shoe color (black-to-black, brown-to-brown)
-
----
-
-## Installation
-
-### No Install Required
-Just visit **[eiasash.github.io/Watch-advisor/](https://eiasash.github.io/Watch-advisor/)**
-
-### Install as Mobile App (PWA)
-- **Android**: Chrome → Menu (⋮) → "Add to Home Screen"
-- **iPhone**: Safari → Share → "Add to Home Screen"
-- **Desktop**: Click install icon in address bar
-
-### Enable AI Features
-1. Get a Claude API key at [console.anthropic.com](https://console.anthropic.com)
-2. Add it in ⚙️ Settings
-3. Unlocks: AI outfit descriptions, batch photo classification, AI style insights
-
----
-
-## Privacy
-
-- **100% local storage** — nothing leaves your device
-- No server, no account, no tracking
-- Export/import your data as JSON anytime
-- IndexedDB auto-backup protects against data loss
-- Works offline (except AI features)
-
----
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|-----------|
-| **Framework** | React 18 (no build, createElement) |
-| **AI** | Claude API (Anthropic) |
-| **Weather** | Open-Meteo API |
-| **Storage** | localStorage + IndexedDB backup |
-| **Hosting** | GitHub Pages (PWA) |
-| **Charts** | Canvas 2D (radar, composite) |
-
-**Works on:** Chrome, Safari, Firefox, Edge — iPhone, Android, Desktop — Offline mode after first load
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| **v14** | Feb 2026 | 17 features from Style Compass: dark mode, favorites, OOTD, batch upload, duplicates, daily tips, color palette, Style DNA, composite images, AI insights, pull-to-refresh, location vibes, profile, IndexedDB backup, keyboard shortcuts, offline banner, surprise me |
-| **v13** | Feb 2026 | Interactive swap, share version data isolation, wear log, week planner |
-| **v12** | Jan 2026 | Weather integration, rotation analytics, context scoring |
-
----
-
-**Start coordinating your watches with your wardrobe today! ⌚✨**
-
-**[→ Open Watch Advisor](https://eiasash.github.io/Watch-advisor/)**
+Personal use.

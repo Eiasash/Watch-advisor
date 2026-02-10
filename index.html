@@ -4,11 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#c9a84c">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>Watch Advisor</title>
+<title>Watch Advisor v14</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -25,7 +21,6 @@ input,select,textarea{font-size:16px!important}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideDown{from{opacity:0;transform:translate(-50%,-20px)}to{opacity:1;transform:translate(-50%,0)}}
 .fu{animation:fadeUp .3s ease both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#2a2530;border-radius:4px}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.hscroll::-webkit-scrollbar{display:none}
@@ -42,13 +37,10 @@ input,select,textarea{font-size:16px!important}
 .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;touch-action:manipulation}
 .swatch:active{transform:scale(0.9)}
 .swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
-.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none;transition:all .15s}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none}
 .btn:active{transform:scale(0.98)}
-.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
-.btn-gold:hover:not(:disabled){background:linear-gradient(135deg,#d4b85c,#b8982a)}
 .btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
-.btn-ghost:hover:not(:disabled){background:rgba(201,168,76,0.05);border-color:rgba(201,168,76,0.3)}
 .outfit-slot{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:10px;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .2s}
 .outfit-slot.filled{border-style:solid;border-color:var(--border)}
 .outfit-slot.active{border-color:var(--gold);background:#0a0918}
@@ -62,59 +54,9 @@ input,select,textarea{font-size:16px!important}
 .dots-row{display:flex;gap:3px;align-items:center}
 .onboard{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center}
 .onboard h1{font-size:32px;font-weight:300;letter-spacing:0.2em;color:var(--gold);margin-bottom:8px}
-/* ── DARK/LIGHT MODE ── */
-[data-theme="light"]{--bg:#f4f2ee;--card:#ffffff;--card2:#f8f6f2;--card3:#f0ede7;--border:#ddd8d0;--gold:#a8882a;--text:#1a1814;--sub:#6a6458;--dim:#9a9488;--warn:#c85a3a;--good:#4a8a4a}
-[data-theme="light"] .swatch{border-color:#ddd8d0}
-[data-theme="light"] ::-webkit-scrollbar-thumb{background:#d0c8b8}
-/* ── OFFLINE BANNER ── */
-.offline-banner{position:fixed;top:0;left:0;right:0;background:#c85a3a;color:white;text-align:center;padding:6px;font-family:var(--f);font-size:11px;font-weight:600;z-index:200;display:none;letter-spacing:0.05em}
-/* ── RADAR / STYLE DNA ── */
-.radar-wrap{display:flex;justify-content:center;padding:12px 0}
-.dna-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;font-size:11px;font-family:var(--f);color:var(--sub)}
-.dna-legend span{display:flex;align-items:center;gap:4px}
-.dna-legend .ldot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
-/* ── COLOR PALETTE ── */
-.color-palette-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-.color-swatch-sm{width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.1)}
-.harmony-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:10px;font-family:var(--f);font-weight:600;background:rgba(201,168,76,0.12);color:var(--gold);border:1px solid rgba(201,168,76,0.2)}
-/* ── BATCH UPLOAD ── */
-.batch-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin:12px 0}
-.batch-zone:hover,.batch-zone.dragover{border-color:var(--gold);background:rgba(201,168,76,0.05)}
-.batch-prog{margin:8px 0;display:none}
-.batch-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
-.batch-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s}
-/* ── DUPLICATE DETECTION ── */
-.dup-group{background:var(--card2);border-radius:10px;padding:10px;margin-bottom:8px;border:1px solid rgba(200,90,58,0.2)}
-.dup-badge{font-size:9px;font-family:var(--f);background:rgba(200,90,58,0.15);color:var(--warn);padding:2px 8px;border-radius:6px;font-weight:600}
-/* ── FAVORITES ── */
-.fav-btn{position:absolute;top:6px;right:6px;background:none;border:none;font-size:18px;cursor:pointer;opacity:0.4;transition:all .15s;z-index:2;touch-action:manipulation}
-.fav-btn.active{opacity:1}
-.fav-btn:active{transform:scale(1.2)}
-/* ── PROFILE ── */
-.profile-card{background:var(--card2);border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px;border:1px solid var(--border);margin-bottom:12px}
-.profile-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a8882a);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--bg);flex-shrink:0}
-/* ── DAILY TIP ── */
-.tip-card{background:linear-gradient(135deg,rgba(201,168,76,0.08),rgba(201,168,76,0.03));border:1px solid rgba(201,168,76,0.15);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
-.tip-icon{font-size:20px;flex-shrink:0;line-height:1}
-.tip-text{font-family:var(--f);font-size:12px;color:var(--sub);line-height:1.5;font-style:italic}
-/* ── OOTD BANNER ── */
-.ootd-banner{background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04));border:1px solid rgba(201,168,76,0.2);border-radius:14px;padding:14px 16px;margin-bottom:14px;cursor:pointer;transition:all .15s}
-.ootd-banner:active{transform:scale(0.98)}
-.ootd-label{font-size:9px;font-family:var(--f);letter-spacing:0.12em;color:var(--gold);text-transform:uppercase;margin-bottom:4px}
-.ootd-name{font-size:15px;font-weight:600;margin-bottom:2px}
-.ootd-items{font-size:11px;font-family:var(--f);color:var(--sub)}
-/* ── COMPOSITE ── */
-.composite-wrap{margin:10px 0;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
-.composite-wrap canvas{width:100%;display:block}
-/* ── LOCATION VIBES ── */
-.loc-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.loc-chip{padding:5px 10px;border-radius:8px;font-size:10px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);transition:all .15s;user-select:none}
-.loc-chip.on{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:var(--gold)}
-.loc-chip:active{transform:scale(0.95)}
 </style>
 </head>
 <body>
-<div class="offline-banner" id="offlineBanner">You're offline — changes saved locally</div>
 <div id="root"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -124,7 +66,7 @@ const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
 /* ══════ CONFIG ══════ */
 /* Set IS_SHARED=true to create a version for friends (empty collection, onboarding) */
 const IS_SHARED=false;
-const SK="v13"; /* storage key suffix — change to reset data */
+const SK="v14"; /* storage key suffix — change to reset data */
 
 /* ══════ DATA ══════ */
 const CM={
@@ -197,71 +139,6 @@ var CXI={};DEFAULT_CX.forEach(function(c){CXI[c.id]=c.icon});
 const CATS={tops:["Shirt","Polo","T-Shirt","Sweater/Knit","Jacket/Blazer"],bottoms:["Pants/Trousers","Chinos","Jeans","Shorts"],shoes:["Shoes"]};
 const ALL_T=[...CATS.tops,...CATS.bottoms,...CATS.shoes];
 const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":"other";
-
-/* ═══ DAILY STYLE TIPS ═══ */
-const DAILY_TIPS=[
-"Fit is king — a $30 shirt that fits perfectly beats a $300 one that doesn't.",
-"The 3-color rule: stick to max 3 main colors in any outfit for visual coherence.",
-"Invest in shoe care — polished shoes elevate even a casual look.",
-"Layer strategically: thin inner layers, medium mid layers, structured outer layers.",
-"Your watch should match the occasion. Dress watch for formal, sport for active.",
-"Monochrome outfits with texture variation look effortlessly sophisticated.",
-"Balance proportions: slim top + wider bottom OR structured top + slim bottom.",
-"Invest in quality basics — they're the foundation every great outfit is built on.",
-"Check weather before dressing — layers you can remove beat being stuck overdressed.",
-"Your strap must match your shoe leather. Brown to brown. Black to black. Always.",
-"Dress for the occasion, not your mood. Context always beats comfort alone.",
-"Declutter quarterly — if you haven't worn it in 6 months, it's dead weight.",
-"Find a good tailor — alterations transform off-the-rack into bespoke-looking fits.",
-"Understand your color season — warm or cool tones make a bigger difference than you think.",
-"Photograph your outfits — you'll spot patterns and mistakes you'd never notice in a mirror.",
-"Grooming is 50% of the outfit. Fresh haircut + clean nails multiply everything.",
-"Build a capsule wardrobe: 30 versatile pieces beat 100 random ones every time.",
-"Develop a signature piece — one item people associate with you creates lasting impression.",
-"Dark colors are forgiving, but light colors in summer project confidence and ease.",
-"Replicas fill statement-piece slots. Genuines build horological credibility. Deploy strategically.",
-"A great watch on the wrong strap is like a tailored suit with cheap shoes."
-];
-const TIP_ICONS=['💡','👔','✨','🎯','⌚','🔥','📐','🧱','🌤️','👞','🎪','🗑️','✂️','🎨','📸','💇','📦','🏷️','🖤','⌚','🪡'];
-
-/* ═══ LOCATION VIBES ═══ */
-const LOC_VIBES={
-"🏥 Clinic":["clinic"],"🍽️ Restaurant":["smart-casual","date"],"🏖️ Beach":["weekend","casual"],
-"🌆 City":["smart-casual"],"👨‍👩‍👧 Family":["casual","weekend"],"🕌 Religious":["formal","smart-casual"],
-"💼 Meeting":["formal","clinic"],"✈️ Travel":["casual","weekend"]
-};
-
-/* ═══ STYLE DNA DIMENSIONS ═══ */
-const DNA_DIMS=["Boldness","Versatility","Formality","Creativity","Consistency"];
-const CX_DNA={
-"clinic":{Boldness:3,Versatility:5,Formality:7,Creativity:2,Consistency:8},
-"formal":{Boldness:5,Versatility:4,Formality:9,Creativity:3,Consistency:7},
-"smart-casual":{Boldness:5,Versatility:7,Formality:5,Creativity:5,Consistency:6},
-"casual":{Boldness:3,Versatility:7,Formality:2,Creativity:4,Consistency:5},
-"weekend":{Boldness:4,Versatility:6,Formality:2,Creativity:5,Consistency:4},
-"date":{Boldness:7,Versatility:5,Formality:6,Creativity:7,Consistency:5},
-"riviera":{Boldness:7,Versatility:6,Formality:4,Creativity:8,Consistency:4},
-"flex":{Boldness:8,Versatility:7,Formality:5,Creativity:8,Consistency:4},
-"travel":{Boldness:4,Versatility:8,Formality:3,Creativity:5,Consistency:5},
-"event":{Boldness:6,Versatility:5,Formality:7,Creativity:6,Consistency:6},
-"office":{Boldness:3,Versatility:5,Formality:7,Creativity:2,Consistency:8},
-"sporty":{Boldness:4,Versatility:6,Formality:1,Creativity:3,Consistency:6}
-};
-
-/* ═══ COLOR HARMONY ═══ */
-function hexToHsl(hex){var m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);if(!m)return null;var r=parseInt(m[1],16)/255,g=parseInt(m[2],16)/255,b=parseInt(m[3],16)/255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2;if(mx!==mn){var d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);if(mx===r)h=((g-b)/d+(g<b?6:0))*60;else if(mx===g)h=((b-r)/d+2)*60;else h=((r-g)/d+4)*60}return{h:Math.round(h),s:Math.round(s*100),l:Math.round(l*100)}}
-function classifyHarmony(colors){var hsls=colors.map(function(c){var e=Object.entries(CM).find(function(x){return c.toLowerCase().includes(x[0])});return e?hexToHsl(e[1].h):null}).filter(Boolean);if(hsls.length<2)return{type:"Neutral",icon:"⚪"};var hues=hsls.filter(function(h){return h.s>10}).map(function(h){return h.h});if(hues.length<2)return{type:"Neutral",icon:"⚪"};var maxD=0;for(var i=0;i<hues.length;i++)for(var j=i+1;j<hues.length;j++){var d=Math.abs(hues[i]-hues[j]);maxD=Math.max(maxD,Math.min(d,360-d))}if(maxD<30)return{type:"Monochrome",icon:"🎯"};if(maxD<60)return{type:"Analogous",icon:"🌊"};if(maxD>150&&maxD<210)return{type:"Complementary",icon:"⚡"};if(hues.length>=3){var sorted=hues.slice().sort(function(a,b){return a-b});var avgGap=360/sorted.length;var triadic=sorted.every(function(h,i){var gap=(sorted[(i+1)%sorted.length]-h+360)%360;return Math.abs(gap-avgGap)<40});if(triadic)return{type:"Triadic",icon:"🔺"}}return{type:"Eclectic",icon:"🎨"}}
-
-/* ═══ IndexedDB BACKUP ═══ */
-var _idb=null;
-function initIDB(){if(!window.indexedDB)return Promise.resolve();return new Promise(function(resolve){var req=indexedDB.open("WatchAdvisorDB",1);req.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains("appData"))db.createObjectStore("appData",{keyPath:"key"})};req.onsuccess=function(e){_idb=e.target.result;resolve()};req.onerror=function(){resolve()}})}
-function backupToIDB(data){if(!_idb)return;try{var tx=_idb.transaction("appData","readwrite");tx.objectStore("appData").put(Object.assign({key:"backup",timestamp:Date.now()},data))}catch(e){console.warn("IDB backup failed",e)}}
-function restoreFromIDB(){if(!_idb)return Promise.resolve(null);return new Promise(function(resolve){try{var tx=_idb.transaction("appData","readonly");var req=tx.objectStore("appData").get("backup");req.onsuccess=function(){resolve(req.result||null)};req.onerror=function(){resolve(null)}}catch(e){resolve(null)}})}
-
-/* ═══ DUPLICATE DETECTION ═══ */
-function findDuplicates(wardrobe){var groups=[];var checked=new Set();for(var i=0;i<wardrobe.length;i++){if(checked.has(i))continue;var dupes=[i];for(var j=i+1;j<wardrobe.length;j++){if(checked.has(j))continue;if(dupeSimilarity(wardrobe[i],wardrobe[j])>=0.7){dupes.push(j);checked.add(j)}}if(dupes.length>1){groups.push(dupes);dupes.forEach(function(d){checked.add(d)})}}return groups}
-function dupeSimilarity(a,b){if(a.garmentType!==b.garmentType)return 0;var score=0;var na=(a.name||"").toLowerCase().trim(),nb=(b.name||"").toLowerCase().trim();if(!na||!nb)return 0;if(na===nb)return 1;var sameColor=a.color&&b.color&&a.color.toLowerCase()===b.color.toLowerCase();var colorA=(a.color||"").toLowerCase(),colorB=(b.color||"").toLowerCase();/* Strip color words and common filler from names for core comparison */var stopWords=["knit","sweater","shirt","pants","trousers","jeans","jacket","coat","dress","top","bottom","shoe","casual","formal","button","up","the","a","an","in","zip","cable","crew","round","neck","v-neck"];var coreA=na.split(/[\s\-\/]+/).filter(function(w){return!stopWords.includes(w)&&w!==colorA&&w.length>1});var coreB=nb.split(/[\s\-\/]+/).filter(function(w){return!stopWords.includes(w)&&w!==colorB&&w.length>1});/* Name containment check */if(na.includes(nb)||nb.includes(na)){score+=0.5}else{/* Jaccard similarity on significant words */var wordsA=na.split(/[\s\-\/]+/).filter(function(w){return w.length>1});var wordsB=nb.split(/[\s\-\/]+/).filter(function(w){return w.length>1});var union=new Set(wordsA.concat(wordsB));var inter=wordsA.filter(function(w){return wordsB.includes(w)});score+=union.size>0?(inter.length/union.size)*0.4:0}/* Color match is critical — different colors = different items */if(sameColor){score+=0.4}else if(a.color&&b.color){score-=0.3}/* Pattern match bonus */if(a.pattern&&b.pattern&&a.pattern===b.pattern)score+=0.1;/* Photo hash similarity: if both lack photos and match on everything else, boost */if(!a.photoUrl&&!b.photoUrl)score+=0.05;return Math.min(score,1)}
-
 const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜"];
 const STS=[{id:"active",l:"Active",c:"var(--good)"},{id:"incoming",l:"Incoming",c:"#7ab8d8"},{id:"pending-trade",l:"Pending",c:"var(--warn)"},{id:"sold",l:"Sold",c:"var(--dim)"},{id:"service",l:"Service",c:"#b87ab8"}];
 const WT_TIERS=[
@@ -340,6 +217,7 @@ const _OWNER_DEFAULTS=[
 {id:"monaco",n:"TAG Monaco",t:"genuine",d:"Black",c:"#1a1a1a",br:false,sc:["black"],mt:"cool",i:"🏁",mc:["black","charcoal","white","navy"],ac:["brown","warm"],cx:["smart-casual","date","weekend"],sg:"Black shoes ONLY.",wt:["mid","heavy"],active:true,status:"active"},
 {id:"rolex-date",n:"Rolex Date",t:"genuine",d:"White/Gold",c:"#d4af37",br:true,sc:[],mt:"mixed",i:"⭐",mc:["cream","light blue","white","tan","light grey"],ac:["all-black"],cx:["clinic","smart-casual","flex"],sg:"Jubilee. Leans warm.",wt:["light","mid"],active:true,status:"active"},
 {id:"gmt",n:"Rolex GMT-II",t:"genuine",d:"Black",c:"#2a2a2a",br:true,sc:[],mt:"cool",i:"🌍",mc:["black","navy","grey","white","olive"],ac:[],cx:["casual","travel","smart-casual"],sg:"PENDING TRADE→Alpine Eagle 8HF.",wt:["light","mid","heavy"],active:true,status:"pending-trade"},
+{id:"alpine-8hf",n:"Chopard Alpine Eagle 8HF",t:"genuine",d:"Blue-Grey",c:"#5a6a7a",br:true,sc:[],mt:"cool",i:"🏔️",mc:["grey","navy","white","light blue","charcoal","silver","cream","slate"],ac:["orange","bright red"],cx:["clinic","smart-casual","date","flex","riviera"],sg:"GPHG Sports Watch. 8Hz movement. Replaces GMT-II.",wt:["light","mid","heavy"],active:false,status:"incoming"},
 {id:"hanhart",n:"Hanhart Pioneer",t:"genuine",d:"White/Teal",c:"#3a8a8a",br:false,sc:["teal"],mt:"cool",i:"✈️",mc:["teal","cream","sage","white","burnt orange","olive","khaki","tan"],ac:["formal"],cx:["casual","weekend","riviera"],sg:"Teal strap. Brown shoes.",wt:["light","mid"],active:true,status:"active"},
 {id:"sinn613",n:"Sinn 613 UTC",t:"genuine",d:"Blue",c:"#2a4a7a",br:false,sc:["tan"],mt:"cool",i:"🧭",mc:["navy","light blue","white","grey","tan","khaki","denim"],ac:["all-black"],cx:["casual","weekend","clinic"],sg:"Tan→brown shoes.",wt:["light","mid"],active:true,status:"active"},
 {id:"laco",n:"Laco Flieger",t:"genuine",d:"Black",c:"#3a3a3a",br:false,sc:["distressed brown"],mt:"cool",i:"🛩️",mc:["olive","brown","dark green","grey","khaki","tan"],ac:["silk","suits"],cx:["casual","weekend"],sg:"Rugged only.",wt:["mid","heavy"],active:true,status:"active"},
@@ -395,18 +273,12 @@ const CP={
 "silver":["black","charcoal","navy","white","grey","cobalt"],
 "cobalt":["white","cream","light grey","tan","khaki","beige","gold","camel"],
 "slate":["white","cream","light blue","navy","tan"],
-"blue":["white","cream","navy","grey","charcoal","light blue","tan","khaki","beige","light grey"],
-"green":["cream","ivory","tan","khaki","brown","olive","white","beige","navy","camel"],
-"purple":["cream","ivory","charcoal","grey","white","lavender","light grey","black","silver"],
-"yellow":["navy","charcoal","white","denim","grey","olive","cream","cobalt"],
-"pink":["charcoal","grey","navy","white","cream","black","light grey"],
-"chocolate":["cream","ivory","tan","khaki","beige","white","camel","light blue","gold","olive"],
 };
 function compat(c1,c2){
   if(!c1||!c2)return 0.1;
   const a=(c1||"").toLowerCase().trim(),b=(c2||"").toLowerCase().trim();
   if(!a||!b)return 0.1;
-  if(a===b)return 0.3;
+  if(a===b)return 0.6; /* monochrome — intentional pairing */
   if((CP[a]||[]).some(x=>b.includes(x)||x.includes(b)))return 1;
   if((CP[b]||[]).some(x=>a.includes(x)||x.includes(a)))return 1;
   const t1=Object.entries(CM).find(([k])=>a.includes(k)),t2=Object.entries(CM).find(([k])=>b.includes(k));
@@ -437,12 +309,15 @@ function scoreW(w,items,ctx,reps){
     if(sB&&hB){s+=3;bd.strap=3}if(sB&&!hB&&!hN){s-=3;bd.strap=-3}if(sBr&&hBr){s+=3;bd.strap=3}if(sBr&&hB&&!hBr){s-=3;bd.strap=-3}if(sB&&hN){s+=1;bd.strap+=1}
   }
   if(w.br){s+=1;bd.br=1}
-  /* Watch size × context scoring */
+  /* Watch size × context scoring — expanded */
   var sz=w.size?parseInt(w.size):0;
   if(sz>0){
     if((ctx==="formal"||ctx==="clinic")&&sz>=43){s-=1;bd.ctx-=1}
+    if((ctx==="formal"||ctx==="clinic")&&sz<=39){s+=0.5;bd.ctx+=0.5}
     if(ctx==="date"&&sz<=37){s+=0.5;bd.ctx+=0.5}
+    if(ctx==="date"&&sz>=44){s-=0.5;bd.ctx-=0.5}
     if((ctx==="casual"||ctx==="weekend")&&sz>=44){s+=0.5;bd.ctx+=0.5}
+    if(ctx==="riviera"&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
   }
   return{total:s,...bd};
 }
@@ -485,10 +360,14 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   if(wxOpts&&tempVal!==undefined)wxOpts.temp=tempVal;
   let fs=0;
   /* Season penalty for off-season items */
-  var _csn=(function(){var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
+  /* Season — temperature-based when weather available, month-based fallback */
+  var _csn=(function(){
+    if(wxOpts&&wxOpts.temp!==undefined){
+      var t=wxOpts.temp;
+      if(t>=28)return"summer";if(t>=20)return"spring";if(t>=12)return"fall";return"winter";
+    }
+    var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
   items.forEach(function(it){var s=it.seasons;if(s&&s.length>0&&s.length<4&&!s.includes(_csn))fs-=1});
-  /* Context/vibe match — boost items tagged for current context, penalize mismatches */
-  items.forEach(function(it){var cx=it.cx;if(cx&&cx.length>0){if(cx.includes(ctx))fs+=1.5;else if(cx.length<=2)fs-=0.5}});
   /* Freshness penalty — discourage recently-worn garments for variety */
   var _now=Date.now();
   items.forEach(function(it){if(it.lastWorn){var daysAgo=Math.floor((_now-new Date(it.lastWorn).getTime())/(864e5));if(daysAgo<=1)fs-=2;else if(daysAgo<=3)fs-=0.8;else if(daysAgo<=5)fs-=0.3;else if(daysAgo>=14)fs+=0.3}});
@@ -549,16 +428,6 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets preferred over leather");
   if(isWindy)wxWarns.push("💨 High wind — secure light items");
   return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,items,wxWarns:wxWarns};
-}
-/* Standalone fit score for live swap recalc (no watch scoring) */
-function fitScore(fit){
-  var top=fit.top,bot=fit.bot,shoe=fit.shoe;var fs=0;
-  if(top&&bot)fs+=compat(top.color,bot.color)*3;
-  if(top&&shoe)fs+=compat(top.color,shoe.color)*2;
-  if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
-  if(bot&&bot.garmentType==="Jeans")fs+=0.8;
-  if(top&&bot){var tp=(top.pattern||"solid"),bp=(bot.pattern||"solid");if(tp!=="solid"&&bp!=="solid")fs-=1.5;else if((tp==="textured"||bp==="textured")&&(tp==="solid"||bp==="solid"))fs+=0.8;else if(tp==="striped"&&bp==="solid")fs+=0.4}
-  return Math.round(fs*10)/10;
 }
 
 function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
@@ -642,22 +511,6 @@ function compressImage(dataUrl,maxDim,quality){
 /* ══════ AI ERROR LOG (visible in UI) ══════ */
 var _lastAiError="";
 function getLastAiError(){return _lastAiError}
-
-/* ══════ RETRY WRAPPER FOR API CALLS ══════ */
-/* Reserved for future use - can be applied to aiID and aiVision calls for automatic retry on failure */
-async function retryAsync(fn,retries,delay){
-  for(var i=0;i<=retries;i++){
-    try{
-      var result=await fn();
-      if(result!==null)return result;
-      if(i<retries)await new Promise(function(r){setTimeout(r,delay)});
-    }catch(e){
-      if(i===retries)throw e;
-      await new Promise(function(r){setTimeout(r,delay)});
-    }
-  }
-  return null;
-}
 
 async function aiID(b64,mime,apiKey){
   _lastAiError="";
@@ -835,8 +688,8 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
         if(w.cx&&w.cx.includes(cx))s+=4;
         if(w.wt&&w.wt.includes(dayWt))s+=2;
         if(used[w.id])s-=8;
-        if(w.id===lastId)s-=12;
-        if(plan.length>1&&plan[plan.length-2]&&plan[plan.length-2].watch&&plan[plan.length-2].watch.id===w.id)s-=6;
+        if(w.id===lastId)s-=15; /* hard block consecutive same watch */
+        if(plan.length>1&&plan[plan.length-2]&&plan[plan.length-2].watch&&plan[plan.length-2].watch.id===w.id)s-=10; /* 2-day minimum gap */
         var types=plan.map(function(p){return p.watch?p.watch.t:""});
         var gc=types.filter(function(t){return t==="genuine"}).length;
         var rc=types.filter(function(t){return t==="replica"}).length;
@@ -890,6 +743,7 @@ function App(){
   const[wFilt,setWFilt]=useState("all");
   const[wMatFilt,setWMatFilt]=useState("all");
   const[weather,setWx]=useState(null);
+  const[wxErr,setWxErr]=useState(false);
   const[loc,setLoc]=useState({lat:31.7683,lon:35.2137,name:"Jerusalem"});
   const[editG,setEditG]=useState(null);
   const[editW,setEditW]=useState(null);
@@ -897,7 +751,6 @@ function App(){
   const[mode,setMode]=useState("auto");
   const[topType,setTopType]=useState("all");
   const[lockItem,setLockItem]=useState(null);
-  const[lockWatch,setLockWatch]=useState(null);
   const[shuffleKey,setShuffleKey]=useState(0);
   const[fitCount,setFitCount]=useState(12);
   const[buildSlot,setBuildSlot]=useState(null);
@@ -923,42 +776,16 @@ function App(){
   const[rotLock,setRotLock]=useState([null,null,null,null,null,null,null]);
   const[editDayIdx,setEditDayIdx]=useState(null);
   const[editDayMode,setEditDayMode]=useState(null);
-  const[undoStack,setUndoStack]=useState([]);
   const[expandDay,setExpandDay]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
-  const[toast,setToast]=useState(null);
-  /* ── NEW FEATURE STATE ── */
-  const[darkMode,setDarkMode]=useState(true);
-  const[profileName,setProfileName]=useState("");
-  const[profileBio,setProfileBio]=useState("");
-  const[favorites,setFavorites]=useState([]);
-  const[locVibe,setLocVibe]=useState(null);
-  const[showDupes,setShowDupes]=useState(false);
-  const[photoModal,setPhotoModal]=useState(null);/* {src,name} */
-  const[dupeConfirm,setDupeConfirm]=useState(null);/* {item,idx} */
-  const[showBatch,setShowBatch]=useState(false);
-  const[batchResults,setBatchResults]=useState([]);
-  const[batchProcessing,setBatchProcessing]=useState(false);
-  const[compositeData,setCompositeData]=useState(null);
-  const[showProfile,setShowProfile]=useState(false);
-  const[aiInsights,setAiInsights]=useState(null);
-  const[aiInsightsLoading,setAiInsightsLoading]=useState(false);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
-  const toastTimer=useRef(null);
-
-  /* Toast notifications */
-  const showToast=useCallback(function(msg,type){
-    if(toastTimer.current)clearTimeout(toastTimer.current);
-    setToast({msg:msg,type:type||"info"});
-    toastTimer.current=setTimeout(function(){setToast(null)},3000);
-  },[]);
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}return true}catch(e){try{localStorage.setItem(k,j);return true}catch(e2){console.error("Save failed:",e2);return false}}},[]);
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){}}},[]);
   const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){(async function(){
@@ -980,52 +807,13 @@ function App(){
     // Auto-onboard if existing data found
     if(wLoaded||wdLoaded)setOnboarded(true);
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
-    // Load new feature data
-    try{var dm=await loadKey("wa_darkmode");if(dm===false){setDarkMode(false);document.documentElement.setAttribute("data-theme","light")}}catch(e){}
-    try{var pn=await loadKey("wa_profilename");if(pn)setProfileName(pn)}catch(e){}
-    try{var pb=await loadKey("wa_profilebio");if(pb)setProfileBio(pb)}catch(e){}
-    try{var fv=await loadKey("wa_favorites_"+SK);if(fv&&fv.length)setFavorites(fv)}catch(e){}
-    // Init IndexedDB backup
-    initIDB().then(function(){restoreFromIDB().then(function(b){if(!b)return;if(!wLoaded&&b.watches&&b.watches.length){setW(b.watches);ps("w_"+SK,b.watches);console.log("Restored watches from IDB")}if(!wdLoaded&&b.wardrobe&&b.wardrobe.length){setWd(b.wardrobe);ps("wd_"+SK,b.wardrobe);console.log("Restored wardrobe from IDB")}})});
+    // Cleanup old storage keys after successful migration
+    var oldKeys=["w_v12","w_v11","w_v9","watches_v8","wd_v12","wd_v11","wd_v9","wd_v8","of_v12","of_v11","of_v9","of_v8","wa_wearlog_v12","wa_wearlog_v11","wa_rotlock_v12","wa_rotlock_v11","w_v13","wd_v13","of_v13","wa_wearlog_v13","wa_rotlock_v13"];
+    setTimeout(function(){oldKeys.forEach(function(k){try{localStorage.removeItem(k)}catch(e){}})},3000);
   })()},[]);
 
-  useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(err){console.log("Location error:",err)},{timeout:5000})}catch(e){console.log("Geolocation not available:",e)}},[]);
-
-  /* ── OFFLINE DETECTION ── */
-  useEffect(function(){
-    function goOnline(){document.getElementById("offlineBanner").style.display="none";backupToIDB({watches:W,wardrobe:wd,outfits:saved,favorites:favorites})}
-    function goOffline(){document.getElementById("offlineBanner").style.display="block"}
-    function onUnload(){backupToIDB({watches:W,wardrobe:wd,outfits:saved,favorites:favorites})}
-    window.addEventListener("online",goOnline);window.addEventListener("offline",goOffline);window.addEventListener("beforeunload",onUnload);
-    if(!navigator.onLine)document.getElementById("offlineBanner").style.display="block";
-    return function(){window.removeEventListener("online",goOnline);window.removeEventListener("offline",goOffline);window.removeEventListener("beforeunload",onUnload)};
-  },[W,wd,saved,favorites]);
-
-  /* ── KEYBOARD SHORTCUTS ── */
-  useEffect(function(){
-    function handleKey(e){
-      if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")return;
-      if(e.key==="Escape"){setEditG(null);setEditW(null);setAddG(false);setShowSettings(false);setSelFit(null);setShowProfile(false);setShowDupes(false);setShowBatch(false);setPhotoModal(null);return}
-      if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();ps("w_"+SK,W);ps("wd_"+SK,wd);ps("of_"+SK,saved);showToast("✓ All data saved","success");return}
-      var cxKeys={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7};
-      if(cxKeys[e.key]!==undefined){var cxArr=userCx||(IS_SHARED?SHARE_DEFAULT_CX:DEFAULT_CX);var ci=cxKeys[e.key];if(ci<cxArr.length){setCtx(cxArr[ci].id);setView("fits");setSelFit(null)}}
-      if(e.key==="r"||e.key==="R"){setShuffleKey(function(k){return k+1});setSelFit(null)}
-      if(e.key==="d"||e.key==="D"){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"":"light");ps("wa_darkmode",nv);return nv})}
-    }
-    document.addEventListener("keydown",handleKey);
-    return function(){document.removeEventListener("keydown",handleKey)};
-  },[W,wd,saved,ps,showToast,userCx]);
-
-  /* ── PULL TO REFRESH ── */
-  useEffect(function(){
-    var startY=0,pulling=false;
-    function onStart(e){if(window.scrollY===0){startY=e.touches[0].clientY;pulling=true}}
-    function onMove(e){if(!pulling)return;var delta=e.touches[0].clientY-startY;if(delta>80){pulling=false;setShuffleKey(function(k){return k+1});setSelFit(null);showToast("🎲 Shuffled!","success")}}
-    function onEnd(){pulling=false}
-    document.addEventListener("touchstart",onStart,{passive:true});document.addEventListener("touchmove",onMove,{passive:true});document.addEventListener("touchend",onEnd,{passive:true});
-    return function(){document.removeEventListener("touchstart",onStart);document.removeEventListener("touchmove",onMove);document.removeEventListener("touchend",onEnd)};
-  },[showToast]);
-  useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7",{signal:AbortSignal.timeout(10000)});if(!r.ok){console.error("Weather API error:",r.status);return}var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch error:",e)}})()},[loc]);
+  useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(){},{timeout:5000})}catch(e){}},[]);
+  useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7");var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch failed:",e);setWxErr(true)}})()},[loc]);
 
   const tier=useMemo(function(){if(planDay===0&&weather)return getWT(weather.feels);if(planDay>0&&forecast[planDay])return getWT(forecast[planDay].feelsAvg);return weather?getWT(weather.feels):null},[weather,forecast,planDay]);
   const ww=tier?tier.weight:"mid";
@@ -1044,27 +832,18 @@ function App(){
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"})}},[wd]);
-  const fitsWatches=useMemo(function(){return lockWatch?[lockWatch]:actW},[lockWatch,actW]);
-  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,fitsWatches,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,fitsWatches,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
-  const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,fitsWatches,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,fitsWatches,effectiveCtx,reps,planWx,planTemp]);
+  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
+  const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
-  const updateW=useCallback(async function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n).then(function(ok){if(ok)showToast("✓ Watch saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
+  const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
-  const removeW=useCallback(function(id){if(!confirm("Delete this watch?"))return false;var deleted=W.find(function(w){return w.id===id});setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n});setUndoStack(function(s){return[{type:"watch",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success");return true},[ps,showToast,W]);
+  const removeW=useCallback(function(id){setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
 
   const saveWd=useCallback(function(n){setWd(n);ps("wd_"+SK,n)},[ps]);
-  const rmG=useCallback(function(id){if(!confirm("Delete this garment?"))return false;var deleted=wd.find(function(i){return i.id===id});setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n});setUndoStack(function(s){return[{type:"garment",item:deleted,ts:Date.now()}].concat(s).slice(0,5)});showToast("✓ Deleted - Tap undo","success");return true},[ps,showToast,wd]);
-  const updG=useCallback(async function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n).then(function(ok){if(ok)showToast("✓ Garment saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
+  const rmG=useCallback(function(id){setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n})},[ps]);
+  const updG=useCallback(function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
   const addGarment=useCallback(function(item){setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
-
-  const undoDelete=useCallback(function(){
-    if(!undoStack.length)return;
-    var last=undoStack[0];
-    if(last.type==="watch"){setW(function(p){var n=p.concat([last.item]);ps("w_"+SK,n);return n});showToast("✓ Watch restored","success")}
-    else if(last.type==="garment"){setWd(function(p){var n=p.concat([last.item]);ps("wd_"+SK,n);return n});showToast("✓ Garment restored","success")}
-    setUndoStack(function(s){return s.slice(1)});
-  },[undoStack,ps,showToast]);
 
   const logWear=useCallback(function(watchId,dateStr){
     setWearLog(function(p){
@@ -1091,7 +870,6 @@ function App(){
   const processFiles=useCallback(async function(files){
     var arr=Array.from(files);var pids=arr.map(function(_,i){return Date.now()+i});
     setProc(function(p){return p.concat(pids)});
-    showToast("📸 Processing "+arr.length+" photo"+(arr.length>1?"s":"")+"...","info");
     for(var i=0;i<arr.length;i++){
       var f=arr[i],pid=pids[i];
       try{
@@ -1104,69 +882,28 @@ function App(){
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
-          if(aiResult.length>1){showToast("✓ Found "+aiResult.length+" items","success")}
-          else showToast("✓ Item added","success");
+          if(aiResult.length>1)setAiErr("📸 Found "+aiResult.length+" items in photo");
         }else{
           var item={garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb,id:pid,needsEdit:true,ts:Date.now(),aiError:getLastAiError()};
           setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n});
           setAiErr(getLastAiError());
-          showToast("⚠ Needs manual classification","error");
         }
       }catch(e){
         try{var thumb2=await compressImage(await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(f)}),400,0.5);
         setWd(function(p){var n=p.concat([{garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb2,id:pid,needsEdit:true,ts:Date.now(),aiError:"FileReader: "+String(e)}]);ps("wd_"+SK,n);return n})}catch(e2){}
         setAiErr("File error: "+String(e));
-        showToast("✗ Upload failed","error");
       }
       setProc(function(p){return p.filter(function(x){return x!==pid})});
       // Delay between items to avoid rate limit
       if(i<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
     }
-  },[ps,showToast]);
+  },[ps]);
 
-  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n).then(function(){showToast("✓ Outfit saved","success")});return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx,showToast]);
-  const delSaved=useCallback(function(id){if(!confirm("Delete this saved outfit?"))return;setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n).then(function(){showToast("✓ Outfit deleted","success")});return n})},[ps,showToast]);
+  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
+  const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
-
-  /* ═══ DAILY TIP ═══ */
-  const dailyTip=useMemo(function(){var doy=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/86400000);return{text:DAILY_TIPS[doy%DAILY_TIPS.length],icon:TIP_ICONS[doy%TIP_ICONS.length]}},[]);
-
-  /* ═══ OOTD GENERATOR ═══ */
-  const ootd=useMemo(function(){if(wd.length<2||actW.length<1)return null;var today=new Date().toDateString();var seed=0;for(var i=0;i<today.length;i++)seed+=today.charCodeAt(i);var allFits=genFits(wd,actW,effectiveCtx,reps,"mid",30,{topType:"all",lockItem:null,shuffle:false,wx:planWx,temp:planTemp?planTemp.feels:18});if(!allFits.length)return null;return allFits[seed%allFits.length]},[wd,actW,effectiveCtx,reps,planWx,planTemp]);
-
-  /* ═══ STYLE DNA SCORES ═══ */
-  const dnaScores=useMemo(function(){var scores={};DNA_DIMS.forEach(function(d){scores[d]=5});if(saved.length>0){var recent=saved.slice(-15);DNA_DIMS.forEach(function(d){scores[d]=0});recent.forEach(function(o){var vs=CX_DNA[o.context]||CX_DNA["casual"];DNA_DIMS.forEach(function(d){scores[d]+=vs[d]||5})});DNA_DIMS.forEach(function(d){scores[d]=Math.round(scores[d]/recent.length)})}return scores},[saved]);
-
-  /* ═══ FAVORITES ═══ */
-  const toggleFav=useCallback(function(fitId){setFavorites(function(prev){var exists=prev.findIndex(function(f){return f.id===fitId});var next;if(exists>=0){next=prev.filter(function(_,i){return i!==exists});showToast("Removed from favorites","info")}else{var fit=fits.find(function(f){return f.id===fitId})||saved.find(function(o){return o.id===fitId});if(fit){next=prev.concat([Object.assign({},fit,{favTs:Date.now()})]);showToast("⭐ Added to favorites","success")}else{next=prev}}ps("wa_favorites_"+SK,next);return next})},[fits,saved,ps,showToast]);
-  const isFav=useCallback(function(fitId){return favorites.some(function(f){return f.id===fitId})},[favorites]);
-
-  /* ═══ DARK MODE TOGGLE ═══ */
-  const toggleDark=useCallback(function(){setDarkMode(function(dm){var nv=!dm;document.documentElement.setAttribute("data-theme",nv?"":"light");ps("wa_darkmode",nv);return nv})},[ps]);
-
-  /* ═══ SURPRISE ME ═══ */
-  const surpriseMe=useCallback(function(){setShuffleKey(function(k){return k+1});setSelFit(null);setView("fits");showToast("🎲 Surprise!","success")},[showToast]);
-
-  /* ═══ PROFILE ═══ */
-  const saveProfile=useCallback(function(name,bio){setProfileName(name);setProfileBio(bio);ps("wa_profilename",name);ps("wa_profilebio",bio);showToast("✓ Profile saved","success")},[ps,showToast]);
-
-  /* ═══ COMPOSITE IMAGE ═══ */
-  const drawComposite=useCallback(function(fit){if(!fit)return;var canvas=document.createElement("canvas");var S=300;canvas.width=S;canvas.height=S;var cx=canvas.getContext("2d");var dk=darkMode;cx.fillStyle=dk?"#12101a":"#f6f6f9";cx.fillRect(0,0,S,S);cx.fillStyle=dk?"#e0dcd4":"#1a1814";cx.font="bold 14px DM Sans, sans-serif";cx.textAlign="center";var name=(fit.top?fit.top.name||fit.top.color:"")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"");cx.fillText(name.length>30?name.slice(0,28)+"…":name,S/2,24);var items=(fit.items||[]).filter(Boolean);var cols=Math.min(items.length,3);var rows=Math.ceil(items.length/cols);var cw=(S-40)/cols,ch=(S-50)/rows;items.forEach(function(item,i){var col=i%cols,row=Math.floor(i/cols);var x=20+col*cw,y=40+row*ch;var ce=Object.entries(CM).find(function(e){return(item.color||"").toLowerCase().includes(e[0])});var hex=ce?ce[1].h:"#888";cx.fillStyle=hex+"33";cx.beginPath();cx.roundRect(x+3,y+3,cw-6,ch-6,10);cx.fill();cx.fillStyle=dk?"#e0dcd4":"#1a1814";cx.font="bold 11px DM Sans";cx.fillText(item.garmentType||"",x+cw/2,y+ch/2-6);cx.font="10px DM Sans";cx.fillText((item.color||"").slice(0,12),x+cw/2,y+ch/2+10)});setCompositeData(canvas.toDataURL("image/png"))},[darkMode]);
-
-  /* ═══ STYLE DNA RADAR DRAW ═══ */
-  const drawRadar=useCallback(function(canvasId){var canvas=document.getElementById(canvasId);if(!canvas)return;var cx=canvas.getContext("2d");var W2=canvas.width,H=canvas.height;var cxr=W2/2,cy=H/2,R=Math.min(W2,H)/2-28;var dims=DNA_DIMS;var vals=dims.map(function(d){return dnaScores[d]||5});cx.clearRect(0,0,W2,H);for(var r=2;r<=10;r+=2){cx.beginPath();dims.forEach(function(_,i){var angle=(Math.PI*2*i)/dims.length-Math.PI/2;var x=cxr+Math.cos(angle)*(R*r/10);var y=cy+Math.sin(angle)*(R*r/10);i===0?cx.moveTo(x,y):cx.lineTo(x,y)});cx.closePath();cx.strokeStyle=darkMode?"#2a2530":"#ddd8d0";cx.stroke()}dims.forEach(function(d,i){var angle=(Math.PI*2*i)/dims.length-Math.PI/2;cx.beginPath();cx.moveTo(cxr,cy);cx.lineTo(cxr+Math.cos(angle)*R,cy+Math.sin(angle)*R);cx.strokeStyle=darkMode?"#2a2530":"#ddd8d0";cx.stroke();var lx=cxr+Math.cos(angle)*(R+16);var ly=cy+Math.sin(angle)*(R+16);cx.fillStyle=darkMode?"#7a7484":"#6a6458";cx.font="9px DM Sans, sans-serif";cx.textAlign="center";cx.textBaseline="middle";cx.fillText(d,lx,ly)});cx.beginPath();dims.forEach(function(_,i){var angle=(Math.PI*2*i)/dims.length-Math.PI/2;var v=(vals[i]/10)*R;var x=cxr+Math.cos(angle)*v,y=cy+Math.sin(angle)*v;i===0?cx.moveTo(x,y):cx.lineTo(x,y)});cx.closePath();cx.fillStyle="rgba(201,168,76,0.15)";cx.fill();cx.strokeStyle="var(--gold)";cx.strokeStyle="#c9a84c";cx.lineWidth=2;cx.stroke();dims.forEach(function(_,i){var angle=(Math.PI*2*i)/dims.length-Math.PI/2;var v=(vals[i]/10)*R;cx.beginPath();cx.arc(cxr+Math.cos(angle)*v,cy+Math.sin(angle)*v,4,0,Math.PI*2);cx.fillStyle="#c9a84c";cx.fill()})},[dnaScores,darkMode]);
-
-  /* ═══ AI INSIGHTS ═══ */
-  const fetchAiInsights=useCallback(async function(){if(aiInsightsLoading)return;var ak=apiKeyRef.current;if(!ak||ak.trim().length<5){showToast("Set API key in Settings","error");return}setAiInsightsLoading(true);setAiInsights(null);try{var hist=saved.slice(-20).map(function(o){return(o.name||"outfit")+" ("+o.context+")"}).join(", ");var ward=wd.slice(0,30).map(function(i){return(i.name||i.garmentType)+" ("+i.color+")"}).join(", ");var wList=W.filter(function(w){return w.active}).map(function(w){return w.n+" ("+w.t+")"}).join(", ");var resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ak.trim(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:"Style analyst for a watch enthusiast. Watches: "+wList+". Wardrobe: "+(ward||"not populated")+". Recent outfits: "+(hist||"none")+".\nGive 4 insights as JSON: [{\"icon\":\"emoji\",\"title\":\"short\",\"insight\":\"2-3 sentences\",\"action\":\"suggestion\"}]\nFocus: watch-outfit pairing gaps, color balance, versatility, genuine vs replica deployment strategy."}]})});if(!resp.ok)throw new Error("API "+resp.status);var data=await resp.json();var m=data.content[0].text.match(/\[[\s\S]*\]/);if(!m)throw new Error("No JSON");setAiInsights(JSON.parse(m[0]))}catch(err){showToast("AI insights failed: "+err.message,"error")}finally{setAiInsightsLoading(false)}},[saved,wd,W,showToast]);
-
-  /* ═══ BATCH IMAGE UPLOAD ═══ */
-  const processBatch=useCallback(async function(files){if(batchProcessing)return;var ak=apiKeyRef.current;if(!ak){showToast("Set API key in Settings","error");return}setBatchProcessing(true);setBatchResults([]);var total=Math.min(files.length,10);var results=[];for(var i=0;i<total;i++){try{var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(files[i])});var compressed=await compressImage(rawUrl,600,0.6);var b64=compressed.split(",")[1];var resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ak.trim(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:200,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Identify this clothing item. Return ONLY JSON: {\"garmentType\":\"Shirt|Polo|T-Shirt|Sweater/Knit|Jacket/Blazer|Pants/Trousers|Chinos|Jeans|Shorts|Shoes\",\"name\":\"2-3 words\",\"color\":\"one from: "+AC.join(",")+"\",\"pattern\":\"solid|plaid|striped|checked|print|textured\"}"}]}]})});if(!resp.ok)throw new Error("API "+resp.status);var data=await resp.json();var m=data.content[0].text.match(/\{[\s\S]*\}/);if(m){var r2=JSON.parse(m[0]);results.push(Object.assign({},r2,{selected:true,thumb:await compressImage(rawUrl,200,0.4)}))}if(i<total-1)await new Promise(function(r){setTimeout(r,600)})}catch(err){console.error("Batch item:",err)}}setBatchResults(results);setBatchProcessing(false);showToast("✓ Found "+results.length+" items","success")},[showToast]);
-  const confirmBatch=useCallback(function(){var added=0;var newItems=batchResults.filter(function(r){return r.selected}).map(function(r,i){var sd=smartDefaults(r);return Object.assign({},sd,r,{photoUrl:r.thumb||null,id:Date.now()+i,ts:Date.now()})});setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});added=newItems.length;setBatchResults([]);setShowBatch(false);showToast("✓ Added "+added+" items","success")},[batchResults,ps,showToast]);
-
-  /* ═══ LOCATION VIBE FILTER ═══ */
-  const selectLocVibe=useCallback(function(loc){if(locVibe===loc){setLocVibe(null);return}setLocVibe(loc);var vibes=LOC_VIBES[loc];if(vibes&&vibes.length){setCtx(vibes[0]);showToast("📍 "+loc+" mode","info")}},[locVibe,showToast]);
 
   /* ═══ GARMENT EDIT (rendered in modal) ═══ */
   function renderGarmentEdit(item){
@@ -1184,7 +921,7 @@ function App(){
       };
       return React.createElement(Modal,{onClose:function(){setEditG(null)}},
         React.createElement("div",{style:{display:"flex",gap:14,marginBottom:16}},
-          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",onClick:function(e){e.stopPropagation();setPhotoModal({src:f.photoUrl,name:f.name||f.color||"Item"})},style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0,cursor:"pointer"}}),
+          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0}}),
           React.createElement("div",{style:{flex:1}},
             React.createElement("label",{className:"lbl"},"Name"),
             React.createElement("input",{className:"inp",value:f.name||"",onChange:function(e){set("name",e.target.value)},placeholder:"e.g. Navy plaid flannel"}))),
@@ -1204,9 +941,6 @@ function App(){
         React.createElement("label",{className:"lbl"},"Seasons"),
         React.createElement("div",{style:{display:"flex",gap:6,marginBottom:16}},
           ["spring","summer","fall","winter"].map(function(s){var icons={spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"};var arr=f.seasons||[];var on=arr.includes(s);return React.createElement("span",{key:s,className:"chip "+(on?"on":""),onClick:function(){set("seasons",on?arr.filter(function(x){return x!==s}):arr.concat([s]))},style:{flex:1,justifyContent:"center",padding:"6px 4px",fontSize:10}},icons[s]+" "+s)})),
-        React.createElement("label",{className:"lbl"},"Vibes / Context"),
-        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}},activeCxIds.map(function(c){var arr=f.cx||[];var on=arr.includes(c);return React.createElement("span",{key:c,className:"chip "+(on?"on":""),onClick:function(){set("cx",on?arr.filter(function(x){return x!==c}):arr.concat([c]))}},
-          (activeCxIcons[c]||"")+" "+c)})),
         React.createElement("label",{className:"lbl"},"Last Worn"),
         React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:14}},
           React.createElement("input",{className:"inp",type:"date",value:f.lastWorn||"",onChange:function(e){set("lastWorn",e.target.value)},style:{marginBottom:0,maxWidth:180,fontSize:11,flex:1}}),
@@ -1218,10 +952,10 @@ function App(){
           saved.some(function(o){return(o.items||[]).some(function(it){return it.id===item.id})})&&React.createElement("span",{style:{color:"var(--good)"}},"✓ Used in "+saved.filter(function(o){return(o.items||[]).some(function(it){return it.id===item.id})}).length+" saved outfit(s)")),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setEditG(null)}},"✓ Save"),
-          f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setLockWatch(null);setEditG(null);setView("fits");setMode("auto")},title:"Lock for fits"},"🔒"),
+          f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setEditG(null);setView("fits");setMode("auto")},title:"Lock for fits"},"🔒"),
           item.photoUrl&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:retry,disabled:retrying},retrying?"⏳":"🔄"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var dup=Object.assign({},f,{id:Date.now(),ts:Date.now(),name:(f.name||"")+" copy"});addGarment(dup);setEditG(null)},title:"Duplicate"},"📋"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(rmG(item.id))setEditG(null)}},"🗑️")));
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){rmG(item.id);setEditG(null)}},"🗑️")));
     };
     return React.createElement(GE,{key:item.id});
   }
@@ -1286,8 +1020,7 @@ function App(){
         React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}},EMOJIS.map(function(e){return React.createElement("span",{key:e,onClick:function(){set("i",e)},style:{fontSize:22,cursor:"pointer",opacity:f.i===e?1:0.25,padding:3,minWidth:30,textAlign:"center"}},e)})),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setEditW(null)}},"Save"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setLockWatch(Object.assign({},w,sv));setLockItem(null);setEditW(null);setView("fits");setMode("auto");showToast("👔 Styling around "+w.n,"info")},title:"Build outfits around this watch"},"👔"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(removeW(w.id))setEditW(null)}},"🗑️")));
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(confirm("Delete watch?")){removeW(w.id);setEditW(null)}}},"🗑️")));
     };
     return React.createElement(WE,{key:w.id});
   }
@@ -1324,7 +1057,7 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"12px 14px",fontSize:11},onClick:function(){
             var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){
               var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){
-                try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.favorites&&d.favorites.length){setFavorites(d.favorites);ps("wa_favorites_"+SK,d.favorites)}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
+                try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
           }},"📥 Import")));
     }
     /* Step 2: Closet */
@@ -1383,8 +1116,8 @@ function App(){
       React.createElement("label",{className:"lbl"},"Anthropic API Key"),
       React.createElement("input",{className:"inp",type:"password",value:apiKey,onChange:function(e){setApiKey(e.target.value);apiKeyRef.current=e.target.value},placeholder:"sk-ant-...",style:{marginBottom:12,fontFamily:"monospace"}}),
       React.createElement("div",{style:{display:"flex",gap:8,marginBottom:16}},
-        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey).then(function(){showToast("✓ API key saved","success")});apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
-        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","").then(function(){showToast("✓ API key cleared","success")})}},"Clear")),
+        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey);apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
+        apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","")}},"Clear")),
       React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"ℹ️ Get your key at console.anthropic.com → API Keys"),
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"Cost: ~$0.01 per photo (Sonnet vision)"),
@@ -1402,24 +1135,17 @@ function App(){
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,favorites:favorites});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click();showToast("✓ Data exported","success")}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){if(!confirm("Import will replace all current data. Export a backup first?"))return;var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);var valid=true;if(!d||typeof d!=="object"){valid=false}if(d.watches&&!Array.isArray(d.watches)){valid=false}if(d.wardrobe&&!Array.isArray(d.wardrobe)){valid=false}if(d.outfits&&!Array.isArray(d.outfits)){valid=false}if(!valid){showToast("✗ Invalid backup file format","error");return}if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.favorites&&d.favorites.length){setFavorites(d.favorites);ps("wa_favorites_"+SK,d.favorites)}var imported=[];if(d.watches)imported.push(d.watches.length+" watches");if(d.wardrobe)imported.push(d.wardrobe.length+" garments");if(d.outfits)imported.push(d.outfits.length+" outfits");showToast("✓ Imported: "+imported.join(", "),"success")}catch(e){showToast("✗ Import failed: "+String(e.message||"Invalid JSON"),"error")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
-
-    /* TOAST NOTIFICATION */
-    toast&&React.createElement("div",{onClick:function(){if(toast.msg.includes("undo")&&undoStack.length>0){undoDelete()}else{setToast(null)}},style:{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:toast.type==="success"?"rgba(122,184,122,0.95)":toast.type==="error"?"rgba(200,90,58,0.95)":"rgba(201,168,76,0.95)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:13,fontFamily:"var(--f)",fontWeight:600,boxShadow:"0 4px 12px rgba(0,0,0,0.3)",animation:"slideDown .3s ease",maxWidth:"90vw",textAlign:"center",cursor:toast.msg.includes("undo")?"pointer":"default"}},toast.msg,toast.msg.includes("undo")&&React.createElement("span",{style:{marginLeft:8,textDecoration:"underline"}},"UNDO")),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
 
     /* HEADER */
     React.createElement("div",{style:{background:"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
           React.createElement("h1",{style:{fontSize:20,fontWeight:300,letterSpacing:"0.14em",color:"var(--gold)"}},"WATCH ADVISOR"),
-          React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},
-            React.createElement("button",{onClick:surpriseMe,style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--sub)",fontSize:14,minHeight:32},title:"Surprise Me (R)"},"🎲"),
-            React.createElement("button",{onClick:toggleDark,style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--sub)",fontSize:14,minHeight:32},title:"Dark/Light Mode (D)"},darkMode?"☀️":"🌙"),
-            React.createElement("button",{onClick:function(){setShowProfile(true)},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--sub)",fontSize:14,minHeight:32},title:"Profile"},profileName?profileName.charAt(0).toUpperCase():"👤"),
-            React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️"))),
+          React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️")),
         React.createElement("div",{style:{display:"flex",gap:0,marginTop:6},className:"hscroll"},
-          [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length},{id:"favs",l:"⭐ FAVS",c:favorites.length}].map(function(t){
+          [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"#5a5464",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})))),
 
@@ -1427,48 +1153,12 @@ function App(){
 
       /* ═══ WARDROBE ═══ */
       view==="wardrobe"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
-        /* Daily Tip */
-        React.createElement("div",{className:"tip-card"},
-          React.createElement("span",{className:"tip-icon"},dailyTip.icon),
-          React.createElement("span",{className:"tip-text"},dailyTip.text)),
-
-        /* Batch Upload Zone */
-        React.createElement("div",{className:"batch-zone"+(showBatch?" dragover":""),onClick:function(){if(!showBatch){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.multiple=true;inp.onchange=function(e){var files=Array.from(e.target.files||[]).filter(function(f){return f.type.startsWith("image/")});if(files.length){setShowBatch(true);processBatch(files)}};inp.click()}},onDragOver:function(e){e.preventDefault()},onDrop:function(e){e.preventDefault();var files=Array.from(e.dataTransfer.files).filter(function(f){return f.type.startsWith("image/")});if(files.length){setShowBatch(true);processBatch(files)}}},
-          !showBatch&&React.createElement(React.Fragment,null,
-            React.createElement("div",{style:{fontSize:24,marginBottom:4}},"📸"),
-            React.createElement("div",{style:{fontFamily:"var(--f)",fontSize:11,color:"var(--sub)"}},"Batch Upload — Drop photos or tap to select multiple")),
-          showBatch&&batchProcessing&&React.createElement("div",{style:{fontFamily:"var(--f)",fontSize:12,color:"var(--gold)"}},"⏳ Processing "+batchResults.length+" items..."),
-          showBatch&&!batchProcessing&&batchResults.length>0&&React.createElement("div",{style:{textAlign:"left"}},
-            batchResults.map(function(r,i){return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid var(--border)"}},
-              React.createElement("input",{type:"checkbox",checked:r.selected,onChange:function(){setBatchResults(function(prev){var n=prev.slice();n[i]=Object.assign({},n[i],{selected:!n[i].selected});return n})}}),
-              React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:600}},r.name||"Item"),
-              React.createElement("span",{style:{fontSize:10,color:"var(--sub)",fontFamily:"var(--f)"}},r.garmentType),
-              r.color&&React.createElement("span",{style:{width:14,height:14,borderRadius:4,background:CM[r.color]?CM[r.color].h:"#888",flexShrink:0}}))}),
-            React.createElement("div",{style:{display:"flex",gap:8,marginTop:8}},
-              React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:confirmBatch},"✅ Add "+batchResults.filter(function(r){return r.selected}).length+" Items"),
-              React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setBatchResults([]);setShowBatch(false)}},"✕")))),
-
-        /* Duplicate Detection */
-        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:12}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"10px 14px",fontSize:10,minHeight:36},onClick:function(){var dupes=findDuplicates(wd);if(dupes.length){setShowDupes(true);showToast("⚠️ Found "+dupes.length+" duplicate group(s)","error")}else{showToast("✓ No duplicates found","success")}}},"🔍 Find Dupes")),
-
-        showDupes&&(function(){var dupes=findDuplicates(wd);return dupes.length?React.createElement("div",{style:{marginBottom:12}},
-          React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:6}},"⚠️ Possible Duplicates ("+dupes.length+" group"+(dupes.length!==1?"s":"")+")"),
-          dupes.map(function(group,gi){return React.createElement("div",{key:gi,className:"dup-group"},
-            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
-              React.createElement("span",{className:"dup-badge"},group.length+" similar"),
-              React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600}},wd[group[0]]?wd[group[0]].garmentType:"")),
-            group.map(function(idx){var item=wd[idx];if(!item)return null;return React.createElement("div",{key:idx,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid var(--border)"}},
-              React.createElement("div",{onClick:function(){if(item.photoUrl)setPhotoModal({src:item.photoUrl,name:item.name||item.color})},style:{width:48,height:48,borderRadius:8,overflow:"hidden",flexShrink:0,cursor:item.photoUrl?"pointer":"default",background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--border)"}},
-                item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement(Dot,{color:item.color,size:16})),
-              React.createElement("div",{style:{flex:1,minWidth:0}},
-                React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},(item.name||"Unnamed")),
-                React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",display:"flex",gap:6,alignItems:"center"}},React.createElement(Dot,{color:item.color,size:6}),item.color||"?",item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")),
-              dupeConfirm&&dupeConfirm.id===item.id?React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}},
-                React.createElement("button",{style:{background:"rgba(200,60,60,0.15)",border:"1px solid rgba(200,60,60,0.4)",borderRadius:6,padding:"6px 10px",cursor:"pointer",color:"#e86050",fontFamily:"var(--f)",fontSize:10,minHeight:32},onClick:function(){rmG(item.id);setDupeConfirm(null)}},"Delete"),
-                React.createElement("button",{style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"6px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,minHeight:32},onClick:function(){setDupeConfirm(null)}},"Cancel"))
-              :React.createElement("button",{style:{background:"none",border:"1px solid rgba(200,60,60,0.3)",borderRadius:6,padding:"6px 10px",cursor:"pointer",color:"#a06050",fontFamily:"var(--f)",fontSize:10,flexShrink:0,minHeight:32},onClick:function(){setDupeConfirm({id:item.id})}},"✕ Remove"))}))}),
-          React.createElement("button",{className:"btn btn-ghost",style:{marginTop:6,fontSize:10,minHeight:36},onClick:function(){setShowDupes(false);setDupeConfirm(null)}},"Close")):null})(),
+        wxErr&&!weather&&React.createElement("div",{style:{background:"rgba(200,90,58,0.08)",border:"1px solid rgba(200,90,58,0.25)",borderRadius:12,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10}},
+          React.createElement("span",{style:{fontSize:18}},"⚠️"),
+          React.createElement("div",null,
+            React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},"Weather unavailable"),
+            React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},"Scoring defaults to mid-weight. Enable location or check connection.")),
+          React.createElement("button",{onClick:function(){setWxErr(false);if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(){},{timeout:5000})},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:8,padding:"6px 12px",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",whiteSpace:"nowrap"}},"Retry")),
         weather&&React.createElement("div",{style:{background:"linear-gradient(135deg,#0d1018,#0a0914)",border:"1px solid "+(planWx&&planWx.rain?"rgba(100,150,220,0.4)":"var(--border)"),borderRadius:12,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}},
           React.createElement("span",{style:{fontSize:22}},planWx&&planWx.cond?planWx.cond.i:tier?tier.icon:""),
           React.createElement("div",null,React.createElement("div",{style:{fontSize:18,fontWeight:600,fontFamily:"var(--f)"}},planTemp?planTemp.temp+"°C":weather.temp+"°C"),React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},"Feels "+(planTemp?planTemp.feels:weather.feels)+"°C · "+loc.name+(planDay>0&&forecast[planDay]?" · "+forecast[planDay].date:""))),
@@ -1515,7 +1205,7 @@ function App(){
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
             [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id)}},f.l)}),
-            React.createElement("button",{onClick:function(){if(confirm("Clear all garments? This cannot be undone.")){saveWd([]);setWFilt("all");showToast("✓ All garments cleared","success")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
+            React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
           /* Material quick-filter */
           (function(){var mc={};wd.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,6);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(m[0])}},m[0]+" ×"+m[1])})):null})(),
 
@@ -1542,22 +1232,11 @@ function App(){
 
       /* ═══ FITS ═══ */
       view==="fits"&&!selFit&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
-
-        /* OOTD BANNER */
-        ootd&&React.createElement("div",{className:"ootd-banner",onClick:function(){setSelFit(ootd)}},
-          React.createElement("div",{className:"ootd-label"},"✨ Outfit of the Day"),
-          React.createElement("div",{className:"ootd-name"},(ootd.top?ootd.top.name||ootd.top.color:"")+" + "+(ootd.bot?ootd.bot.name||ootd.bot.color:"")),
-          React.createElement("div",{className:"ootd-items"},(ootd.watches||[]).slice(0,2).map(function(w){return w.i+" "+w.n}).join(" · ")+(ootd.fs?" · Score "+ootd.fs:""))),
-
-        /* LOCATION VIBES */
-        React.createElement("div",{className:"loc-chips"},
-          Object.keys(LOC_VIBES).map(function(loc){return React.createElement("button",{key:loc,className:"loc-chip"+(locVibe===loc?" on":""),onClick:function(){selectLocVibe(loc)}},loc)})),
-
         /* MODE CARDS */
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}},
           [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Build",d:"Pick items"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
             var on=mode===m.id;
-            return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setLockWatch(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
+            return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
               React.createElement("div",{style:{fontSize:20,marginBottom:2}},m.icon),
               React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:on?700:500,color:on?"var(--gold)":"var(--text)"}},m.l),
               React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:on?"var(--gold)":"var(--dim)",opacity:0.7}},m.d))})),
@@ -1599,13 +1278,6 @@ function App(){
           React.createElement(Dot,{color:lockItem.color,size:8}),
           React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 Locked: "+( lockItem.name||lockItem.color)+" — showing fits around this piece"),
           React.createElement("button",{onClick:function(){setLockItem(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Unlock")),
-
-        /* Lock Watch banner */
-        mode==="auto"&&lockWatch&&React.createElement("div",{className:"fu",style:{display:"flex",alignItems:"center",gap:8,background:"rgba(122,180,216,0.06)",border:"1px solid rgba(122,180,216,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:10}},
-          React.createElement("span",{style:{fontSize:18}},lockWatch.i),
-          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"#7ab8d8",fontWeight:600,flex:1}},"🎯 Watch-first: "+lockWatch.n+" — outfits styled around this piece"),
-          !IS_SHARED&&lockWatch.t==="replica"&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid #2a2520",borderRadius:3,padding:"1px 5px"}},"REP"),
-          React.createElement("button",{onClick:function(){setLockWatch(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Clear")),
 
         /* BUILD */
         mode==="build"&&React.createElement("div",null,
@@ -1866,8 +1538,7 @@ function App(){
           !fits.length?React.createElement("div",{style:{textAlign:"center",padding:"40px 16px"}},React.createElement("p",{style:{fontSize:28,margin:"0 0 8px"}},"👕"),React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"#5a5464"}},wd.length<2?"Add wardrobe items":needsFix>0?"Classify items first":"No valid combos"))
           :fits.map(function(fit,idx){
             return React.createElement("div",{key:fit.id,className:"card-lift",onClick:function(){setSelFit(fit)},style:{background:idx===0?"var(--card2)":"var(--card)",border:idx===0?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",position:"relative"}},
-              idx===0&&React.createElement("div",{style:{position:"absolute",top:8,right:38,fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:700}},"TOP"),
-              React.createElement("div",{style:{position:"absolute",top:6,right:10,zIndex:2},onClick:function(e){e.stopPropagation();toggleFav(fit.id)}},React.createElement("span",{style:{fontSize:16,cursor:"pointer",filter:isFav(fit.id)?"drop-shadow(0 0 4px rgba(201,168,76,0.5))":"none"}},isFav(fit.id)?"⭐":"☆")),
+              idx===0&&React.createElement("div",{style:{position:"absolute",top:8,right:12,fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:700}},"TOP"),
               React.createElement("div",{className:"dots-row",style:{marginBottom:8}},
                 [fit.top,fit.bot,fit.shoe].filter(Boolean).map(function(item,i){return React.createElement(Dot,{key:i,color:item.color,size:8})}),
                 React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:fit.fs>=8?"var(--good)":fit.fs>=5?"var(--gold)":"var(--warn)",marginLeft:4,fontWeight:600}},(fit.fs>=8?"🔥 ":fit.fs>=5?"":"⚠ ")+fit.fs),
@@ -1897,33 +1568,19 @@ function App(){
           var swaps=getSwaps(wd,selFit,o.slot);
           return React.createElement("div",{key:o.slot,style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px",marginBottom:8}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(){setPhotoModal({src:o.item.photoUrl,name:o.item.name||o.item.color})},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"pointer",border:"2px solid transparent",transition:"border 0.2s"}}),
+              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:64,height:64,objectFit:"cover",borderRadius:10}}),
               React.createElement("div",{style:{flex:1}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
-              React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setLockWatch(null);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
+              React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
               React.createElement("div",{style:{display:"flex",gap:6,marginTop:4},className:"hscroll"},
-                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);var recalc=makeOutfit(nf.items,fitsWatches,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);nf.fs=recalc.fs;nf.watches=recalc.watches;nf.allW=recalc.allW;nf.wxWarns=recalc.wxWarns;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
+                swaps.map(function(s){return React.createElement("div",{key:s.id,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0}},
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
         React.createElement("h2",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,letterSpacing:"0.14em",color:"var(--gold)",margin:"16px 0 10px",textTransform:"uppercase"}},"Watch Pairings"),
         React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16}},(selFit.allW||selFit.watches).slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})),
-        React.createElement("button",{className:"btn btn-gold",onClick:function(){saveFit(selFit)}},"💾 Save Outfit"),
-        React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8},onClick:function(){toggleFav(selFit.id)}},isFav(selFit.id)?"⭐ Favorited":"☆ Add to Favorites"),
-
-        /* Color Palette Analysis */
-        (function(){var colors=(selFit.items||[]).map(function(i){return i.color}).filter(Boolean);if(colors.length<2)return null;var harmony=classifyHarmony(colors);return React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"14px",marginTop:12}},
-          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
-            React.createElement("span",{style:{fontSize:14}},harmony.icon),
-            React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},harmony.type+" Palette")),
-          React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},colors.map(function(c,i){var ce=Object.entries(CM).find(function(e){return c.toLowerCase().includes(e[0])});var hex=ce?ce[1].h:"#888";return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)"}},React.createElement("div",{style:{width:16,height:16,borderRadius:"50%",background:hex,border:"1px solid rgba(255,255,255,0.1)"}}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",textTransform:"capitalize"}},c))})))})(),
-
-        /* Composite Image Button */
-        React.createElement("div",{style:{marginTop:12,display:"flex",gap:8}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1},onClick:function(){drawComposite(selFit)}},"🖼️ Composite"),
-          compositeData&&React.createElement("a",{href:compositeData,download:"outfit-composite.png",className:"btn btn-ghost",style:{flex:1}},"💾 Save Image")),
-        compositeData&&React.createElement("img",{src:compositeData,alt:"Composite",style:{width:"100%",maxWidth:300,borderRadius:10,marginTop:8,border:"1px solid var(--border)",display:"block",margin:"8px auto 0"}})),
+        React.createElement("button",{className:"btn btn-gold",onClick:function(){saveFit(selFit)}},"💾 Save Outfit")),
 
       /* ═══ INSIGHTS ═══ */
       view==="insights"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
@@ -2254,36 +1911,6 @@ function App(){
                     React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--warn)"}},w.n))}))));
           })())),
 
-        /* ── STYLE DNA RADAR ── */
-        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
-          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
-            React.createElement("span",{style:{fontSize:20}},"🧬"),
-            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"Style DNA")),
-          saved.length<3?React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:10}},"Save 3+ outfits to generate your Style DNA")
-          :React.createElement("div",null,
-            React.createElement("div",{style:{display:"flex",justifyContent:"center",marginBottom:12}},
-              React.createElement("canvas",{id:"radarCanvas",width:260,height:260,ref:function(el){if(el)setTimeout(function(){drawRadar("radarCanvas")},100)}})),
-            React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}},
-              DNA_DIMS.map(function(d){var v=dnaScores[d]||5;return React.createElement("div",{key:d,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"5px 10px",border:"1px solid var(--border)"}},
-                React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:700}},v.toFixed(1)),
-                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--sub)"}},d))})))),
-
-        /* ── AI STYLE INSIGHTS ── */
-        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
-          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
-            React.createElement("span",{style:{fontSize:20}},"💡"),
-            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"AI Style Insights")),
-          !aiInsights&&!aiInsightsLoading&&React.createElement("button",{className:"btn btn-gold",onClick:fetchAiInsights},"💡 Analyze My Style"),
-          aiInsightsLoading&&React.createElement("div",{style:{textAlign:"center",padding:20}},React.createElement("div",{className:"sp",style:{width:20,height:20,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 8px"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Analyzing patterns...")),
-          aiInsights&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-            aiInsights.map(function(ins,i){return React.createElement("div",{key:i,style:{background:"var(--bg)",borderRadius:10,padding:"12px",border:"1px solid var(--border)",borderLeft:"3px solid var(--gold)"}},
-              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:6}},
-                React.createElement("span",{style:{fontSize:16}},ins.icon||"💎"),
-                React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},ins.title)),
-              React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--text)",lineHeight:1.5,margin:"0 0 6px"}},ins.insight),
-              ins.action&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--good)",fontStyle:"italic"}},"→ "+ins.action))}),
-            React.createElement("button",{className:"btn btn-ghost",style:{marginTop:4,fontSize:10},onClick:function(){setAiInsights(null)}},"↻ Re-analyze"))),
-
       /* ═══ WATCHES ═══ */
       view==="watches"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
         /* Collection Stats */
@@ -2292,6 +1919,8 @@ function App(){
           var rep=W.filter(function(w){return w.t==="replica"&&w.active}).length;
           var brC=W.filter(function(w){return w.br&&w.active}).length;
           var stC=W.filter(function(w){return!w.br&&w.active}).length;
+          var incC=W.filter(function(w){return w.status==="incoming"}).length;
+          var pendC=W.filter(function(w){return w.status==="pending-trade"}).length;
           var cats={};W.filter(function(w){return w.active}).forEach(function(w){(w.cx||[]).forEach(function(c){cats[c]=(cats[c]||0)+1})});
           var topCx=Object.entries(cats).sort(function(a,b){return b[1]-a[1]}).slice(0,3);
           return React.createElement("div",{style:{background:"linear-gradient(135deg,#0d1018,#0a0914)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 16px",marginBottom:12}},
@@ -2299,7 +1928,9 @@ function App(){
               React.createElement("div",null,React.createElement("span",{style:{color:"var(--gold)",fontWeight:700,fontSize:18}},gen+rep),React.createElement("span",{style:{color:"var(--dim)",marginLeft:4}},"active")),
               !IS_SHARED&&React.createElement("div",null,React.createElement("span",{style:{color:"var(--good)"}},"✓ "+gen),React.createElement("span",{style:{color:"var(--dim)",marginLeft:4}},"genuine")),
               !IS_SHARED&&React.createElement("div",null,React.createElement("span",{style:{color:"#7ab8d8"}},"◇ "+rep),React.createElement("span",{style:{color:"var(--dim)",marginLeft:4}},"replica")),
-              React.createElement("div",null,React.createElement("span",{style:{color:"var(--sub)"}},"⛓️"+brC+" 🔗"+stC))),
+              React.createElement("div",null,React.createElement("span",{style:{color:"var(--sub)"}},"⛓️"+brC+" 🔗"+stC)),
+              incC>0&&React.createElement("div",null,React.createElement("span",{style:{color:"#d4b82a"}},"📦 "+incC),React.createElement("span",{style:{color:"var(--dim)",marginLeft:4}},"incoming")),
+              pendC>0&&React.createElement("div",null,React.createElement("span",{style:{color:"var(--warn)"}},"🔄 "+pendC),React.createElement("span",{style:{color:"var(--dim)",marginLeft:4}},"pending"))),
             topCx.length>0&&React.createElement("div",{style:{display:"flex",gap:6,marginTop:6}},
               React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},"Top contexts:"),
               topCx.map(function(e){return React.createElement("span",{key:e[0],style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},(CXI[e[0]]||"")+e[0]+" ×"+e[1])})));
@@ -2319,7 +1950,6 @@ function App(){
                 React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:st?st.c:"var(--dim)"}},st?st.l:"")),
               React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+" · "+(w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt),
               React.createElement("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},(w.cx||[]).map(function(c){return React.createElement("span",{key:c,style:{fontSize:8,fontFamily:"var(--f)",background:"var(--bg)",borderRadius:8,padding:"2px 6px",color:"var(--dim)"}},(CXI[c]||"")+c)}))),
-            w.active&&React.createElement("button",{onClick:function(e){e.stopPropagation();setLockWatch(w);setLockItem(null);setView("fits");setMode("auto");showToast("👔 Styling around "+w.n,"info")},style:{background:"none",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:28,whiteSpace:"nowrap"}},"👔 Style"),
             React.createElement("button",{onClick:function(e){e.stopPropagation();toggleW(w.id)},style:{width:44,height:26,borderRadius:13,background:w.active?"var(--gold)":"#1a1820",border:"none",cursor:"pointer",position:"relative",flexShrink:0,minHeight:26}},
               React.createElement("div",{style:{width:20,height:20,borderRadius:"50%",background:w.active?"var(--bg)":"#2a2830",position:"absolute",top:3,left:w.active?21:3,transition:"left .2s"}}))))}),
         React.createElement("button",{onClick:function(){if(confirm("Reset to defaults?")){setW(DEFAULTS);ps("w_"+SK,DEFAULTS)}},style:{display:"block",margin:"12px auto 0",background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"10px 16px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,minHeight:40}},"Reset Defaults")),
@@ -2339,64 +1969,9 @@ function App(){
                   weather&&o.weather&&(function(){var ct=weather.temp||18,ot=o.weather.temp||18,diff=Math.abs(ct-ot);var cRain=weather.cond&&weather.cond.rain,oRain=o.weather.cond&&o.weather.cond.rain;var match=diff<=5&&cRain===oRain?"great":diff<=10?"ok":"poor";return React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",padding:"2px 6px",borderRadius:4,color:match==="great"?"var(--good)":match==="ok"?"var(--gold)":"var(--warn)",background:match==="great"?"rgba(122,184,122,0.1)":match==="ok"?"rgba(201,168,76,0.1)":"rgba(200,90,58,0.1)",border:"1px solid "+(match==="great"?"rgba(122,184,122,0.2)":match==="ok"?"rgba(201,168,76,0.2)":"rgba(200,90,58,0.2)")}},match==="great"?"✓ Today match":match==="ok"?"~ Similar wx":"✗ Diff weather")})())))),
           React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}},(o.items||[]).map(function(item,i){return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid #141220"}},item.photoUrl&&React.createElement("img",{src:item.photoUrl,alt:"",style:{width:20,height:20,objectFit:"cover",borderRadius:3}}),React.createElement(Dot,{color:item.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"#a8a098"}},item.name||item.color))})),
           React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},(o.watches||[]).slice(0,3).map(function(w,i){return React.createElement("div",{key:w.id||i,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:i===0?"1px solid rgba(201,168,76,0.2)":"1px solid #141220"}},React.createElement("span",{style:{fontSize:12}},w.i),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:i===0?"var(--gold)":"#a8a098"}},w.n))})))})))
-  ,
-
-      /* ═══ FAVORITES ═══ */
-      view==="favs"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
-        !favorites.length?React.createElement("div",{style:{textAlign:"center",padding:"50px 16px"}},
-          React.createElement("p",{style:{fontSize:28,margin:"0 0 8px"}},"⭐"),
-          React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"#5a5464"}},"No favorites yet"),
-          React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)"}},"Tap ☆ on any outfit in FITS to add it"))
-        :React.createElement("div",null,
-          React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:12}},favorites.length+" favorite"+(favorites.length!==1?"s":"")),
-          favorites.slice().sort(function(a,b){return(b.favTs||0)-(a.favTs||0)}).map(function(fav){
-            var fTop=fav.top||(fav.items?fav.items.find(function(i){return catOf(i.garmentType)==="tops"}):null);
-            var fBot=fav.bot||(fav.items?fav.items.find(function(i){return catOf(i.garmentType)==="bottoms"}):null);
-            var fSh=fav.shoe||(fav.items?fav.items.find(function(i){return catOf(i.garmentType)==="shoes"}):null);
-            return React.createElement("div",{key:fav.id,className:"card-lift",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10,position:"relative"}},
-              React.createElement("div",{style:{position:"absolute",top:8,right:10,cursor:"pointer"},onClick:function(){toggleFav(fav.id)}},React.createElement("span",{style:{fontSize:16}},"⭐")),
-              React.createElement("div",{style:{display:"flex",gap:10,marginBottom:8}},
-                React.createElement(OutfitFigure,{topColor:fTop?fTop.color:"grey",botColor:fBot?fBot.color:"charcoal",shoeColor:fSh?fSh.color:"black",watchColor:fav.watches&&fav.watches[0]?fav.watches[0].c:"#c9a84c",watchIcon:fav.watches&&fav.watches[0]?fav.watches[0].i:"⌚",watchName:"",size:60}),
-                React.createElement("div",{style:{flex:1,minWidth:0}},
-                  React.createElement("div",{style:{fontSize:13,fontWeight:500,marginBottom:2}},fav.name||"Outfit"),
-                  React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},(fav.context||"")+" · Score "+(fav.fs||"?")),
-                  fav.favTs&&React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginTop:2}},"Fav'd "+new Date(fav.favTs).toLocaleDateString()))),
-              React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},(fav.watches||[]).slice(0,3).map(function(w,i){return React.createElement("div",{key:w.id||i,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:i===0?"1px solid rgba(201,168,76,0.2)":"1px solid #141220"}},React.createElement("span",{style:{fontSize:12}},w.i),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:i===0?"var(--gold)":"#a8a098"}},w.n))})))}))),
-
-      /* ═══ PROFILE MODAL ═══ */
-      showProfile&&React.createElement("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20},onClick:function(){setShowProfile(false)}},
-        React.createElement("div",{style:{background:"var(--card)",borderRadius:16,padding:"24px",maxWidth:340,width:"100%",border:"1px solid var(--border)"},onClick:function(e){e.stopPropagation()}},
-          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}},
-            React.createElement("h2",{style:{fontSize:18,fontWeight:600,margin:0}},"👤 Profile"),
-            React.createElement("button",{onClick:function(){setShowProfile(false)},style:{background:"none",border:"none",color:"var(--dim)",fontSize:20,cursor:"pointer",padding:4,minHeight:30}},"✕")),
-          React.createElement("div",{style:{display:"flex",justifyContent:"center",marginBottom:20}},
-            React.createElement("div",{style:{width:64,height:64,borderRadius:"50%",background:"linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05))",border:"2px solid var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,color:"var(--gold)"}},profileName?profileName.charAt(0).toUpperCase():"👤")),
-          React.createElement("div",{style:{marginBottom:14}},
-            React.createElement("label",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em",display:"block",marginBottom:4}},"NAME"),
-            React.createElement("input",{type:"text",value:profileName,onChange:function(e){setProfileName(e.target.value)},placeholder:"Your name",style:{width:"100%",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",color:"var(--text)",fontFamily:"var(--f)",fontSize:13,boxSizing:"border-box"}})),
-          React.createElement("div",{style:{marginBottom:20}},
-            React.createElement("label",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em",display:"block",marginBottom:4}},"BIO"),
-            React.createElement("textarea",{value:profileBio,onChange:function(e){setProfileBio(e.target.value)},placeholder:"Watch enthusiast...",rows:3,style:{width:"100%",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",color:"var(--text)",fontFamily:"var(--f)",fontSize:12,resize:"vertical",boxSizing:"border-box"}})),
-          React.createElement("button",{className:"btn btn-gold",style:{width:"100%"},onClick:function(){saveProfile(profileName,profileBio);setShowProfile(false)}},"💾 Save Profile"))),
-
-      /* ═══ PHOTO LIGHTBOX ═══ */
-      photoModal&&React.createElement("div",{onClick:function(){setPhotoModal(null)},style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.92)",zIndex:10000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,cursor:"pointer"}},
-        React.createElement("div",{style:{position:"absolute",top:16,right:16,color:"#fff8",fontSize:28,cursor:"pointer",zIndex:10001,minHeight:44,minWidth:44,display:"flex",alignItems:"center",justifyContent:"center"}},"✕"),
-        photoModal.name&&React.createElement("div",{style:{color:"#fff",fontSize:13,fontFamily:"var(--f)",marginBottom:12,textAlign:"center",fontWeight:500}},photoModal.name),
-        React.createElement("img",{src:photoModal.src,alt:"",style:{maxWidth:"90vw",maxHeight:"75vh",objectFit:"contain",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}))
-
   );
 }
 ReactDOM.render(React.createElement(App),document.getElementById("root"));
-
-// PWA Service Worker Registration
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').then(function(r){
-      console.log('SW registered:',r.scope);
-    }).catch(function(e){console.log('SW failed:',e)});
-  });
-}
 </script>
 </body>
 </html>
