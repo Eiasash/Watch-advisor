@@ -400,9 +400,15 @@ const CXR={
 };
 
 function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
-  const top=items.find(i=>catOf(i.garmentType)==="tops"),bot=items.find(i=>catOf(i.garmentType)==="bottoms"),shoe=items.find(i=>catOf(i.garmentType)==="shoes");
+  var tops=items.filter(i=>catOf(i.garmentType)==="tops");
+  const top=tops[0]||null,bot=items.find(i=>catOf(i.garmentType)==="bottoms"),shoe=items.find(i=>catOf(i.garmentType)==="shoes");
+  /* outermost top layer is what's visible — used for primary color scoring */
+  var outerTop=tops.length>0?tops[tops.length-1]:null;
   if(wxOpts&&tempVal!==undefined)wxOpts.temp=tempVal;
   let fs=0;
+  /* Layering bonus — reward multi-layer outfits */
+  if(tops.length>=2)fs+=0.5;
+  if(tops.length>=3)fs+=0.5;
   /* Season penalty for off-season items */
   /* Season — temperature-based when weather available, month-based fallback */
   var _csn=(function(){
@@ -415,14 +421,17 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   /* Freshness penalty — discourage recently-worn garments for variety */
   var _now=Date.now();
   items.forEach(function(it){if(it.lastWorn){var daysAgo=Math.floor((_now-new Date(it.lastWorn).getTime())/(864e5));if(daysAgo<=1)fs-=2;else if(daysAgo<=3)fs-=0.8;else if(daysAgo<=5)fs-=0.3;else if(daysAgo>=14)fs+=0.3}});
-  if(top&&bot)fs+=compat(top.color,bot.color)*3;
-  if(top&&shoe)fs+=compat(top.color,shoe.color)*2;
+  /* Color compat — use outermost visible layer for primary scoring */
+  if(outerTop&&bot)fs+=compat(outerTop.color,bot.color)*3;
+  if(outerTop&&shoe)fs+=compat(outerTop.color,shoe.color)*2;
   if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
+  /* Layer-to-layer color harmony */
+  for(var li=0;li<tops.length-1;li++){fs+=compat(tops[li].color,tops[li+1].color)*1.5}
   /* Jeans daily preference bonus */
   if(bot&&bot.garmentType==="Jeans")fs+=0.8;
-  /* Pattern bonus */
-  if(top&&bot){
-    var tp=(top.pattern||"solid"),bp=(bot.pattern||"solid");
+  /* Pattern bonus — check outermost top vs bottom */
+  if(outerTop&&bot){
+    var tp=(outerTop.pattern||"solid"),bp=(bot.pattern||"solid");
     if(tp!=="solid"&&bp!=="solid")fs-=1.5;
     else if((tp==="textured"||bp==="textured")&&(tp==="solid"||bp==="solid"))fs+=0.8;
     else if(tp==="striped"&&bp==="solid")fs+=0.4;
@@ -471,7 +480,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
   var wxWarns=[];
   if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets preferred over leather");
   if(isWindy)wxWarns.push("💨 High wind — secure light items");
-  return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,items,wxWarns:wxWarns};
+  return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,outerTop:outerTop,tops:tops,items,wxWarns:wxWarns};
 }
 
 function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
@@ -799,6 +808,8 @@ function App(){
   const[fitCount,setFitCount]=useState(12);
   const[buildSlot,setBuildSlot]=useState(null);
   const[bTop,setBTop]=useState(null);
+  const[bMid,setBMid]=useState(null);
+  const[bOuter,setBOuter]=useState(null);
   const[bBot,setBBot]=useState(null);
   const[bShoe,setBShoe]=useState(null);
   const[wTab,setWTab]=useState("all");
@@ -828,6 +839,7 @@ function App(){
   const[buildName,setBuildName]=useState("");
   const[buildAiCritique,setBuildAiCritique]=useState(null);
   const[buildAiLoading,setBuildAiLoading]=useState(false);
+  const[buildWatch,setBuildWatch]=useState(null);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
 
@@ -883,7 +895,7 @@ function App(){
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"})}},[wd]);
   const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
-  const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
+  const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
   const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
@@ -1334,8 +1346,9 @@ function App(){
 
         /* BUILD */
         mode==="build"&&React.createElement("div",null,
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}},
-            [{slot:"top",l:"TOP",val:bTop,set:setBTop},{slot:"bot",l:"BOTTOM",val:bBot,set:setBBot},{slot:"shoe",l:"SHOES",val:bShoe,set:setBShoe}].map(function(o){
+          /* Top row: 3 top layer slots */
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}},
+            [{slot:"top",l:"BASE",sub:"T-Shirt / Shirt",val:bTop,set:setBTop},{slot:"mid",l:"MID",sub:"Sweater / Knit",val:bMid,set:setBMid},{slot:"outer",l:"OUTER",sub:"Jacket / Blazer",val:bOuter,set:setBOuter}].map(function(o){
               return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)}},
                 o.val?React.createElement(React.Fragment,null,
                   o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
@@ -1344,15 +1357,33 @@ function App(){
                 :React.createElement(React.Fragment,null,
                   React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
                   React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
-                  /* Context-aware suggestion */
-                  (function(){var cat=o.slot==="top"?"tops":o.slot==="bot"?"bottoms":"shoes";var pool=byCat[cat].filter(function(i){return i.color&&!i.needsEdit});if(!pool.length)return null;var ref=o.slot==="top"?bBot:o.slot==="bot"?bTop:bTop;if(!ref)return null;var best=pool.map(function(c){return{g:c,s:compat(c.color,ref.color)}}).sort(function(a,b){return b.s-a.s})[0];return best&&best.s>0.3?React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--gold)",opacity:0.7,marginTop:2}},"try "+(best.g.name||best.g.color)):null})()))})),
+                  React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
+          /* Bottom row: bottoms + shoes */
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}},
+            [{slot:"bot",l:"BOTTOM",sub:"Pants / Jeans",val:bBot,set:setBBot},{slot:"shoe",l:"SHOES",sub:"Footwear",val:bShoe,set:setBShoe}].map(function(o){
+              return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)}},
+                o.val?React.createElement(React.Fragment,null,
+                  o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
+                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
+                  React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
+                :React.createElement(React.Fragment,null,
+                  React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
+                  React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
+                  React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
 
           buildSlot&&(function(){
-            var cat=buildSlot==="top"?"tops":buildSlot==="bot"?"bottoms":"shoes";
+            var cat=buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"?"tops":buildSlot==="bot"?"bottoms":"shoes";
+            /* Filter items by garment type for layer slots */
             var items=byCat[cat].filter(function(i){return i.color&&!i.needsEdit});
-            var setter=buildSlot==="top"?setBTop:buildSlot==="bot"?setBBot:setBShoe;
+            if(buildSlot==="top")items=items.filter(function(i){return["Shirt","Polo","T-Shirt"].includes(i.garmentType)});
+            if(buildSlot==="mid")items=items.filter(function(i){return["Sweater/Knit","Shirt","Polo"].includes(i.garmentType)});
+            if(buildSlot==="outer")items=items.filter(function(i){return["Jacket/Blazer","Sweater/Knit"].includes(i.garmentType)});
+            /* Fallback: if no items match the layer filter, show all tops */
+            if(!items.length&&(buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"))items=byCat.tops.filter(function(i){return i.color&&!i.needsEdit});
+            var setter=buildSlot==="top"?setBTop:buildSlot==="mid"?setBMid:buildSlot==="outer"?setBOuter:buildSlot==="bot"?setBBot:setBShoe;
+            var pickLabel=buildSlot==="top"?"a base layer":buildSlot==="mid"?"a mid layer":buildSlot==="outer"?"an outer layer":buildSlot==="bot"?"bottoms":"shoes";
             return React.createElement("div",{className:"fu",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px",marginBottom:16}},
-              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+(buildSlot==="top"?"a top":buildSlot==="bot"?"bottoms":"shoes")),
+              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+pickLabel),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
                 items.map(function(item){return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setter(item);setBuildSlot(null);setBuildAiCritique(null)},style:{background:"var(--bg)",border:"2px solid transparent",textAlign:"center"}},
                   item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:60,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{height:40,display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:14})),
@@ -1366,15 +1397,30 @@ function App(){
                 React.createElement("span",{style:{fontSize:15,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"Score: "+buildFit.fs),
                 React.createElement("div",{style:{display:"flex",gap:6}},
                   React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"10px 18px",fontSize:11},onClick:function(){saveFit(buildFit);if(buildName.trim()){setSaved(function(p){var n=p.slice();if(n.length>0){n[n.length-1]=Object.assign({},n[n.length-1],{name:buildName.trim()});ps("of_"+SK,n);}return n;});}setBuildName("");setBuildAiCritique(null);}},"💾 Save"),
-                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:async function(){if(!buildFit.watches||!buildFit.watches.length)return;setBuildAiLoading(true);var result=await aiVision({top:buildFit.top,bot:buildFit.bot,shoe:buildFit.shoe},buildFit.watches[0],effectiveCtx,apiKeyRef.current);setBuildAiCritique(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});setBuildAiLoading(false)},disabled:buildAiLoading},buildAiLoading?"⏳ Analyzing...":"✨ AI Critique"))),
+                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:async function(){var critW=buildWatch||(buildFit.watches&&buildFit.watches[0]);if(!critW)return;setBuildAiLoading(true);var result=await aiVision({top:buildFit.outerTop||buildFit.top,bot:buildFit.bot,shoe:buildFit.shoe,layers:buildFit.tops},critW,effectiveCtx,apiKeyRef.current);setBuildAiCritique(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});setBuildAiLoading(false)},disabled:buildAiLoading},buildAiLoading?"⏳ Analyzing...":"✨ AI Critique"))),
               React.createElement("input",{className:"inp",value:buildName,onChange:function(e){setBuildName(e.target.value)},placeholder:"Name this outfit (optional)",style:{fontSize:12}})),
             buildFit.wxWarns&&buildFit.wxWarns.length>0&&React.createElement("div",{style:{marginBottom:10,display:"flex",gap:4,flexWrap:"wrap"}},
               buildFit.wxWarns.map(function(warn,wi){return React.createElement("span",{key:wi,style:{fontSize:8,fontFamily:"var(--f)",color:"#7ab8d8",background:"rgba(100,150,220,0.08)",borderRadius:4,padding:"2px 6px",border:"1px solid rgba(100,150,220,0.15)"}},warn)})),
-            React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
-              buildFit.allW.slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})),
+            /* Watch selection */
+            React.createElement("div",{style:{marginBottom:8}},
+              React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}},
+                React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,letterSpacing:"0.1em"}},"⌚ WATCH PAIRING"),
+                React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},buildWatch?"Tap again to deselect":"Tap to choose")),
+              buildWatch&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:8}},
+                React.createElement("span",{style:{fontSize:18}},buildWatch.i),
+                React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 "+buildWatch.n),
+                React.createElement("button",{onClick:function(){setBuildWatch(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Clear")),
+              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+                buildFit.allW.slice(0,6).map(function(w,i){return React.createElement("div",{key:w.id,onClick:function(){setBuildWatch(buildWatch&&buildWatch.id===w.id?null:w);setBuildAiCritique(null)},style:{cursor:"pointer",border:buildWatch&&buildWatch.id===w.id?"2px solid var(--gold)":"2px solid transparent",borderRadius:14,transition:"all .15s"}},React.createElement(WCard,{w:w,rank:buildWatch?buildWatch.id===w.id?0:null:i,detail:true}))}))),
             /* Outfit mannequin preview */
-            React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
-              React.createElement(OutfitFigure,{topColor:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].c:"#c9a84c",watchIcon:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].i:"⌚",watchName:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].n:"",size:120})),
+            (function(){var selW=buildWatch||((buildFit.watches&&buildFit.watches[0])?buildFit.watches[0]:null);return React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
+              React.createElement(OutfitFigure,{topColor:buildFit.outerTop?buildFit.outerTop.color:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:selW?selW.c:"#c9a84c",watchIcon:selW?selW.i:"⌚",watchName:selW?selW.n:"",size:120}))})(),
+            /* Layers summary */
+            buildFit.tops&&buildFit.tops.length>1&&React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:6,marginBottom:8}},
+              buildFit.tops.map(function(t,ti){return React.createElement("div",{key:ti,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"3px 8px",border:"1px solid var(--border)"}},
+                t.photoUrl?React.createElement("img",{src:t.photoUrl,alt:"",style:{width:16,height:16,objectFit:"cover",borderRadius:3}}):React.createElement(Dot,{color:t.color,size:6}),
+                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)"}},ti===0?"Base":ti===1&&buildFit.tops.length===2?"Outer":"L"+(ti+1)),
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--text)"}},t.name||t.color))})),
             /* AI Critique for custom build */
             buildAiCritique&&React.createElement("div",{className:"fu",style:{background:"rgba(201,168,76,0.04)",borderRadius:12,padding:"14px",marginTop:10,border:"1px solid rgba(201,168,76,0.2)"}},
               React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
@@ -1392,7 +1438,7 @@ function App(){
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
               React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8,fontSize:10},onClick:function(){setBuildAiCritique(null)}},"↻ Re-analyze")))
-          :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to pick items")),
+          :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to build your outfit — use layers for sweater + jacket combos")),
 
         /* ROTATION */
         mode==="rotation"&&(function(){
