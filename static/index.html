@@ -290,6 +290,243 @@ function migrateStraps(w){
 }
 const DEFAULTS=IS_SHARED?[]:_OWNER_DEFAULTS.map(migrateStraps);
 
+/* ═══ MARKDOWN WATCH LOG PARSER ═══ */
+function parseWatchLog(mdText, existingWatches){
+  var lines=mdText.split("\n");
+  var watches=[];
+  var strapMap={};/* watchName -> straps[] */
+  var section="";var subSection="";
+  
+  /* --- Phase 1: Parse watch tables --- */
+  var genuineSection=false,replicaSection=false,strapSection=false,pendingSection=false;
+  var currentStrapWatch="";
+  
+  for(var li=0;li<lines.length;li++){
+    var line=lines[li].trim();
+    
+    /* Detect sections */
+    if(line.match(/^###?\s+Genuine/i)){genuineSection=true;replicaSection=false;strapSection=false;pendingSection=false;continue}
+    if(line.match(/^###?\s+Replica/i)){genuineSection=false;replicaSection=true;strapSection=false;pendingSection=false;continue}
+    if(line.match(/^###?\s+Pending/i)){genuineSection=false;replicaSection=false;strapSection=false;pendingSection=true;continue}
+    if(line.match(/^##\s+Strap Inventory/i)){genuineSection=false;replicaSection=false;strapSection=true;pendingSection=false;continue}
+    if(line.match(/^##\s+(Wishlist|Passed|Traded|Collection by|Dial Color|Trade Summary|Watch Pref|Collection Gap|Strap Sizing|Strap Orders)/i)){strapSection=false;genuineSection=false;replicaSection=false;pendingSection=false;continue}
+    
+    /* Parse strap sub-sections */
+    if(strapSection&&line.match(/^###\s+/)){
+      currentStrapWatch=line.replace(/^###\s+/,"").replace(/\s*\(\d+mm\)$/,"").trim();
+      continue;
+    }
+    
+    /* Parse table rows */
+    if(!line.startsWith("|")||line.match(/^\|[-\s|]+$/)||line.match(/^\|\s*Watch\s*\|/i)||line.match(/^\|\s*Strap\s*\|/i)||line.match(/^\|\s*Specification/i)||line.match(/^\|\s*Gap/i)||line.match(/^\|\s*Color/i))continue;
+    
+    var cells=line.split("|").map(function(c){return c.trim()}).filter(Boolean);
+    if(cells.length<2)continue;
+    
+    /* Genuine watches */
+    if(genuineSection&&cells.length>=2){
+      var name=cells[0];var details=cells[1]||"";
+      var status="active";
+      if(details.match(/PENDING TRADE|TRADING TOMORROW/i))status="pending-trade";
+      if(details.match(/INCOMING/i))status="incoming";
+      var dial=inferDial(name,details);
+      var w={id:"md-"+slugify(name),n:name,t:"genuine",d:dial.color,c:dial.hex,br:false,sc:[],mt:dial.temp,i:dial.emoji,mc:autoMatchColors(dial.color),ac:[],cx:inferContexts(name,details),wt:[],sg:[],active:status!=="pending-trade",status:status,size:inferSize(details),ref:inferRef(details)};
+      watches.push(w);
+    }
+    
+    /* Replica watches */
+    if(replicaSection&&cells.length>=2){
+      var rName=cells[0];var rDetails=cells[1]||"";var rStatus=cells[2]||"";
+      var st="active";
+      if(rStatus.match(/INCOMING/i))st="incoming";
+      var rd=inferDial(rName,rDetails);
+      var rw={id:"md-"+slugify(rName),n:rName,t:"replica",d:rd.color,c:rd.hex,br:true,sc:[],mt:rd.temp,i:rd.emoji,mc:autoMatchColors(rd.color),ac:[],cx:inferContexts(rName,rDetails),wt:[],sg:[],active:true,status:st,size:inferSize(rDetails)};
+      /* Detect bracelet vs strap from details */
+      if(rDetails.match(/integrated|bracelet|steel/i))rw.br=true;
+      watches.push(rw);
+    }
+    
+    /* Pending acquisitions */
+    if(pendingSection&&cells.length>=2){
+      var pName=cells[0];var pStatus=cells[1]||"";var pDetails=cells[2]||"";
+      var pd=inferDial(pName,pDetails);
+      var pw={id:"md-"+slugify(pName),n:pName,t:"genuine",d:pd.color,c:pd.hex,br:true,sc:[],mt:pd.temp,i:pd.emoji,mc:autoMatchColors(pd.color),ac:[],cx:inferContexts(pName,pDetails),wt:[],sg:[],active:false,status:pStatus.match(/INCOMING/i)?"incoming":"pending-trade",size:inferSize(pDetails)};
+      watches.push(pw);
+    }
+    
+    /* Strap inventory rows */
+    if(strapSection&&currentStrapWatch&&cells.length>=4){
+      var strapDesc=cells[0];var source=cells[1]||"";var buckle=cells[2]||"";var useCase=cells[3]||"";
+      var strap=parseStrapDesc(strapDesc,source);
+      if(!strapMap[currentStrapWatch])strapMap[currentStrapWatch]=[];
+      strapMap[currentStrapWatch].push(strap);
+    }
+  }
+  
+  /* --- Phase 2: Merge straps into watches --- */
+  Object.keys(strapMap).forEach(function(strapWatchName){
+    var straps=strapMap[strapWatchName];
+    var matchW=watches.find(function(w){return fuzzyMatch(w.n,strapWatchName)});
+    if(matchW){
+      matchW.straps=straps;
+      matchW.br=straps.some(function(s){return s.type==="bracelet"});
+      matchW.sc=straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color});
+    }
+  });
+  
+  /* --- Phase 3: Detect bracelet watches without explicit straps --- */
+  watches.forEach(function(w){
+    if(!w.straps||!w.straps.length){
+      if(w.br)w.straps=[{type:"bracelet",color:"silver",material:"steel"}];
+      else if(w.sc&&w.sc.length)w.straps=w.sc.map(function(c){return{type:"leather",color:c,material:"calf leather"}});
+      else w.straps=[{type:"bracelet",color:"silver",material:"steel"}];
+    }
+  });
+  
+  /* --- Phase 4: Merge with existing watches --- */
+  if(existingWatches&&existingWatches.length){
+    watches=watches.map(function(nw){
+      var existing=existingWatches.find(function(ew){return fuzzyMatch(ew.n,nw.n)||ew.id===nw.id});
+      if(existing){
+        /* Preserve user customizations, update from markdown */
+        return Object.assign({},existing,{
+          status:nw.status,active:nw.active,
+          straps:nw.straps&&nw.straps.length>1?nw.straps:existing.straps,
+          br:nw.straps?nw.straps.some(function(s){return s.type==="bracelet"}):existing.br,
+          sc:nw.straps?nw.straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color}):existing.sc
+        });
+      }
+      return nw;
+    });
+    /* Add existing watches not in markdown */
+    existingWatches.forEach(function(ew){
+      if(!watches.find(function(w){return fuzzyMatch(w.n,ew.n)||w.id===ew.id})){
+        watches.push(ew);
+      }
+    });
+  }
+  
+  return watches.map(migrateStraps);
+}
+
+/* Helper: slugify name to ID */
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)}
+
+/* Helper: fuzzy match watch names */
+function fuzzyMatch(a,b){
+  if(!a||!b)return false;
+  var na=a.toLowerCase().replace(/[^a-z0-9]/g,"");
+  var nb=b.toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(na===nb)return true;
+  if(na.includes(nb)||nb.includes(na))return true;
+  /* Token overlap */
+  var ta=a.toLowerCase().split(/[\s-]+/).filter(function(t){return t.length>2});
+  var tb=b.toLowerCase().split(/[\s-]+/).filter(function(t){return t.length>2});
+  var overlap=ta.filter(function(t){return tb.some(function(u){return u.includes(t)||t.includes(u)})}).length;
+  return overlap>=2||(overlap>=1&&Math.min(ta.length,tb.length)<=2);
+}
+
+/* Helper: infer dial color from name/details */
+function inferDial(name,details){
+  var text=(name+" "+details).toLowerCase();
+  var dialMap=[
+    {k:["snowflake","silver-white","silvery"],color:"Silver-White",hex:"#c8d0d8",temp:"cool",emoji:"❄️"},
+    {k:["rikka","lighter green"],color:"Green",hex:"#5a8a6a",temp:"cool",emoji:"🌿"},
+    {k:["ivory","sbgw267"],color:"Ivory",hex:"#f5f0e8",temp:"warm",emoji:"🪷"},
+    {k:["blue hobnail","laureato"],color:"Blue",hex:"#2a5a9a",temp:"cool",emoji:"🔷"},
+    {k:["reverso","navy blue"],color:"Navy",hex:"#1a2a4a",temp:"cool",emoji:"🌙"},
+    {k:["meteorite"],color:"Meteorite",hex:"#6a6a7a",temp:"cool",emoji:"☄️"},
+    {k:["turquoise","teal"],color:"Turquoise",hex:"#1a8a7a",temp:"cool",emoji:"💎"},
+    {k:["burgundy","oxblood","wine","red dial"],color:"Burgundy",hex:"#6a1a2a",temp:"warm",emoji:"🍷"},
+    {k:["purple","grape"],color:"Purple",hex:"#6a3a7a",temp:"cool",emoji:"🍇"},
+    {k:["anthracite","grey dial"],color:"Anthracite",hex:"#5a6a7a",temp:"cool",emoji:"🏔️"},
+    {k:["rose gold","red dial","rose"],color:"Red/Rose",hex:"#b04040",temp:"warm",emoji:"🌹"},
+    {k:["green dial"],color:"Green",hex:"#2a5a3a",temp:"cool",emoji:"🍀"},
+    {k:["black dial","black chronograph","black,"],color:"Black",hex:"#1a1a1a",temp:"cool",emoji:"⚫"},
+    {k:["white dial","white,"],color:"White",hex:"#f0f0ec",temp:"neutral",emoji:"⚪"},
+    {k:["blue dial","blue chronograph"],color:"Blue",hex:"#2a5a9a",temp:"cool",emoji:"🔵"},
+    {k:["yellow gold","gold,"],color:"White/Gold",hex:"#d4af37",temp:"mixed",emoji:"💎"},
+    {k:["champagne"],color:"Champagne",hex:"#d4c090",temp:"warm",emoji:"🥂"},
+  ];
+  for(var i=0;i<dialMap.length;i++){
+    for(var j=0;j<dialMap[i].k.length;j++){
+      if(text.includes(dialMap[i].k[j]))return dialMap[i];
+    }
+  }
+  return{color:"",hex:"#5a5a5a",temp:"cool",emoji:"⌚"};
+}
+
+/* Helper: infer contexts from name/details */
+function inferContexts(name,details){
+  var text=(name+" "+details).toLowerCase();
+  var cx=[];
+  if(text.match(/dress|elegance|reverso|santos octagon|tank/))cx.push("formal","date","event");
+  if(text.match(/sport|gmt|diver|sea|aqua|tudor|omega|speedmaster/))cx.push("casual","smart-casual","travel");
+  if(text.match(/chrono|monaco|flyback|pioneer/))cx.push("smart-casual","casual");
+  if(text.match(/flieger|pilot|laco/))cx.push("casual","weekend");
+  if(text.match(/perpetual|complication|moon|tourbillon/))cx.push("formal","date");
+  if(text.match(/royal oak|overseas|laureato|ingenieur|alpine/))cx.push("smart-casual","flex","casual");
+  if(text.match(/santos large|cartier/))cx.push("clinic","smart-casual","date");
+  if(text.match(/grand seiko/))cx.push("clinic","smart-casual");
+  if(text.match(/day-date|datejust|date /))cx.push("clinic","smart-casual","flex");
+  if(!cx.length)cx.push("casual","smart-casual");
+  return[...new Set(cx)];
+}
+
+/* Helper: infer size from details */
+function inferSize(details){
+  var m=details.match(/(\d{2})mm/);
+  return m?m[1]+"mm":null;
+}
+
+/* Helper: infer reference from details */
+function inferRef(details){
+  var m=details.match(/Ref\s+([A-Z0-9./-]+)/i);
+  return m?m[1]:null;
+}
+
+/* Helper: parse strap description into {type, color, material} */
+function parseStrapDesc(desc,source){
+  var text=desc.toLowerCase();
+  /* Detect type */
+  var type="leather";
+  if(text.match(/bracelet|steel|titanium|metal/))type="bracelet";
+  else if(text.match(/nato/))type="nato";
+  else if(text.match(/rubber|fkm|silicone/))type="rubber";
+  else if(text.match(/canvas|sailcloth/))type="canvas";
+  else if(text.match(/perlon/))type="perlon";
+  else if(text.match(/mesh/))type="mesh";
+  
+  /* Detect material */
+  var material="calf leather";
+  if(text.includes("alligator"))material="alligator";
+  else if(text.includes("cordovan"))material="cordovan";
+  else if(text.includes("suede"))material="suede";
+  else if(text.includes("nubuck"))material="nubuck";
+  else if(text.includes("calfskin"))material="calf leather";
+  else if(type==="bracelet")material="steel";
+  else if(type==="nato")material="nylon";
+  else if(type==="rubber")material="rubber";
+  
+  /* Detect color */
+  var color="black";
+  var colorMap=["grey","navy","brown","tan","honey","teal","burgundy","black","dark brown","light brown","green","olive","blue","white","beige","orange","red","purple","magenta"];
+  for(var i=0;i<colorMap.length;i++){
+    if(text.includes(colorMap[i])){
+      color=colorMap[i];
+      if(color==="honey")color="tan";
+      if(color==="dark brown")color="brown";
+      if(color==="light brown")color="tan";
+      if(color==="magenta")color="burgundy";
+      break;
+    }
+  }
+  if(type==="bracelet")color="silver";
+  
+  return{type:type,color:color,material:material};
+}
+
+
 /* ══════ SCORING (null-safe) ══════ */
 const CP={
 "black":["white","grey","charcoal","light grey","red","navy","cream","silver","gold","burgundy","cobalt"],
@@ -1479,7 +1716,8 @@ function App(){
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()},"📄 Import .md")))),
 
     /* Floating Save Button */
     React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
