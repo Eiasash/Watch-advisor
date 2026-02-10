@@ -1,11 +1,19 @@
-# ⌚ Watch Advisor v14.3
+# ⌚ Watch Advisor v14.4
 
 AI-Powered Watch & Outfit Coordinator for the strategic watch collector.
 https://eiasash.github.io/Watch-advisor/
 
+## What's New in v14.4
+
+- **Duplicate detection** — Scan wardrobe for duplicate items, view them enlarged side-by-side, and delete extras with confirmation
+- **AI Style Coach** — Get personalized wardrobe advice: strengths, gaps, next buys, and a versatility score
+- **AI Occasion Planner** — Describe any event and get 2 complete outfit recommendations from your actual wardrobe
+- **AI Wardrobe Audit** — Comprehensive grading (A-F), seasonal scores, declutter suggestions, and investment recommendations
+- **Manual watch selection** — Tap any watch in Create mode to choose it for your outfit instead of only the auto-recommended top pick
+
 ## What's New in v14.3
 
-- **Layered outfit builder** — Create mode now supports 5 slots: Base Layer, Mid Layer, Outer Layer, Bottom, Shoes — build realistic layered outfits (tee + sweater + jacket)
+- **Layered outfit builder** — Create mode now supports 5 slots: Base Layer, Mid Layer, Outer Layer, Bottom, Shoes
 - **Color Gap Analysis** — Insights tab shows which wardrobe colors your watches need but you don't own
 - **Watch Pairing Guide** — Per-watch best-match garments from your actual wardrobe
 - **AI outfit critique** — Claude-powered analysis with impact scoring on any outfit
@@ -28,6 +36,11 @@ https://eiasash.github.io/Watch-advisor/
 - 25-piece collection management (genuine + replica tracking)
 - AI-powered outfit coordination with psychological impact scoring
 - **5-slot layered outfit builder** (base, mid, outer, bottoms, shoes)
+- **Manual watch selection** in Create mode — pick any watch, not just the top-ranked
+- **Duplicate detection** — find and remove duplicate wardrobe items with enlarged preview
+- **AI Style Coach** — personalized wardrobe strengths, gaps, and next-buy advice
+- **AI Occasion Planner** — event-specific outfit recommendations from your closet
+- **AI Wardrobe Audit** — comprehensive A-F grading with seasonal scores
 - 7-day rotation planner with wear history
 - Weather-aware recommendations (temperature, rain, UV, wind)
 - Context-based scoring (clinic, formal, casual, Riviera, date night, and more)

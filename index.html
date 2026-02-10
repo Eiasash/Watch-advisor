@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v14.3</title>
+<title>Watch Advisor v14.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -611,6 +611,75 @@ async function aiVision(fit,watch,ctx,apiKey){
   }catch(e){_lastAiError="Vision error: "+String(e.message||e).slice(0,100);return null}
 }
 
+async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
+  _lastAiError="";
+  var colorCounts={};wardrobe.filter(function(i){return i.color}).forEach(function(i){colorCounts[i.color]=(colorCounts[i.color]||0)+1});
+  var colors=Object.entries(colorCounts).sort(function(a,b){return b[1]-a[1]}).slice(0,10).map(function(e){return e[0]+" (×"+e[1]+")"}).join(", ");
+  var types={};wardrobe.forEach(function(i){if(i.garmentType)types[i.garmentType]=(types[i.garmentType]||0)+1});
+  var typeStr=Object.entries(types).sort(function(a,b){return b[1]-a[1]}).map(function(e){return e[0]+" ×"+e[1]}).join(", ");
+  var watchStr=watches.map(function(w){return w.n+" ("+w.d+" dial, "+(w.br?"bracelet":"strap")+")"}).join(", ");
+  var prompt="You are an expert luxury men's style advisor. Analyze this wardrobe and give specific actionable advice.\n\n";
+  prompt+="WARDROBE ("+wardrobe.length+" items):\n- Types: "+typeStr+"\n- Colors: "+colors+"\n";
+  prompt+="WATCHES: "+watchStr+"\n";
+  prompt+="Primary context: "+ctx+"\n\n";
+  prompt+='Return ONLY valid JSON:\n{"summary":"1-2 sentence overall assessment of the wardrobe","strengths":["3 specific strengths"],"gaps":["3 specific gaps or missing pieces"],"next_buys":["3 specific items to buy next with color suggestions"],"style_tip":"One expert styling tip personalized to this collection","versatility":1-10}';
+  try{
+    var headers={"Content-Type":"application/json"};
+    if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+    if(!r.ok){_lastAiError="Coach HTTP "+r.status;return null}
+    var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(txt);
+  }catch(e){_lastAiError="Coach error: "+String(e.message||e).slice(0,100);return null}
+}
+
+async function aiOccasionPlan(occasion,wardrobe,watches,apiKey){
+  _lastAiError="";
+  var items=wardrobe.filter(function(i){return i.color&&!i.needsEdit}).map(function(i){return{type:i.garmentType,name:i.name||i.color,color:i.color,pattern:i.pattern||"solid",material:i.material||""}});
+  var watchList=watches.map(function(w){return{name:w.n,dial:w.d,bracelet:w.br,strap_colors:w.sc||[]}});
+  var prompt="You are a luxury men's style advisor. A client needs outfit recommendations for a specific occasion.\n\n";
+  prompt+="OCCASION: "+occasion+"\n\n";
+  prompt+="AVAILABLE WARDROBE ("+items.length+" items):\n"+JSON.stringify(items.slice(0,30))+"\n\n";
+  prompt+="AVAILABLE WATCHES:\n"+JSON.stringify(watchList)+"\n\n";
+  prompt+='Create 2 outfit recommendations from the available pieces. Return ONLY valid JSON:\n{"occasion_tips":"2-3 sentences of general advice for this occasion","outfits":[{"name":"Creative outfit name","top":"exact item name/color from wardrobe","bottom":"exact item name/color","shoes":"exact item name/color or suggestion","watch":"exact watch name","why":"1 sentence why this works","confidence":1-10},{"name":"...","top":"...","bottom":"...","shoes":"...","watch":"...","why":"...","confidence":1-10}],"avoid":"What to avoid for this occasion (1 sentence)"}';
+  try{
+    var headers={"Content-Type":"application/json"};
+    if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+    if(!r.ok){_lastAiError="Occasion HTTP "+r.status;return null}
+    var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(txt);
+  }catch(e){_lastAiError="Occasion error: "+String(e.message||e).slice(0,100);return null}
+}
+
+async function aiWardrobeAudit(wardrobe,watches,saved,wearLog,apiKey){
+  _lastAiError="";
+  var colorCounts={};wardrobe.filter(function(i){return i.color}).forEach(function(i){colorCounts[i.color]=(colorCounts[i.color]||0)+1});
+  var colors=Object.entries(colorCounts).sort(function(a,b){return b[1]-a[1]}).map(function(e){return e[0]+" ×"+e[1]}).join(", ");
+  var types={};wardrobe.forEach(function(i){if(i.garmentType)types[i.garmentType]=(types[i.garmentType]||0)+1});
+  var mats={};wardrobe.forEach(function(i){if(i.material)mats[i.material]=(mats[i.material]||0)+1});
+  var prompt="You are a luxury men's wardrobe consultant performing a comprehensive audit.\n\n";
+  prompt+="WARDROBE ("+wardrobe.length+" items):\n";
+  prompt+="Types: "+Object.entries(types).map(function(e){return e[0]+" ×"+e[1]}).join(", ")+"\n";
+  prompt+="Colors: "+colors+"\n";
+  prompt+="Materials: "+Object.entries(mats).map(function(e){return e[0]+" ×"+e[1]}).join(", ")+"\n";
+  prompt+="Watches: "+watches.length+" ("+watches.map(function(w){return w.n}).join(", ")+")\n";
+  prompt+="Saved outfits: "+saved.length+"\n";
+  prompt+="Wear log entries: "+wearLog.length+"\n\n";
+  prompt+='Provide a comprehensive audit. Return ONLY valid JSON:\n{"grade":"A/B/C/D/F overall wardrobe grade","grade_why":"1 sentence explanation","color_harmony":"Assessment of color palette balance (1-2 sentences)","versatility":"How many distinct looks can be created (1-2 sentences)","cost_efficiency":"Whether the wardrobe is well-optimized (1 sentence)","declutter":["Up to 3 items/categories that seem redundant"],"invest":["Up to 3 specific items worth investing in"],"seasonal_score":{"spring":1-10,"summer":1-10,"fall":1-10,"winter":1-10},"watch_wardrobe_synergy":"How well watches complement the wardrobe (1-2 sentences)","pro_tip":"One advanced styling insight (1 sentence)"}';
+  try{
+    var headers={"Content-Type":"application/json"};
+    if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:prompt}]})});
+    if(!r.ok){_lastAiError="Audit HTTP "+r.status;return null}
+    var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(txt);
+  }catch(e){_lastAiError="Audit error: "+String(e.message||e).slice(0,100);return null}
+}
+
 /* ══════ COMPONENTS (OUTSIDE App) ══════ */
 const Dot=memo(function DotC(props){
   var color=props.color,size=props.size||10;
@@ -840,6 +909,15 @@ function App(){
   const[buildAiCritique,setBuildAiCritique]=useState(null);
   const[buildAiLoading,setBuildAiLoading]=useState(false);
   const[buildWatch,setBuildWatch]=useState(null);
+  const[showDupes,setShowDupes]=useState(false);
+  const[dupeGroups,setDupeGroups]=useState([]);
+  const[aiCoach,setAiCoach]=useState(null);
+  const[aiCoachLoading,setAiCoachLoading]=useState(false);
+  const[aiOccasion,setAiOccasion]=useState(null);
+  const[aiOccasionLoading,setAiOccasionLoading]=useState(false);
+  const[aiOccasionInput,setAiOccasionInput]=useState("");
+  const[aiAudit,setAiAudit]=useState(null);
+  const[aiAuditLoading,setAiAuditLoading]=useState(false);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
 
@@ -897,6 +975,25 @@ function App(){
   const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
   const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
+
+  const findDuplicates=useCallback(function(){
+    var classified=wd.filter(function(i){return i.color&&!i.needsEdit});
+    var groups={};
+    classified.forEach(function(item){
+      var key=item.garmentType+"_"+item.color.toLowerCase()+(item.pattern&&item.pattern!=="solid"?"_"+item.pattern:"");
+      if(!groups[key])groups[key]=[];
+      groups[key].push(item);
+    });
+    /* Also check items with same name */
+    classified.forEach(function(item){
+      if(!item.name)return;
+      var nameKey="name_"+item.name.toLowerCase().trim();
+      if(!groups[nameKey])groups[nameKey]=[];
+      var already=groups[nameKey].some(function(g){return g.id===item.id});
+      if(!already)groups[nameKey].push(item);
+    });
+    return Object.values(groups).filter(function(g){return g.length>=2});
+  },[wd]);
 
   const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
@@ -1172,6 +1269,33 @@ function App(){
     editG&&renderGarmentEdit(editG),
     editW&&renderWatchEdit(editW),
     addG&&renderQuickAdd(),
+    /* Duplicate Detection Modal */
+    showDupes&&React.createElement(Modal,{onClose:function(){setShowDupes(false)}},
+      React.createElement("h2",{style:{fontSize:18,fontWeight:600,marginBottom:6}},"🔍 Duplicate Detection"),
+      React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:14}},"Items with matching type + color that might be duplicates. Review each group and delete extras."),
+      dupeGroups.length===0?React.createElement("div",{style:{textAlign:"center",padding:30}},
+        React.createElement("span",{style:{fontSize:28}},"✅"),
+        React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--good)",marginTop:8}},"No duplicates found!"),
+        React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},"All "+wd.length+" items are unique."))
+      :React.createElement("div",null,
+        React.createElement("div",{style:{background:"rgba(200,90,58,0.08)",borderRadius:8,padding:"8px 12px",marginBottom:14,border:"1px solid rgba(200,90,58,0.2)"}},
+          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},dupeGroups.length+" potential duplicate group"+(dupeGroups.length>1?"s":"")+" found")),
+        dupeGroups.map(function(group,gi){
+          return React.createElement("div",{key:gi,style:{background:"var(--bg)",borderRadius:12,padding:"14px",marginBottom:12,border:"1px solid var(--border)"}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:10}},
+              React.createElement(Dot,{color:group[0].color,size:12}),
+              React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,color:"var(--text)"}},group[0].garmentType+" — "+group[0].color),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",background:"rgba(200,90,58,0.1)",borderRadius:4,padding:"2px 6px"}},group.length+" items")),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(group.length,3)+",1fr)",gap:10}},
+              group.map(function(item){
+                return React.createElement("div",{key:item.id,style:{background:"var(--card)",borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}},
+                  item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:140,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:100,background:(CM[item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:30})),
+                  React.createElement("div",{style:{padding:"8px 10px"}},
+                    React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:500,marginBottom:2}},item.name||item.color),
+                    React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:2}},item.garmentType+(item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")+(item.material?" · "+item.material:"")),
+                    item.lastWorn&&React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},"Last worn: "+new Date(item.lastWorn).toLocaleDateString()),
+                    React.createElement("button",{onClick:function(){if(confirm("Delete \""+( item.name||item.color)+"\"?")){rmG(item.id);setDupeGroups(function(prev){return prev.map(function(g){return g.filter(function(x){return x.id!==item.id})}).filter(function(g){return g.length>=2})})}},style:{width:"100%",background:"rgba(200,90,58,0.1)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"6px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:28}},"🗑️ Delete")))})));
+        }))),
     showSettings&&React.createElement(Modal,{onClose:function(){setShowSettings(false)}},
       React.createElement("h2",{style:{fontSize:18,fontWeight:600,marginBottom:6}},"⚙️ Settings"),
       React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:16}},"AI photo classification works automatically inside Claude.ai. To use it in a standalone browser, add your Anthropic API key below."),
@@ -1212,7 +1336,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"#5a5464",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.3"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.4"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -1270,7 +1394,8 @@ function App(){
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
             [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id);setWMatFilt("all")}},f.l)}),
-            React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
+            React.createElement("button",{onClick:function(){var dupes=findDuplicates();setDupeGroups(dupes);setShowDupes(true)},style:{background:"none",border:"1px solid rgba(201,168,76,0.3)",borderRadius:20,padding:"8px 14px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36,marginLeft:"auto"}},"🔍 Duplicates"),
+            React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
           /* Material quick-filter */
           (function(){var filteredForMats=wFilt==="all"?wd:wd.filter(function(i){return catOf(i.garmentType)===wFilt});var mc={};filteredForMats.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,8);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(wMatFilt===m[0]?"all":m[0])}},m[0]+" ×"+m[1])})):null})(),
 
@@ -1819,6 +1944,125 @@ function App(){
               aiCritique&&aiCritique.impact>0&&React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(aiCritique.impact>=7?"var(--good)":aiCritique.impact>=4?"var(--gold)":"var(--warn)"),fontSize:14,fontFamily:"var(--f)",fontWeight:700,color:aiCritique.impact>=7?"var(--good)":aiCritique.impact>=4?"var(--gold)":"var(--warn)"}},aiCritique.impact)),
             React.createElement("div",{style:{textAlign:"center",marginTop:12}},
               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#2a2530",letterSpacing:"0.2em"}},"WATCH ADVISOR")))),
+
+        /* ── AI STYLE COACH ── */
+        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+            React.createElement("span",{style:{fontSize:20}},"🎓"),
+            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"AI Style Coach")),
+          !aiCoach&&!aiCoachLoading&&React.createElement("div",null,
+            React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:10}},"Get personalized style advice based on your entire wardrobe and watch collection."),
+            React.createElement("button",{className:"btn btn-gold",onClick:async function(){
+              setAiCoachLoading(true);
+              var result=await aiStyleCoach(wd,actW,ctx,apiKeyRef.current);
+              setAiCoach(result||{summary:"AI unavailable. Check your API key in settings.",strengths:[],gaps:[],next_buys:[],style_tip:"",versatility:0});
+              setAiCoachLoading(false);
+            }},"🎓 Get Style Advice")),
+          aiCoachLoading&&React.createElement("div",{style:{textAlign:"center",padding:20}},React.createElement("div",{className:"sp",style:{width:20,height:20,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 8px"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Analyzing your wardrobe...")),
+          aiCoach&&React.createElement("div",{className:"fu"},
+            aiCoach.versatility>0&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:12}},
+              React.createElement("div",{style:{width:48,height:48,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:aiCoach.versatility>=7?"rgba(122,184,122,0.15)":aiCoach.versatility>=4?"rgba(201,168,76,0.15)":"rgba(200,90,58,0.15)",border:"2px solid "+(aiCoach.versatility>=7?"var(--good)":aiCoach.versatility>=4?"var(--gold)":"var(--warn)"),fontSize:18,fontFamily:"var(--f)",fontWeight:700,color:aiCoach.versatility>=7?"var(--good)":aiCoach.versatility>=4?"var(--gold)":"var(--warn)"}},aiCoach.versatility+"/10"),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"Versatility Score"),
+                React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},aiCoach.versatility>=8?"Exceptional range":"Room to grow"))),
+            aiCoach.summary&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",marginBottom:12,borderLeft:"3px solid var(--gold)"}},
+              React.createElement("p",{style:{fontSize:12,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.6,color:"var(--text)"}},aiCoach.summary)),
+            aiCoach.strengths&&aiCoach.strengths.length>0&&React.createElement("div",{style:{marginBottom:10}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--good)",fontWeight:600,marginBottom:6}},"✓ STRENGTHS"),
+              aiCoach.strengths.map(function(s,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"4px 0",borderBottom:"1px solid var(--border)"}},"• "+s)})),
+            aiCoach.gaps&&aiCoach.gaps.length>0&&React.createElement("div",{style:{marginBottom:10}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:6}},"⚠ GAPS"),
+              aiCoach.gaps.map(function(g,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"4px 0",borderBottom:"1px solid var(--border)"}},"• "+g)})),
+            aiCoach.next_buys&&aiCoach.next_buys.length>0&&React.createElement("div",{style:{marginBottom:10}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:6}},"🛍️ NEXT BUYS"),
+              aiCoach.next_buys.map(function(b,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"4px 0",borderBottom:"1px solid var(--border)"}},(i+1)+". "+b)})),
+            aiCoach.style_tip&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"10px 12px",marginTop:8,border:"1px solid rgba(201,168,76,0.2)"}},
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"💡 Pro Tip: "),
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},aiCoach.style_tip)),
+            React.createElement("button",{className:"btn btn-ghost",style:{marginTop:10,fontSize:10},onClick:function(){setAiCoach(null)}},"↻ Re-analyze"))),
+
+        /* ── AI OCCASION PLANNER ── */
+        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+            React.createElement("span",{style:{fontSize:20}},"🎯"),
+            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"AI Occasion Planner")),
+          React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:10}},"Describe an event or occasion and get outfit recommendations from your wardrobe."),
+          React.createElement("input",{className:"inp",value:aiOccasionInput,onChange:function(e){setAiOccasionInput(e.target.value)},placeholder:"e.g. Business dinner, Beach wedding, First date at rooftop bar...",style:{marginBottom:10,fontSize:12}}),
+          React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}},
+            ["Business Dinner","Date Night","Wedding Guest","Casual Friday","Cocktail Party","Weekend Brunch"].map(function(sug){
+              return React.createElement("span",{key:sug,className:"chip",onClick:function(){setAiOccasionInput(sug)},style:{fontSize:9}},sug)})),
+          !aiOccasion&&!aiOccasionLoading&&React.createElement("button",{className:"btn btn-gold",onClick:async function(){
+            if(!aiOccasionInput.trim()){alert("Describe an occasion first");return}
+            setAiOccasionLoading(true);
+            var result=await aiOccasionPlan(aiOccasionInput.trim(),wd,actW,apiKeyRef.current);
+            setAiOccasion(result||{occasion_tips:"AI unavailable. Check your API key in settings.",outfits:[],avoid:""});
+            setAiOccasionLoading(false);
+          }},"🎯 Plan My Outfit"),
+          aiOccasionLoading&&React.createElement("div",{style:{textAlign:"center",padding:20}},React.createElement("div",{className:"sp",style:{width:20,height:20,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 8px"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Planning outfit...")),
+          aiOccasion&&React.createElement("div",{className:"fu"},
+            aiOccasion.occasion_tips&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",marginBottom:12,borderLeft:"3px solid var(--gold)"}},
+              React.createElement("p",{style:{fontSize:12,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.6,color:"var(--text)"}},aiOccasion.occasion_tips)),
+            aiOccasion.outfits&&aiOccasion.outfits.map(function(outfit,oi){
+              return React.createElement("div",{key:oi,style:{background:"var(--bg)",borderRadius:10,padding:"12px",marginBottom:10,border:"1px solid "+(oi===0?"rgba(201,168,76,0.3)":"var(--border)")}},
+                React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
+                  React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:600,color:oi===0?"var(--gold)":"var(--text)"}},outfit.name),
+                  outfit.confidence&&React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(outfit.confidence>=7?"var(--good)":"var(--gold)"),fontSize:11,fontFamily:"var(--f)",fontWeight:700,color:outfit.confidence>=7?"var(--good)":"var(--gold)"}},outfit.confidence)),
+                React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4,marginBottom:6}},
+                  [{l:"👕 Top",v:outfit.top},{l:"👖 Bottom",v:outfit.bottom},{l:"👞 Shoes",v:outfit.shoes},{l:"⌚ Watch",v:outfit.watch}].map(function(p,pi){
+                    return React.createElement("div",{key:pi,style:{display:"flex",gap:8,fontSize:10,fontFamily:"var(--f)"}},
+                      React.createElement("span",{style:{color:"var(--dim)",minWidth:55}},p.l),
+                      React.createElement("span",{style:{color:"var(--text)",fontWeight:500}},p.v))})),
+                outfit.why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",fontStyle:"italic",marginTop:4}},outfit.why))}),
+            aiOccasion.avoid&&React.createElement("div",{style:{background:"rgba(200,90,58,0.06)",borderRadius:8,padding:"8px 12px",border:"1px solid rgba(200,90,58,0.15)",marginBottom:8}},
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},"❌ Avoid: "),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)"}},aiOccasion.avoid)),
+            React.createElement("button",{className:"btn btn-ghost",style:{fontSize:10},onClick:function(){setAiOccasion(null)}},"↻ Try Again"))),
+
+        /* ── AI WARDROBE AUDIT ── */
+        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+            React.createElement("span",{style:{fontSize:20}},"📋"),
+            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"AI Wardrobe Audit")),
+          !aiAudit&&!aiAuditLoading&&React.createElement("div",null,
+            React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:10}},"Comprehensive AI analysis of your entire wardrobe — grading, seasonal readiness, and investment recommendations."),
+            React.createElement("button",{className:"btn btn-gold",onClick:async function(){
+              setAiAuditLoading(true);
+              var result=await aiWardrobeAudit(wd,actW,saved,wearLog,apiKeyRef.current);
+              setAiAudit(result||{grade:"?",grade_why:"AI unavailable. Check your API key in settings."});
+              setAiAuditLoading(false);
+            }},"📋 Run Full Audit")),
+          aiAuditLoading&&React.createElement("div",{style:{textAlign:"center",padding:20}},React.createElement("div",{className:"sp",style:{width:20,height:20,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 8px"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Auditing wardrobe...")),
+          aiAudit&&React.createElement("div",{className:"fu"},
+            /* Grade */
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:14,marginBottom:14}},
+              React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:aiAudit.grade==="A"||aiAudit.grade==="A+"?"rgba(122,184,122,0.15)":aiAudit.grade==="B"?"rgba(201,168,76,0.15)":"rgba(200,90,58,0.15)",border:"3px solid "+(aiAudit.grade==="A"||aiAudit.grade==="A+"?"var(--good)":aiAudit.grade==="B"?"var(--gold)":"var(--warn)"),fontSize:22,fontFamily:"var(--f)",fontWeight:700,color:aiAudit.grade==="A"||aiAudit.grade==="A+"?"var(--good)":aiAudit.grade==="B"?"var(--gold)":"var(--warn)"}},aiAudit.grade),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{fontSize:14,fontFamily:"var(--f)",fontWeight:600,color:"var(--text)"}},"Wardrobe Grade"),
+                aiAudit.grade_why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginTop:2}},aiAudit.grade_why))),
+            /* Details */
+            [aiAudit.color_harmony&&{l:"🎨 Color Harmony",t:aiAudit.color_harmony},aiAudit.versatility&&{l:"🔄 Versatility",t:aiAudit.versatility},aiAudit.cost_efficiency&&{l:"💰 Efficiency",t:aiAudit.cost_efficiency},aiAudit.watch_wardrobe_synergy&&{l:"⌚ Watch Synergy",t:aiAudit.watch_wardrobe_synergy}].filter(Boolean).map(function(d,i){
+              return React.createElement("div",{key:i,style:{background:"var(--bg)",borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid var(--border)"}},
+                React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:3}},d.l),
+                React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},d.t))}),
+            /* Seasonal scores */
+            aiAudit.seasonal_score&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:10,marginTop:8}},
+              [{s:"spring",i:"🌸"},{s:"summer",i:"☀️"},{s:"fall",i:"🍂"},{s:"winter",i:"❄️"}].map(function(sn){
+                var sc=aiAudit.seasonal_score[sn.s]||0;
+                return React.createElement("div",{key:sn.s,style:{textAlign:"center",background:"var(--bg)",borderRadius:8,padding:"8px 4px",border:"1px solid var(--border)"}},
+                  React.createElement("div",{style:{fontSize:16}},sn.i),
+                  React.createElement("div",{style:{fontSize:16,fontFamily:"var(--f)",fontWeight:700,color:sc>=7?"var(--good)":sc>=4?"var(--gold)":"var(--warn)"}},sc+"/10"),
+                  React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textTransform:"capitalize"}},sn.s))})),
+            /* Declutter + Invest */
+            aiAudit.declutter&&aiAudit.declutter.length>0&&React.createElement("div",{style:{marginBottom:8}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:4}},"🧹 Consider Decluttering"),
+              aiAudit.declutter.map(function(d,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"3px 0"}},"• "+d)})),
+            aiAudit.invest&&aiAudit.invest.length>0&&React.createElement("div",{style:{marginBottom:8}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--good)",fontWeight:600,marginBottom:4}},"💎 Worth Investing In"),
+              aiAudit.invest.map(function(d,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"3px 0"}},"• "+d)})),
+            aiAudit.pro_tip&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"10px 12px",marginTop:8,border:"1px solid rgba(201,168,76,0.2)"}},
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"💡 "),
+              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},aiAudit.pro_tip)),
+            React.createElement("button",{className:"btn btn-ghost",style:{marginTop:10,fontSize:10},onClick:function(){setAiAudit(null)}},"↻ Re-audit"))),
 
         /* ── COLLECTION HEATMAP ── */
         React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
