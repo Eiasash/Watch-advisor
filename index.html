@@ -839,6 +839,7 @@ function App(){
   const[buildName,setBuildName]=useState("");
   const[buildAiCritique,setBuildAiCritique]=useState(null);
   const[buildAiLoading,setBuildAiLoading]=useState(false);
+  const[buildWatch,setBuildWatch]=useState(null);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
 
@@ -1396,15 +1397,24 @@ function App(){
                 React.createElement("span",{style:{fontSize:15,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"Score: "+buildFit.fs),
                 React.createElement("div",{style:{display:"flex",gap:6}},
                   React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"10px 18px",fontSize:11},onClick:function(){saveFit(buildFit);if(buildName.trim()){setSaved(function(p){var n=p.slice();if(n.length>0){n[n.length-1]=Object.assign({},n[n.length-1],{name:buildName.trim()});ps("of_"+SK,n);}return n;});}setBuildName("");setBuildAiCritique(null);}},"💾 Save"),
-                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:async function(){if(!buildFit.watches||!buildFit.watches.length)return;setBuildAiLoading(true);var result=await aiVision({top:buildFit.outerTop||buildFit.top,bot:buildFit.bot,shoe:buildFit.shoe,layers:buildFit.tops},buildFit.watches[0],effectiveCtx,apiKeyRef.current);setBuildAiCritique(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});setBuildAiLoading(false)},disabled:buildAiLoading},buildAiLoading?"⏳ Analyzing...":"✨ AI Critique"))),
+                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:async function(){var critW=buildWatch||(buildFit.watches&&buildFit.watches[0]);if(!critW)return;setBuildAiLoading(true);var result=await aiVision({top:buildFit.outerTop||buildFit.top,bot:buildFit.bot,shoe:buildFit.shoe,layers:buildFit.tops},critW,effectiveCtx,apiKeyRef.current);setBuildAiCritique(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});setBuildAiLoading(false)},disabled:buildAiLoading},buildAiLoading?"⏳ Analyzing...":"✨ AI Critique"))),
               React.createElement("input",{className:"inp",value:buildName,onChange:function(e){setBuildName(e.target.value)},placeholder:"Name this outfit (optional)",style:{fontSize:12}})),
             buildFit.wxWarns&&buildFit.wxWarns.length>0&&React.createElement("div",{style:{marginBottom:10,display:"flex",gap:4,flexWrap:"wrap"}},
               buildFit.wxWarns.map(function(warn,wi){return React.createElement("span",{key:wi,style:{fontSize:8,fontFamily:"var(--f)",color:"#7ab8d8",background:"rgba(100,150,220,0.08)",borderRadius:4,padding:"2px 6px",border:"1px solid rgba(100,150,220,0.15)"}},warn)})),
-            React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
-              buildFit.allW.slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})),
+            /* Watch selection */
+            React.createElement("div",{style:{marginBottom:8}},
+              React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}},
+                React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,letterSpacing:"0.1em"}},"⌚ WATCH PAIRING"),
+                React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},buildWatch?"Tap again to deselect":"Tap to choose")),
+              buildWatch&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:8}},
+                React.createElement("span",{style:{fontSize:18}},buildWatch.i),
+                React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 "+buildWatch.n),
+                React.createElement("button",{onClick:function(){setBuildWatch(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Clear")),
+              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+                buildFit.allW.slice(0,6).map(function(w,i){return React.createElement("div",{key:w.id,onClick:function(){setBuildWatch(buildWatch&&buildWatch.id===w.id?null:w);setBuildAiCritique(null)},style:{cursor:"pointer",border:buildWatch&&buildWatch.id===w.id?"2px solid var(--gold)":"2px solid transparent",borderRadius:14,transition:"all .15s"}},React.createElement(WCard,{w:w,rank:buildWatch?buildWatch.id===w.id?0:null:i,detail:true}))}))),
             /* Outfit mannequin preview */
-            React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
-              React.createElement(OutfitFigure,{topColor:buildFit.outerTop?buildFit.outerTop.color:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].c:"#c9a84c",watchIcon:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].i:"⌚",watchName:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].n:"",size:120})),
+            (function(){var selW=buildWatch||((buildFit.watches&&buildFit.watches[0])?buildFit.watches[0]:null);return React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
+              React.createElement(OutfitFigure,{topColor:buildFit.outerTop?buildFit.outerTop.color:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:selW?selW.c:"#c9a84c",watchIcon:selW?selW.i:"⌚",watchName:selW?selW.n:"",size:120}))})(),
             /* Layers summary */
             buildFit.tops&&buildFit.tops.length>1&&React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:6,marginBottom:8}},
               buildFit.tops.map(function(t,ti){return React.createElement("div",{key:ti,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"3px 8px",border:"1px solid var(--border)"}},
