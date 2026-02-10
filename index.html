@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v14.2</title>
+<title>Watch Advisor v14.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -292,14 +292,24 @@ const CP={
 "silver":["black","charcoal","navy","white","grey","cobalt"],
 "cobalt":["white","cream","light grey","tan","khaki","beige","gold","camel"],
 "slate":["white","cream","light blue","navy","tan"],
+"blue":["white","cream","navy","grey","tan","khaki","charcoal","brown","camel","beige","light grey"],
+"green":["cream","ivory","tan","khaki","white","beige","camel","brown","navy","olive","burnt orange"],
+"pink":["navy","charcoal","grey","white","cream","light grey","black"],
+"orange":["navy","white","cream","charcoal","teal","olive","brown","khaki"],
+"yellow":["navy","charcoal","grey","white","cobalt","denim","olive"],
+"purple":["cream","ivory","charcoal","grey","white","gold","light grey","silver"],
+"chocolate":["cream","ivory","tan","khaki","beige","white","camel","light blue","navy"],
 };
 function compat(c1,c2){
   if(!c1||!c2)return 0.1;
   const a=(c1||"").toLowerCase().trim(),b=(c2||"").toLowerCase().trim();
   if(!a||!b)return 0.1;
   if(a===b)return 0.6; /* monochrome — intentional pairing */
-  if((CP[a]||[]).some(x=>b.includes(x)||x.includes(b)))return 1;
-  if((CP[b]||[]).some(x=>a.includes(x)||x.includes(a)))return 1;
+  /* Exact match first */
+  if((CP[a]||[]).includes(b)||(CP[b]||[]).includes(a))return 1;
+  /* Substring fallback for compound colors like "light blue" */
+  if((CP[a]||[]).some(x=>b.includes(x)||x.includes(b)))return 0.85;
+  if((CP[b]||[]).some(x=>a.includes(x)||x.includes(a)))return 0.85;
   const t1=Object.entries(CM).find(([k])=>a.includes(k)),t2=Object.entries(CM).find(([k])=>b.includes(k));
   if(t1&&t2&&t1[1].t===t2[1].t)return 0.5;
   return 0.2;
@@ -338,6 +348,16 @@ function scoreW(w,items,ctx,reps){
     if((ctx==="casual"||ctx==="weekend")&&sz>=44){s+=0.5;bd.ctx+=0.5}
     if(ctx==="riviera"&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
   }
+  /* Material harmony: leather strap + leather shoes = bonus */
+  if(!w.br&&shoe){
+    var sm=(shoe.material||shoe.name||"").toLowerCase();
+    if(sm.includes("leather")&&w.sc&&w.sc.some(function(x){return x.includes("leather")||x.includes("croc")||x.includes("alligator")})){s+=1;bd.strap+=1}
+    if(sm.includes("suede")&&w.sc&&w.sc.some(function(x){return x.includes("suede")})){s+=1;bd.strap+=1}
+  }
+  /* Formality: penalize dressy watches with very casual items */
+  var hasCasualItem=items.some(function(it){return it.garmentType==="T-Shirt"||it.garmentType==="Shorts"});
+  var isFormalCtx=ctx==="formal"||ctx==="event";
+  if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
   return{total:s,...bd};
 }
 function strapRec(w,items){
@@ -358,6 +378,11 @@ function getWarns(w,items){
     if(sc.includes("brown")&&w.sc&&w.sc.every(x=>x.includes("black")||x.includes("navy")))ws.push("🚫 Brown shoes+dark strap");
     if(sc.includes("black")&&w.sc&&w.sc.every(x=>x.includes("brown")||x.includes("tan")||x.includes("teal")))ws.push("🚫 Black shoes+warm strap");
   }
+  /* Formality warnings */
+  var hasShorts=items.some(function(it){return it.garmentType==="Shorts"});
+  var hasTee=items.some(function(it){return it.garmentType==="T-Shirt"});
+  if(hasShorts&&w.cx&&!w.cx.includes("casual")&&!w.cx.includes("weekend")&&!w.cx.includes("riviera"))ws.push("⚠️ Shorts may clash with this watch's formality");
+  if(hasTee&&w.cx&&w.cx.includes("formal")&&!w.cx.includes("casual"))ws.push("⚠️ T-shirt may be too casual for this watch");
   return ws;
 }
 const CXR={
@@ -453,7 +478,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
   count=count||10;opts=opts||{};
   var wxOpts=opts.wx||null;
   const rules=CXR[ctx]||CXR["smart-casual"];
-  var curSeason=(function(){var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
+  var curSeason=(function(){if(opts.temp!==undefined){var t=opts.temp;if(t>=28)return"summer";if(t>=20)return"spring";if(t>=12)return"fall";return"winter"}var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
   var seasonFilter=function(i){var s=i.seasons;if(!s||!s.length||s.length>=4)return true;return s.includes(curSeason)};
   const valid=wardrobe.filter(function(i){return i.color&&!i.needsEdit});
   var tops=valid.filter(function(i){return catOf(i.garmentType)==="tops"&&!(rules.no||[]).includes(i.garmentType)&&seasonFilter(i)});
@@ -1175,7 +1200,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"#5a5464",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.2"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.3"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -1864,6 +1889,66 @@ function App(){
                         React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:700,color:c.v>=c.min?"var(--good)":"var(--warn)"}},c.v))})));
               }));
           })()),
+
+        /* ── COLOR GAP ANALYSIS ── */
+        React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
+            React.createElement("span",{style:{fontSize:20}},"🔍"),
+            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"Color Gap Analysis")),
+          (function(){
+            /* Find colors needed by watches but missing from wardrobe */
+            var wdColors={};wd.filter(function(i){return i.color}).forEach(function(i){wdColors[i.color.toLowerCase()]=true});
+            var needed={};actW.forEach(function(w){(w.mc||[]).forEach(function(c){if(c!=="anything"&&!wdColors[c])needed[c]=(needed[c]||0)+1})});
+            var gaps=Object.entries(needed).sort(function(a,b){return b[1]-a[1]}).slice(0,8);
+            if(!gaps.length)return React.createElement("div",{style:{textAlign:"center",padding:10}},
+              React.createElement("span",{style:{fontSize:12}},"✓"),
+              React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--good)",margin:"4px 0 0"}},"Great coverage! Your wardrobe has colors for all your watches."));
+            return React.createElement("div",null,
+              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:10}},"Colors your watches want but your wardrobe doesn't have:"),
+              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+                gaps.map(function(g){
+                  var matchingWatches=actW.filter(function(w){return(w.mc||[]).includes(g[0])}).slice(0,3);
+                  return React.createElement("div",{key:g[0],style:{display:"flex",alignItems:"center",gap:8,background:"var(--bg)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(200,90,58,0.15)"}},
+                    React.createElement(Dot,{color:g[0],size:14}),
+                    React.createElement("div",{style:{flex:1,minWidth:0}},
+                      React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:"var(--text)",textTransform:"capitalize"}},g[0]),
+                      React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"Needed by "+matchingWatches.map(function(w){return w.i+" "+w.n}).join(", "))),
+                    React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,flexShrink:0}},g[1]+" watch"+(g[1]>1?"es":"")))}));
+          })()),
+
+        /* ── WATCH PAIRING SUGGESTIONS ── */
+        actW.length>0&&React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+          React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
+            React.createElement("span",{style:{fontSize:20}},"⌚"),
+            React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"Watch Pairing Guide")),
+          React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:10}},"Best garment colors for each watch, based on your wardrobe:"),
+          actW.slice(0,8).map(function(w){
+            /* Find best matching garments from wardrobe */
+            var scored=wd.filter(function(i){return i.color&&!i.needsEdit}).map(function(i){
+              var ic=i.color.toLowerCase().trim();var s=0;
+              for(var m of(w.mc||[])){if(m==="anything"||ic.includes(m)||m.includes(ic)){s+=3;break}}
+              for(var a of(w.ac||[])){if(ic.includes(a)||a.includes(ic)){s-=3;break}}
+              var wt=(CM[ic]||{}).t||"neutral";if(w.mt===wt)s+=1;
+              return{g:i,s:s};
+            }).filter(function(x){return x.s>0}).sort(function(a,b){return b.s-a.s}).slice(0,4);
+            var missingColors=(w.mc||[]).filter(function(mc){return mc!=="anything"&&!wd.some(function(i){return i.color&&i.color.toLowerCase()===mc})}).slice(0,3);
+            return React.createElement("div",{key:w.id,style:{background:"var(--bg)",borderRadius:10,padding:"10px 12px",marginBottom:6,border:"1px solid var(--border)"}},
+              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}},
+                React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"18",fontSize:16,flexShrink:0}},w.i),
+                React.createElement("div",{style:{flex:1,minWidth:0}},
+                  React.createElement("span",{style:{fontSize:12,fontWeight:600}},w.n),
+                  React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:6}},w.d+" · "+(w.br?"Bracelet":"Strap")))),
+              scored.length>0&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:missingColors.length?6:0}},
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--good)",alignSelf:"center"}},"✓ Best:"),
+                scored.map(function(x){return React.createElement("div",{key:x.g.id,style:{display:"flex",alignItems:"center",gap:3,background:"rgba(122,184,122,0.06)",borderRadius:6,padding:"3px 8px",border:"1px solid rgba(122,184,122,0.15)"}},
+                  React.createElement(Dot,{color:x.g.color,size:5}),
+                  React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--text)"}},x.g.name||x.g.color))})),
+              missingColors.length>0&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap"}},
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--warn)",alignSelf:"center"}},"+ Need:"),
+                missingColors.map(function(mc){return React.createElement("div",{key:mc,style:{display:"flex",alignItems:"center",gap:3,background:"rgba(200,90,58,0.06)",borderRadius:6,padding:"3px 8px",border:"1px solid rgba(200,90,58,0.15)"}},
+                  React.createElement(Dot,{color:mc,size:5}),
+                  React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--sub)"}},mc))})));
+          })),
 
         /* ── GARMENT ROTATION STATS ── */
         wd.some(function(i){return i.lastWorn})&&React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
