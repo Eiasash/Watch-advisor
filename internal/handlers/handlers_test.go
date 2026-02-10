@@ -32,6 +32,26 @@ func TestHealthHandler(t *testing.T) {
 	}
 }
 
+func TestHealthHandlerMethodNotAllowed(t *testing.T) {
+	mux := http.NewServeMux()
+	cfg := config.Config{Port: "8080", StaticDir: "../../static"}
+	Register(mux, cfg)
+
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions} {
+		req := httptest.NewRequest(method, "/api/health", nil)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, req)
+
+		if w.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s /api/health: expected 405, got %d", method, w.Code)
+		}
+		if allow := w.Header().Get("Allow"); allow != "GET, HEAD" {
+			t.Errorf("%s /api/health: expected Allow header 'GET, HEAD', got %q", method, allow)
+		}
+	}
+}
+
 func TestStaticFileServing(t *testing.T) {
 	mux := http.NewServeMux()
 	cfg := config.Config{Port: "8080", StaticDir: "../../static"}
