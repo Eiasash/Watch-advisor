@@ -862,6 +862,7 @@ function App(){
   const[proc,setProc]=useState([]);
   const[saved,setSaved]=useState([]);
   const[selFit,setSelFit]=useState(null);
+  const[fitWatch,setFitWatch]=useState(null);
   const[wFilt,setWFilt]=useState("all");
   const[wMatFilt,setWMatFilt]=useState("all");
   const[weather,setWx]=useState(null);
@@ -1785,7 +1786,7 @@ function App(){
               React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},planWx.rain?"Leather straps penalized. White/cream shoes downranked."+(planWx.rainPct?" "+planWx.rainPct+"% chance.":""):planWx.uv>=8?"UV "+planWx.uv+" — light colors preferred":"Wind "+planWx.wind+"km/h"))),
           !fits.length?React.createElement("div",{style:{textAlign:"center",padding:"40px 16px"}},React.createElement("p",{style:{fontSize:28,margin:"0 0 8px"}},"👕"),React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"#5a5464"}},wd.length<2?"Add wardrobe items":needsFix>0?"Classify items first":"No valid combos"))
           :fits.map(function(fit,idx){
-            return React.createElement("div",{key:fit.id,className:"card-lift",onClick:function(){setSelFit(fit)},style:{background:idx===0?"var(--card2)":"var(--card)",border:idx===0?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",position:"relative"}},
+            return React.createElement("div",{key:fit.id,className:"card-lift",onClick:function(){setSelFit(fit);setFitWatch(null)},style:{background:idx===0?"var(--card2)":"var(--card)",border:idx===0?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",position:"relative"}},
               idx===0&&React.createElement("div",{style:{position:"absolute",top:8,right:12,fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:700}},"TOP"),
               React.createElement("div",{className:"dots-row",style:{marginBottom:8}},
                 [fit.top,fit.bot,fit.shoe].filter(Boolean).map(function(item,i){return React.createElement(Dot,{key:i,color:item.color,size:8})}),
@@ -1810,7 +1811,7 @@ function App(){
         React.createElement("button",{onClick:function(){setSelFit(null)},style:{background:"none",border:"none",color:"var(--gold)",fontFamily:"var(--f)",fontSize:12,cursor:"pointer",padding:0,marginBottom:12,minHeight:44}},"← Back"),
         /* Outfit mannequin preview */
         React.createElement("div",{style:{display:"flex",justifyContent:"center",marginBottom:16,background:"linear-gradient(145deg,#0a0914,#12101a)",borderRadius:14,padding:"16px",border:"1px solid rgba(201,168,76,0.15)"}},
-          React.createElement(OutfitFigure,{topColor:selFit.top?selFit.top.color:"grey",botColor:selFit.bot?selFit.bot.color:"charcoal",shoeColor:selFit.shoe?selFit.shoe.color:"black",watchColor:selFit.watches&&selFit.watches[0]?selFit.watches[0].c:"#c9a84c",watchIcon:selFit.watches&&selFit.watches[0]?selFit.watches[0].i:"⌚",watchName:selFit.watches&&selFit.watches[0]?selFit.watches[0].n:"",size:130})),
+          (function(){var dw=fitWatch||(selFit.watches&&selFit.watches[0])||null;return React.createElement(OutfitFigure,{topColor:selFit.top?selFit.top.color:"grey",botColor:selFit.bot?selFit.bot.color:"charcoal",shoeColor:selFit.shoe?selFit.shoe.color:"black",watchColor:dw?dw.c:"#c9a84c",watchIcon:dw?dw.i:"⌚",watchName:dw?dw.n:"",size:130})})()),
         [{slot:"top",l:"TOP",item:selFit.top},{slot:"bot",l:"BOTTOM",item:selFit.bot},{slot:"shoes",l:"SHOES",item:selFit.shoe}].map(function(o){
           if(!o.item)return null;
           var swaps=getSwaps(wd,selFit,o.slot);
@@ -1830,9 +1831,20 @@ function App(){
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
-        React.createElement("h2",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,letterSpacing:"0.14em",color:"var(--gold)",margin:"16px 0 10px",textTransform:"uppercase"}},"Watch Pairings"),
-        React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16}},(selFit.allW||selFit.watches).slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})),
-        React.createElement("button",{className:"btn btn-gold",onClick:function(){saveFit(selFit)}},"💾 Save Outfit")),
+        React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"16px 0 10px"}},
+          React.createElement("h2",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,letterSpacing:"0.14em",color:"var(--gold)",textTransform:"uppercase",margin:0}},"Watch Pairings"),
+          React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},fitWatch?"Tap again to deselect":"Tap to choose")),
+        fitWatch&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:8}},
+          React.createElement("span",{style:{fontSize:18}},fitWatch.i),
+          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 "+fitWatch.n),
+          React.createElement("button",{onClick:function(){setFitWatch(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Clear")),
+        React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16}},(selFit.allW||selFit.watches).slice(0,6).map(function(w,i){
+          return React.createElement("div",{key:w.id,onClick:function(){setFitWatch(fitWatch&&fitWatch.id===w.id?null:w)},style:{cursor:"pointer",border:fitWatch&&fitWatch.id===w.id?"2px solid var(--gold)":"2px solid transparent",borderRadius:14,transition:"all .15s"}},
+            React.createElement(WCard,{w:w,rank:fitWatch?fitWatch.id===w.id?0:null:i,detail:true}))})),
+        React.createElement("button",{className:"btn btn-gold",onClick:function(){
+          /* If user selected a watch, reorder watches so selected is first */
+          if(fitWatch){var reordered=[fitWatch].concat((selFit.allW||selFit.watches).filter(function(w){return w.id!==fitWatch.id}));var updFit=Object.assign({},selFit,{watches:reordered.slice(0,3)});saveFit(updFit)}else{saveFit(selFit)}
+        }},"💾 Save Outfit")),
 
       /* ═══ INSIGHTS ═══ */
       view==="insights"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
