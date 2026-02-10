@@ -313,7 +313,7 @@ function parseWatchLog(mdText, existingWatches){
     
     /* Parse strap sub-sections */
     if(strapSection&&line.match(/^###\s+/)){
-      currentStrapWatch=line.replace(/^###\s+/,"").replace(/\s*\(\d+mm\)$/,"").trim();
+      currentStrapWatch=line.replace(/^###\s+/,"").replace(/\s*\([^)]*\)/g,"").trim();
       continue;
     }
     
@@ -366,7 +366,10 @@ function parseWatchLog(mdText, existingWatches){
   /* --- Phase 2: Merge straps into watches --- */
   Object.keys(strapMap).forEach(function(strapWatchName){
     var straps=strapMap[strapWatchName];
-    var matchW=watches.find(function(w){return fuzzyMatch(w.n,strapWatchName)});
+    /* Try exact name match first, then best substring, then fuzzy */
+    var matchW=watches.find(function(w){return w.n.toLowerCase()===strapWatchName.toLowerCase()});
+    if(!matchW){var subs=watches.filter(function(w){var wl=w.n.toLowerCase(),sl=strapWatchName.toLowerCase();var isSubstr=sl.includes(wl)||wl.includes(sl);if(!isSubstr)return false;var shorter=Math.min(wl.length,sl.length),longer=Math.max(wl.length,sl.length);return shorter/longer>=0.5});if(subs.length)matchW=subs.reduce(function(a,b){return a.n.length>b.n.length?a:b})}
+    if(!matchW)matchW=watches.find(function(w){return fuzzyMatch(w.n,strapWatchName)});
     if(matchW){
       matchW.straps=straps;
       matchW.br=straps.some(function(s){return s.type==="bracelet"});
@@ -423,7 +426,7 @@ function fuzzyMatch(a,b){
   var ta=a.toLowerCase().split(/[\s-]+/).filter(function(t){return t.length>2});
   var tb=b.toLowerCase().split(/[\s-]+/).filter(function(t){return t.length>2});
   var overlap=ta.filter(function(t){return tb.some(function(u){return u.includes(t)||t.includes(u)})}).length;
-  return overlap>=2||(overlap>=1&&Math.min(ta.length,tb.length)<=2);
+  return(overlap>=2&&overlap/Math.max(ta.length,tb.length)>=0.6)||(overlap>=1&&Math.min(ta.length,tb.length)<=2&&Math.max(ta.length,tb.length)<=3);
 }
 
 /* Helper: infer dial color from name/details */
@@ -447,6 +450,8 @@ function inferDial(name,details){
     {k:["blue dial","blue chronograph"],color:"Blue",hex:"#2a5a9a",temp:"cool",emoji:"🔵"},
     {k:["yellow gold","gold,"],color:"White/Gold",hex:"#d4af37",temp:"mixed",emoji:"💎"},
     {k:["champagne"],color:"Champagne",hex:"#d4c090",temp:"warm",emoji:"🥂"},
+    {k:["speedmaster","moonwatch"],color:"Black",hex:"#1a1a1a",temp:"cool",emoji:"🌑"},
+    {k:["flieger","laco","pilot"],color:"Black",hex:"#2a2a2a",temp:"cool",emoji:"✈️"},
   ];
   for(var i=0;i<dialMap.length;i++){
     for(var j=0;j<dialMap[i].k.length;j++){
@@ -475,7 +480,7 @@ function inferContexts(name,details){
 
 /* Helper: infer size from details */
 function inferSize(details){
-  var m=details.match(/(\d{2})mm/);
+  var m=details.match(/(\d{2})mm(?!\s*lug)/);
   return m?m[1]+"mm":null;
 }
 
