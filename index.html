@@ -1822,7 +1822,11 @@ function App(){
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
               React.createElement("div",{style:{display:"flex",gap:6,marginTop:4},className:"hscroll"},
-                swaps.map(function(s){return React.createElement("div",{key:s.id,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0}},
+                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){
+                  var newItems=(selFit.items||[]).map(function(it){return it.id===(o.slot==="top"?selFit.top:o.slot==="bot"?selFit.bot:selFit.shoe).id?s:it});
+                  var newFit=makeOutfit(newItems,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);
+                  setSelFit(newFit);
+                },style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"all .15s"},className:"card-lift"},
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
