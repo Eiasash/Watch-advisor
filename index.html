@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v14</title>
+<title>Watch Advisor v14.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -56,6 +56,23 @@ input,select,textarea{font-size:16px!important}
 .dots-row{display:flex;gap:3px;align-items:center}
 .onboard{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center}
 .onboard h1{font-size:32px;font-weight:300;letter-spacing:0.2em;color:var(--gold);margin-bottom:8px}
+body.light{--bg:#f5f4f0;--card:#ffffff;--card2:#fafaf8;--card3:#f0efe8;--border:#e0dcd4;--gold:#b8962a;--text:#1a1a1a;--sub:#6a6464;--dim:#9a9494;--warn:#c85a3a;--good:#2a8a2a}
+body.light .chip{background:#f0efe8;color:#6a6464;border-color:#e0dcd4}
+body.light .chip.on{background:rgba(184,150,42,0.12);border-color:rgba(184,150,42,0.35);color:#b8962a}
+body.light .inp,body.light .sel{background:#f5f4f0;border-color:#e0dcd4;color:#1a1a1a}
+body.light .modal-backdrop{background:rgba(0,0,0,0.5)}
+body.light .modal-body{background:#ffffff}
+body.light .modal-handle{background:#d0ccc4}
+body.light .score-bar{background:#e8e4dc}
+body.light .card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+body.light .btn-gold{background:linear-gradient(135deg,#b8962a,#9a7a1a);color:#fff}
+body.light .btn-ghost{border-color:#e0dcd4;color:#6a6464}
+body.light .gcard{border-color:#e0dcd4}
+body.light .swatch.on{border-color:#b8962a;box-shadow:0 0 0 3px rgba(184,150,42,0.3)}
+body.light .gcard-overlay{background:linear-gradient(transparent,rgba(255,255,255,0.6))}
+body.light input,body.light select,body.light textarea{color:#1a1a1a}
+.theme-toggle{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--dim);font-size:14px;min-height:32px;transition:all .2s}
+.theme-toggle:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -782,6 +799,10 @@ function App(){
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
+  const[theme,setTheme]=useState("dark");
+  const[buildName,setBuildName]=useState("");
+  const[buildAiCritique,setBuildAiCritique]=useState(null);
+  const[buildAiLoading,setBuildAiLoading]=useState(false);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
 
@@ -809,11 +830,13 @@ function App(){
     // Auto-onboard if existing data found
     if(wLoaded||wdLoaded)setOnboarded(true);
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
+    try{var th=await loadKey("wa_theme");if(th)setTheme(th)}catch(e){}
     // Cleanup old storage keys after successful migration
     var oldKeys=["w_v12","w_v11","w_v9","watches_v8","wd_v12","wd_v11","wd_v9","wd_v8","of_v12","of_v11","of_v9","of_v8","wa_wearlog_v12","wa_wearlog_v11","wa_rotlock_v12","wa_rotlock_v11","w_v13","wd_v13","of_v13","wa_wearlog_v13","wa_rotlock_v13"];
     setTimeout(function(){oldKeys.forEach(function(k){try{localStorage.removeItem(k)}catch(e){}})},3000);
   })()},[]);
 
+  useEffect(function(){if(theme==="light")document.body.classList.add("light");else document.body.classList.remove("light");return function(){document.body.classList.remove("light")}},[theme]);
   useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(){},{timeout:5000})}catch(e){}},[]);
   useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7");var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch failed:",e);setWxErr(true)}})()},[loc]);
 
@@ -1141,15 +1164,18 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
 
     /* HEADER */
-    React.createElement("div",{style:{background:"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
+    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
           React.createElement("h1",{style:{fontSize:20,fontWeight:300,letterSpacing:"0.14em",color:"var(--gold)"}},"WATCH ADVISOR"),
-          React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️")),
+          React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},
+            React.createElement("button",{className:"theme-toggle",onClick:function(){var nt=theme==="dark"?"light":"dark";setTheme(nt);ps("wa_theme",nt)},title:theme==="dark"?"Switch to Day mode":"Switch to Night mode"},theme==="dark"?"☀️":"🌙"),
+            React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️"))),
         React.createElement("div",{style:{display:"flex",gap:0,marginTop:6},className:"hscroll"},
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"#5a5464",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
-              t.l+(t.c>0?" "+t.c:""))})))),
+              t.l+(t.c>0?" "+t.c:""))})),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.2"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -1206,10 +1232,10 @@ function App(){
               React.createElement("button",{onClick:function(){setAiErr("")},style:{background:"none",border:"none",color:"var(--warn)",cursor:"pointer",fontSize:14}},"✕"))),
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
-            [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id)}},f.l)}),
+            [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id);setWMatFilt("all")}},f.l)}),
             React.createElement("button",{onClick:function(){if(confirm("Clear all?")){saveWd([]);setWFilt("all")}},style:{marginLeft:"auto",background:"none",border:"1px solid #2a1a1a",borderRadius:20,padding:"8px 14px",color:"#5a3a3a",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear")),
           /* Material quick-filter */
-          (function(){var mc={};wd.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,6);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(m[0])}},m[0]+" ×"+m[1])})):null})(),
+          (function(){var filteredForMats=wFilt==="all"?wd:wd.filter(function(i){return catOf(i.garmentType)===wFilt});var mc={};filteredForMats.forEach(function(i){if(i.material)mc[i.material]=(mc[i.material]||0)+1});var mats=Object.entries(mc).sort(function(a,b){return b[1]-a[1]}).slice(0,8);return mats.length>=2?React.createElement("div",{className:"hscroll",style:{display:"flex",gap:4,marginBottom:8,paddingBottom:2}},React.createElement(Pill,{on:wMatFilt==="all",onClick:function(){setWMatFilt("all")}},"All Materials"),mats.map(function(m){return React.createElement(Pill,{key:m[0],on:wMatFilt===m[0],onClick:function(){setWMatFilt(wMatFilt===m[0]?"all":m[0])}},m[0]+" ×"+m[1])})):null})(),
 
           React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(105px,1fr))",gap:8}},
             (function(){var arr=wFilt==="all"?wd:wd.filter(function(i){return catOf(i.garmentType)===wFilt});if(wMatFilt!=="all")arr=arr.filter(function(i){return i.material===wMatFilt});return arr})().slice().sort(function(a,b){return(b.ts||0)-(a.ts||0)}).map(function(item){
@@ -1236,7 +1262,7 @@ function App(){
       view==="fits"&&!selFit&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
         /* MODE CARDS */
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}},
-          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Build",d:"Pick items"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
+          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Create",d:"Build & save"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
             var on=mode===m.id;
             return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
               React.createElement("div",{style:{fontSize:20,marginBottom:2}},m.icon),
@@ -1259,15 +1285,15 @@ function App(){
         /* CONTEXT + CONTROLS ROW */
         mode!=="rotation"&&React.createElement("div",{style:{marginBottom:10}},
           React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}},
-            planDay>0&&effectiveCtx!==ctx&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",alignSelf:"center",marginRight:4}},"📅 "+(CXI[effectiveCtx]||"")+effectiveCtx),
-            CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:(planDay>0?effectiveCtx:ctx)===c.id,onClick:function(){setCtx(c.id);setPlanDay(0)}},c.l)}),
+            planDay>0&&effectiveCtx!==ctx&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",alignSelf:"center",marginRight:4}},"📅 "+(activeCxIcons[effectiveCtx]||CXI[effectiveCtx]||"")+effectiveCtx),
+            CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:ctx===c.id,onClick:function(){setCtx(c.id);if(planDay>0)setPlanDay(0)}},c.l)}),
             !IS_SHARED&&React.createElement("button",{onClick:function(){setReps(!reps)},style:{background:reps?"rgba(201,168,76,0.08)":"var(--card)",border:"1px solid "+(reps?"rgba(201,168,76,0.25)":"var(--border)"),borderRadius:20,padding:"8px 14px",cursor:"pointer",marginLeft:"auto",color:reps?"var(--gold)":"var(--dim)",fontFamily:"var(--f)",fontSize:11,minHeight:36}},reps?"Rep ON":"Rep OFF"))),
 
         /* AUTO-SPECIFIC FILTERS */
         mode==="auto"&&React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:10}},
           /* Top type filter */
           [{id:"all",l:"All Tops"},{id:"Shirt",l:"👔 Shirts"},{id:"Polo",l:"🏇 Polos"},{id:"T-Shirt",l:"👕 Tees"},{id:"Sweater/Knit",l:"🧶 Knits"},{id:"Jacket/Blazer",l:"🧥 Jackets"}].map(function(tf){
-            return React.createElement("span",{key:tf.id,className:"chip "+(topType===tf.id?"on":""),onClick:function(){setTopType(tf.id)}},tf.l)}),
+            return React.createElement("span",{key:tf.id,className:"chip "+(topType===tf.id?"on":""),onClick:function(){setTopType(topType===tf.id&&tf.id!=="all"?"all":tf.id)}},tf.l)}),
           /* Shuffle */
           React.createElement("button",{onClick:function(){setShuffleKey(shuffleKey+1)},style:{background:"none",border:"1px solid var(--border)",borderRadius:20,padding:"6px 12px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,marginLeft:"auto",minHeight:32}},"🎲 Shuffle"),
           /* Count */
@@ -1289,7 +1315,7 @@ function App(){
                 o.val?React.createElement(React.Fragment,null,
                   o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
-                  React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
+                  React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
                 :React.createElement(React.Fragment,null,
                   React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
                   React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
@@ -1303,20 +1329,44 @@ function App(){
             return React.createElement("div",{className:"fu",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px",marginBottom:16}},
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+(buildSlot==="top"?"a top":buildSlot==="bot"?"bottoms":"shoes")),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
-                items.map(function(item){return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setter(item);setBuildSlot(null)},style:{background:"var(--bg)",border:"2px solid transparent",textAlign:"center"}},
+                items.map(function(item){return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setter(item);setBuildSlot(null);setBuildAiCritique(null)},style:{background:"var(--bg)",border:"2px solid transparent",textAlign:"center"}},
                   item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:60,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{height:40,display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:14})),
                   React.createElement("div",{style:{padding:"4px 4px 6px"}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",fontWeight:500}},item.name||item.color)))}),
                 !items.length&&React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",gridColumn:"1/-1",padding:10}},"No classified items")));
           })(),
 
           buildFit?React.createElement("div",{className:"fu",style:{background:"var(--card2)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:14,padding:"16px"}},
-            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
-              React.createElement("span",{style:{fontSize:15,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"Score: "+buildFit.fs),
-              React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"10px 18px",fontSize:11},onClick:function(){saveFit(buildFit)}},"💾 Save")),
+            React.createElement("div",{style:{marginBottom:12}},
+              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
+                React.createElement("span",{style:{fontSize:15,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"Score: "+buildFit.fs),
+                React.createElement("div",{style:{display:"flex",gap:6}},
+                  React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"10px 18px",fontSize:11},onClick:function(){saveFit(buildFit);if(buildName.trim()){setSaved(function(p){var n=p.slice();if(n.length>0){n[n.length-1]=Object.assign({},n[n.length-1],{name:buildName.trim()});ps("of_"+SK,n);}return n;});}setBuildName("");setBuildAiCritique(null);}},"💾 Save"),
+                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:async function(){if(!buildFit.watches||!buildFit.watches.length)return;setBuildAiLoading(true);var result=await aiVision({top:buildFit.top,bot:buildFit.bot,shoe:buildFit.shoe},buildFit.watches[0],effectiveCtx,apiKeyRef.current);setBuildAiCritique(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});setBuildAiLoading(false)},disabled:buildAiLoading},buildAiLoading?"⏳ Analyzing...":"✨ AI Critique"))),
+              React.createElement("input",{className:"inp",value:buildName,onChange:function(e){setBuildName(e.target.value)},placeholder:"Name this outfit (optional)",style:{fontSize:12}})),
             buildFit.wxWarns&&buildFit.wxWarns.length>0&&React.createElement("div",{style:{marginBottom:10,display:"flex",gap:4,flexWrap:"wrap"}},
               buildFit.wxWarns.map(function(warn,wi){return React.createElement("span",{key:wi,style:{fontSize:8,fontFamily:"var(--f)",color:"#7ab8d8",background:"rgba(100,150,220,0.08)",borderRadius:4,padding:"2px 6px",border:"1px solid rgba(100,150,220,0.15)"}},warn)})),
             React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
-              buildFit.allW.slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})))
+              buildFit.allW.slice(0,6).map(function(w,i){return React.createElement(WCard,{key:w.id,w:w,rank:i,detail:true})})),
+            /* Outfit mannequin preview */
+            React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
+              React.createElement(OutfitFigure,{topColor:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].c:"#c9a84c",watchIcon:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].i:"⌚",watchName:buildFit.watches&&buildFit.watches[0]?buildFit.watches[0].n:"",size:120})),
+            /* AI Critique for custom build */
+            buildAiCritique&&React.createElement("div",{className:"fu",style:{background:"rgba(201,168,76,0.04)",borderRadius:12,padding:"14px",marginTop:10,border:"1px solid rgba(201,168,76,0.2)"}},
+              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+                React.createElement("span",{style:{fontSize:16}},"✨"),
+                React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)"}},"AI Analysis")),
+              buildAiCritique.vision&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",marginBottom:10,borderLeft:"3px solid var(--gold)"}},
+                React.createElement("p",{style:{fontSize:12,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.6,color:"var(--text)"}},buildAiCritique.vision)),
+              buildAiCritique.impact>0&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:8}},
+                React.createElement("div",{style:{width:42,height:42,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:buildAiCritique.impact>=7?"rgba(122,184,122,0.15)":buildAiCritique.impact>=4?"rgba(201,168,76,0.15)":"rgba(200,90,58,0.15)",border:"2px solid "+(buildAiCritique.impact>=7?"var(--good)":buildAiCritique.impact>=4?"var(--gold)":"var(--warn)"),fontSize:16,fontFamily:"var(--f)",fontWeight:700,color:buildAiCritique.impact>=7?"var(--good)":buildAiCritique.impact>=4?"var(--gold)":"var(--warn)"}},buildAiCritique.impact),
+                React.createElement("div",{style:{flex:1}},
+                  React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:buildAiCritique.impact>=7?"var(--good)":buildAiCritique.impact>=4?"var(--gold)":"var(--warn)"}},buildAiCritique.impact>=8?"Commanding":buildAiCritique.impact>=6?"Solid":buildAiCritique.impact>=4?"Acceptable":"Needs Work"),
+                  buildAiCritique.impact_why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginTop:2}},buildAiCritique.impact_why))),
+              [buildAiCritique.works&&{l:"✓ What Works",t:buildAiCritique.works,c:"var(--good)"},buildAiCritique.risk&&{l:"⚠ Risk",t:buildAiCritique.risk,c:"var(--warn)"},buildAiCritique.strap_call&&{l:"🔗 Strap",t:buildAiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
+                return React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:4}},
+                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
+                  React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
+              React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8,fontSize:10},onClick:function(){setBuildAiCritique(null)}},"↻ Re-analyze")))
           :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to pick items")),
 
         /* ROTATION */
