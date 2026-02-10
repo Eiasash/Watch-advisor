@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v14.4</title>
+<title>Watch Advisor v14.5</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -572,7 +572,7 @@ async function aiID(b64,mime,apiKey){
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,
-        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"Identify ALL distinct clothing items visible in this photo for a wardrobe app.\n\nRules:\n1. If a FULL OUTFIT is shown (person wearing top+bottom+shoes), return EACH as a separate item.\n2. If photo shows a single garment laid flat or folded, return just one item.\n3. If multiple garments are stacked/folded together, identify each distinct one.\n4. For each item, note its position in the frame (e.g. 'top half','bottom half','left','right','center','full frame').\n5. Include shoes if visible.\n6. Maximum 4 items per photo.\n\nReturn ONLY a JSON ARRAY, no markdown:\n[{\"garmentType\":\"Shirt\"|\"Polo\"|\"T-Shirt\"|\"Sweater/Knit\"|\"Jacket/Blazer\"|\"Pants/Trousers\"|\"Chinos\"|\"Jeans\"|\"Shorts\"|\"Shoes\",\"name\":\"2-3 word description\",\"color\":\"one from: "+AC.join(",")+"\",\"pattern\":\"solid\"|\"plaid\"|\"striped\"|\"checked\"|\"print\"|\"textured\",\"position\":\"where in frame\"}]\nPick the single dominant color per item. If only ONE item is visible, still return an array with one element."}]}]})});
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"Identify ALL distinct clothing items visible in this photo for a luxury wardrobe management app.\n\nRules:\n1. If a FULL OUTFIT is shown (person wearing top+bottom+shoes), return EACH as a separate item.\n2. If photo shows a single garment laid flat or folded, return just one item.\n3. If multiple garments are layered (e.g. blazer over shirt), identify each distinct layer.\n4. If multiple garments are stacked/folded together, identify each distinct one.\n5. For each item, note its position in the frame (e.g. 'top half','bottom half','left','right','center','full frame','layered front','layered back').\n6. Include shoes if visible.\n7. Maximum 5 items per photo.\n8. Detect fabric/material where possible (cotton, wool, linen, denim, leather, silk, cashmere, etc.).\n\nReturn ONLY a JSON ARRAY, no markdown:\n[{\"garmentType\":\"Shirt\"|\"Polo\"|\"T-Shirt\"|\"Sweater/Knit\"|\"Jacket/Blazer\"|\"Pants/Trousers\"|\"Chinos\"|\"Jeans\"|\"Shorts\"|\"Shoes\",\"name\":\"2-4 word descriptive name (e.g. 'Navy Wool Blazer', 'White Oxford Shirt')\",\"color\":\"one from: "+AC.join(",")+"\",\"pattern\":\"solid\"|\"plaid\"|\"striped\"|\"checked\"|\"print\"|\"textured\",\"material\":\"detected fabric type or null\",\"position\":\"where in frame\"}]\nPick the single dominant color per item. If only ONE item is visible, still return an array with one element."}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     var p=JSON.parse(txt);
@@ -586,18 +586,22 @@ async function aiID(b64,mime,apiKey){
 async function aiVision(fit,watch,ctx,apiKey){
   _lastAiError="";
   var top=fit.top,bot=fit.bot,shoe=fit.shoe;
-  var prompt="You are a men's luxury style advisor. Analyze this outfit combination and give me a vivid, cinematic vision of how this looks.\n\n";
-  prompt+="OUTFIT:\n";
-  if(top)prompt+="- Top: "+top.color+" "+(top.pattern||"solid")+" "+(top.garmentType||"")+( top.name?" ("+top.name+")":"")+"\n";
-  if(bot)prompt+="- Bottom: "+bot.color+" "+(bot.pattern||"solid")+" "+(bot.garmentType||"")+(bot.name?" ("+bot.name+")":"")+"\n";
-  if(shoe)prompt+="- Shoes: "+shoe.color+" "+(shoe.name||shoe.garmentType||"shoes")+"\n";
+  var layers=fit.layers||fit.tops||[];
+  var prompt="You are an elite men's luxury style advisor for high-net-worth clients. Analyze this outfit with the precision of a GQ editor and Savile Row tailor combined.\n\n";
+  prompt+="OUTFIT DETAILS:\n";
+  if(layers&&layers.length>1){
+    layers.forEach(function(l,i){prompt+="- Layer "+(i+1)+": "+l.color+" "+(l.pattern||"solid")+" "+l.garmentType+(l.name?" ("+l.name+")":"")+(l.material?" ["+l.material+"]":"")+"\n"});
+  }else if(top){prompt+="- Top: "+top.color+" "+(top.pattern||"solid")+" "+(top.garmentType||"")+(top.name?" ("+top.name+")":"")+(top.material?" ["+top.material+"]":"")+"\n"}
+  if(bot)prompt+="- Bottom: "+bot.color+" "+(bot.pattern||"solid")+" "+(bot.garmentType||"")+(bot.name?" ("+bot.name+")":"")+(bot.material?" ["+bot.material+"]":"")+"\n";
+  if(shoe)prompt+="- Shoes: "+shoe.color+" "+(shoe.name||shoe.garmentType||"shoes")+(shoe.material?" ["+shoe.material+"]":"")+"\n";
   prompt+="- Watch: "+watch.n+" — "+watch.d+" dial, "+(watch.br?"steel bracelet":"leather strap"+(watch.sc?" ("+watch.sc.join("/")+")":""))+(IS_SHARED?"":", "+(watch.t==="replica"?"replica":"genuine"))+"\n";
   prompt+="- Context: "+ctx+"\n\n";
   prompt+="Return ONLY valid JSON, no markdown fences:\n";
-  prompt+='{"vision":"A 2-3 sentence cinematic description of how this person looks walking into the room. Be specific about color interplay and watch presence. Write like a GQ editorial.",';
-  prompt+='"impact":1-10,"impact_why":"One sentence why this score.",';
-  prompt+='"works":"What color/texture combinations work best (1 sentence).",';
-  prompt+='"risk":"Any clash, mismatch or execution risk (1 sentence, or null if flawless).",';
+  prompt+='{"vision":"A 3-4 sentence cinematic, editorial description. Describe the man walking into the room — how fabrics drape, colors interact, and the watch catches light. Write like a luxury editorial spread.",';
+  prompt+='"impact":1-10,"impact_why":"One sentence explaining the psychological impact on observers.",';
+  prompt+='"works":"What color/texture/material combinations create the strongest visual effect (1-2 sentences).",';
+  prompt+='"risk":"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless).",';
+  prompt+='"upgrade":"One specific change that would elevate this outfit even further (1 sentence).",';
   prompt+='"strap_call":"If watch has strap options, which one for this outfit and why (1 sentence, or null if bracelet)."}';
   try{
     var headers={"Content-Type":"application/json"};
@@ -622,12 +626,12 @@ async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
   prompt+="WARDROBE ("+wardrobe.length+" items):\n- Types: "+typeStr+"\n- Colors: "+colors+"\n";
   prompt+="WATCHES: "+watchStr+"\n";
   prompt+="Primary context: "+ctx+"\n\n";
-  prompt+='Return ONLY valid JSON:\n{"summary":"1-2 sentence overall assessment of the wardrobe","strengths":["3 specific strengths"],"gaps":["3 specific gaps or missing pieces"],"next_buys":["3 specific items to buy next with color suggestions"],"style_tip":"One expert styling tip personalized to this collection","versatility":1-10}';
+  prompt+='Return ONLY valid JSON:\n{"summary":"2-3 sentence overall assessment — be specific about style identity and trajectory","strengths":["4-5 specific strengths with examples from the wardrobe"],"gaps":["4-5 specific gaps with recommended colors and pieces"],"next_buys":["5 specific items to buy next with exact color and brand tier suggestions"],"style_tip":"One expert styling tip personalized to this exact collection — reference specific pieces","seasonal_weak":"Which season needs most work and why (1 sentence)","signature_combos":["3 killer outfit combinations possible from the current wardrobe — use exact item names/colors"],"versatility":1-10}';
   try{
     var headers={"Content-Type":"application/json"};
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Coach HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     return JSON.parse(txt);
@@ -642,12 +646,12 @@ async function aiOccasionPlan(occasion,wardrobe,watches,apiKey){
   prompt+="OCCASION: "+occasion+"\n\n";
   prompt+="AVAILABLE WARDROBE ("+items.length+" items):\n"+JSON.stringify(items.slice(0,30))+"\n\n";
   prompt+="AVAILABLE WATCHES:\n"+JSON.stringify(watchList)+"\n\n";
-  prompt+='Create 2 outfit recommendations from the available pieces. Return ONLY valid JSON:\n{"occasion_tips":"2-3 sentences of general advice for this occasion","outfits":[{"name":"Creative outfit name","top":"exact item name/color from wardrobe","bottom":"exact item name/color","shoes":"exact item name/color or suggestion","watch":"exact watch name","why":"1 sentence why this works","confidence":1-10},{"name":"...","top":"...","bottom":"...","shoes":"...","watch":"...","why":"...","confidence":1-10}],"avoid":"What to avoid for this occasion (1 sentence)"}';
+  prompt+='Create 2 outfit recommendations from the available pieces. Return ONLY valid JSON:\n{"occasion_tips":"3-4 sentences of detailed advice for this specific occasion — dress code nuances, common mistakes, and power moves","outfits":[{"name":"Creative editorial outfit name","top":"exact item name/color from wardrobe","bottom":"exact item name/color","shoes":"exact item name/color or suggestion","watch":"exact watch name","layers":"optional mid/outer layer from wardrobe if weather warrants","why":"2 sentences explaining the color story and why this combination works","confidence":1-10},{"name":"...","top":"...","bottom":"...","shoes":"...","watch":"...","layers":"...","why":"...","confidence":1-10}],"avoid":"2 sentences on what to avoid for this occasion with specific examples","power_move":"One unexpected styling choice that would make a statement (1 sentence)"}';
   try{
     var headers={"Content-Type":"application/json"};
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Occasion HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     return JSON.parse(txt);
@@ -668,12 +672,12 @@ async function aiWardrobeAudit(wardrobe,watches,saved,wearLog,apiKey){
   prompt+="Watches: "+watches.length+" ("+watches.map(function(w){return w.n}).join(", ")+")\n";
   prompt+="Saved outfits: "+saved.length+"\n";
   prompt+="Wear log entries: "+wearLog.length+"\n\n";
-  prompt+='Provide a comprehensive audit. Return ONLY valid JSON:\n{"grade":"A/B/C/D/F overall wardrobe grade","grade_why":"1 sentence explanation","color_harmony":"Assessment of color palette balance (1-2 sentences)","versatility":"How many distinct looks can be created (1-2 sentences)","cost_efficiency":"Whether the wardrobe is well-optimized (1 sentence)","declutter":["Up to 3 items/categories that seem redundant"],"invest":["Up to 3 specific items worth investing in"],"seasonal_score":{"spring":1-10,"summer":1-10,"fall":1-10,"winter":1-10},"watch_wardrobe_synergy":"How well watches complement the wardrobe (1-2 sentences)","pro_tip":"One advanced styling insight (1 sentence)"}';
+  prompt+='Provide a comprehensive wardrobe audit. Return ONLY valid JSON:\n{"grade":"A+/A/B+/B/C+/C/D/F overall wardrobe grade","grade_why":"2 sentence detailed explanation of the grade","color_harmony":"Assessment of color palette balance — warm/cool ratio, missing neutrals, dominant tones (2-3 sentences)","versatility":"How many distinct looks possible, cross-functionality of pieces (2 sentences)","cost_efficiency":"Whether the wardrobe is well-optimized for max outfits per piece (1-2 sentences)","declutter":["Up to 5 specific items/categories that are redundant with reasoning"],"invest":["Up to 5 specific items worth investing in with price tier and color"],"seasonal_score":{"spring":1-10,"summer":1-10,"fall":1-10,"winter":1-10},"watch_wardrobe_synergy":"How well watches complement the wardrobe — specific matches and gaps (2-3 sentences)","style_identity":"What style archetype this wardrobe represents (1-2 sentences)","pro_tip":"One advanced styling insight specific to this collection (1-2 sentences)"}';
   try{
     var headers={"Content-Type":"application/json"};
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:prompt}]})});
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Audit HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     return JSON.parse(txt);
@@ -919,6 +923,9 @@ function App(){
   const[aiOccasionInput,setAiOccasionInput]=useState("");
   const[aiAudit,setAiAudit]=useState(null);
   const[aiAuditLoading,setAiAuditLoading]=useState(false);
+  const[lightboxSrc,setLightboxSrc]=useState(null);
+  const[lightboxItems,setLightboxItems]=useState([]);
+  const[showSaveToast,setShowSaveToast]=useState(false);
   const fRef=useRef();const cRef=useRef();
   const apiKeyRef=useRef("");
 
@@ -996,6 +1003,22 @@ function App(){
     return Object.values(groups).filter(function(g){return g.length>=2});
   },[wd]);
 
+  const saveAll=useCallback(function(){
+    ps("w_"+SK,W);ps("wd_"+SK,wd);ps("of_"+SK,saved);
+    ps("wa_wearlog_"+SK,wearLog);ps("wa_weekctx",weekCtx);
+    if(userCx)ps("wa_usercx_"+SK,userCx);
+    ps("wa_theme",theme);
+    setShowSaveToast(true);
+    setTimeout(function(){setShowSaveToast(false)},2000);
+  },[W,wd,saved,wearLog,weekCtx,userCx,theme,ps]);
+
+  const openLightbox=useCallback(function(src,itemId){
+    if(!src)return;
+    setLightboxSrc(src);
+    var items=wd.filter(function(i){return i.photoUrl===src});
+    setLightboxItems(items.length>1?items:itemId?wd.filter(function(i){return i.id===itemId}):[]);
+  },[wd]);
+
   const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
   const removeW=useCallback(function(id){setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
@@ -1040,7 +1063,7 @@ function App(){
         var b64=compressed.split(",")[1];
         var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
-          var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null})});
+          var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null,material:ai.material||null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
           if(aiResult.length>1)setAiErr("📸 Found "+aiResult.length+" items in photo");
         }else{
@@ -1081,7 +1104,7 @@ function App(){
       };
       return React.createElement(Modal,{onClose:function(){setEditG(null)}},
         React.createElement("div",{style:{display:"flex",gap:14,marginBottom:16}},
-          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0}}),
+          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",onClick:function(){openLightbox(f.photoUrl,item.id)},style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0,cursor:"zoom-in"}}),
           React.createElement("div",{style:{flex:1}},
             React.createElement("label",{className:"lbl"},"Name"),
             React.createElement("input",{className:"inp",value:f.name||"",onChange:function(e){set("name",e.target.value)},placeholder:"e.g. Navy plaid flannel"}))),
@@ -1290,13 +1313,26 @@ function App(){
             React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(group.length,3)+",1fr)",gap:10}},
               group.map(function(item){
                 return React.createElement("div",{key:item.id,style:{background:"var(--card)",borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}},
-                  item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:140,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:100,background:(CM[item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:30})),
+                  item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:140,objectFit:"cover",display:"block",cursor:"zoom-in"}}):React.createElement("div",{style:{width:"100%",height:100,background:(CM[item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:30})),
                   React.createElement("div",{style:{padding:"8px 10px"}},
                     React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:500,marginBottom:2}},item.name||item.color),
                     React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:2}},item.garmentType+(item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")+(item.material?" · "+item.material:"")),
                     item.lastWorn&&React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},"Last worn: "+new Date(item.lastWorn).toLocaleDateString()),
                     React.createElement("button",{onClick:function(){if(confirm("Delete \""+( item.name||item.color)+"\"?")){rmG(item.id);setDupeGroups(function(prev){return prev.map(function(g){return g.filter(function(x){return x.id!==item.id})}).filter(function(g){return g.length>=2})})}},style:{width:"100%",background:"rgba(200,90,58,0.1)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"6px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:28}},"🗑️ Delete")))})));
         }))),
+    /* Lightbox Modal */
+    lightboxSrc&&React.createElement("div",{onClick:function(){setLightboxSrc(null);setLightboxItems([])},style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"fadeIn .15s ease",cursor:"pointer",padding:16}},
+      React.createElement("button",{onClick:function(){setLightboxSrc(null);setLightboxItems([])},style:{position:"absolute",top:16,right:16,background:"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"50%",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:18,zIndex:201}},"✕"),
+      React.createElement("img",{src:lightboxSrc,alt:"",style:{maxWidth:"92vw",maxHeight:lightboxItems.length>1?"60vh":"85vh",objectFit:"contain",borderRadius:8,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"},onClick:function(e){e.stopPropagation()}}),
+      lightboxItems.length>0&&React.createElement("div",{onClick:function(e){e.stopPropagation()},style:{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:12,maxWidth:"92vw"}},
+        lightboxItems.map(function(item){
+          return React.createElement("div",{key:item.id,style:{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",backdropFilter:"blur(8px)",borderRadius:10,padding:"8px 14px",border:"1px solid rgba(255,255,255,0.12)"}},
+            React.createElement("div",{style:{width:14,height:14,borderRadius:"50%",background:(CM[item.color]||{}).h||"#5a5a5a",border:"1px solid rgba(255,255,255,0.2)",flexShrink:0}}),
+            React.createElement("div",null,
+              React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",color:"#fff",fontWeight:600}},item.name||item.color),
+              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"rgba(255,255,255,0.5)"}},item.garmentType+(item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")+(item.material?" · "+item.material:""))),
+            item.positionHint&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"rgba(255,255,255,0.35)",marginLeft:4}},"📸 "+item.positionHint))}))),
+
     showSettings&&React.createElement(Modal,{onClose:function(){setShowSettings(false)}},
       React.createElement("h2",{style:{fontSize:18,fontWeight:600,marginBottom:6}},"⚙️ Settings"),
       React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:16}},"AI photo classification works automatically inside Claude.ai. To use it in a standalone browser, add your Anthropic API key below."),
@@ -1325,6 +1361,11 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){setW(d.watches);ps("w_"+SK,d.watches)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import")))),
 
+    /* Floating Save Button */
+    React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
+    /* Save Toast */
+    showSaveToast&&React.createElement("div",{className:"fu",style:{position:"fixed",bottom:84,right:16,zIndex:91,background:"rgba(122,184,122,0.95)",color:"#fff",borderRadius:10,padding:"10px 18px",fontFamily:"var(--f)",fontSize:12,fontWeight:600,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}},"✓ All changes saved!"),
+
     /* HEADER */
     React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,#110f1a,var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
@@ -1337,7 +1378,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"#5a5464",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.4"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.5"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -1403,7 +1444,7 @@ function App(){
           React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(105px,1fr))",gap:8}},
             (function(){var arr=wFilt==="all"?wd:wd.filter(function(i){return catOf(i.garmentType)===wFilt});if(wMatFilt!=="all")arr=arr.filter(function(i){return i.material===wMatFilt});return arr})().slice().sort(function(a,b){return(b.ts||0)-(a.ts||0)}).map(function(item){
               return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setEditG(item)},style:{background:item.needsEdit||!item.color?"#14100a":"var(--card)",border:"1px solid "+(item.needsEdit||!item.color?"rgba(201,168,76,0.3)":"var(--border)")}},
-                item.photoUrl?React.createElement(React.Fragment,null,React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:90,objectFit:"cover",display:"block"}}),React.createElement("div",{className:"gcard-overlay"})):React.createElement("div",{style:{width:"100%",height:60,background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"#fff8",textShadow:"0 1px 3px #000"}},item.color)),
+                item.photoUrl?React.createElement(React.Fragment,null,React.createElement("img",{src:item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:90,objectFit:"cover",display:"block",cursor:"zoom-in"}}),React.createElement("div",{className:"gcard-overlay"})):React.createElement("div",{style:{width:"100%",height:60,background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"#fff8",textShadow:"0 1px 3px #000"}},item.color)),
                 React.createElement("div",{style:{padding:"6px 8px"}},
                   React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
                     item.color&&React.createElement(Dot,{color:item.color,size:6}),
@@ -1559,7 +1600,7 @@ function App(){
                 React.createElement("div",{style:{flex:1}},
                   React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:buildAiCritique.impact>=7?"var(--good)":buildAiCritique.impact>=4?"var(--gold)":"var(--warn)"}},buildAiCritique.impact>=8?"Commanding":buildAiCritique.impact>=6?"Solid":buildAiCritique.impact>=4?"Acceptable":"Needs Work"),
                   buildAiCritique.impact_why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginTop:2}},buildAiCritique.impact_why))),
-              [buildAiCritique.works&&{l:"✓ What Works",t:buildAiCritique.works,c:"var(--good)"},buildAiCritique.risk&&{l:"⚠ Risk",t:buildAiCritique.risk,c:"var(--warn)"},buildAiCritique.strap_call&&{l:"🔗 Strap",t:buildAiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
+              [buildAiCritique.works&&{l:"✓ What Works",t:buildAiCritique.works,c:"var(--good)"},buildAiCritique.risk&&{l:"⚠ Risk",t:buildAiCritique.risk,c:"var(--warn)"},buildAiCritique.upgrade&&{l:"⬆ Upgrade",t:buildAiCritique.upgrade,c:"var(--gold)"},buildAiCritique.strap_call&&{l:"🔗 Strap",t:buildAiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
                 return React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:4}},
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
@@ -1817,7 +1858,7 @@ function App(){
           var swaps=getSwaps(wd,selFit,o.slot);
           return React.createElement("div",{key:o.slot,style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px",marginBottom:8}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:64,height:64,objectFit:"cover",borderRadius:10}}),
+              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"zoom-in"}}),
               React.createElement("div",{style:{flex:1}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
               React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
@@ -1889,7 +1930,7 @@ function App(){
                 [{l:"TOP",item:dailyPick.outfit.top},{l:"BTM",item:dailyPick.outfit.bot},{l:"SHOE",item:dailyPick.outfit.shoe}].map(function(o){
                   if(!o.item)return null;
                   return React.createElement("div",{key:o.l,style:{background:"var(--bg)",borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}},
-                    o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
+                    o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:"100%",height:64,objectFit:"cover",display:"block",cursor:"zoom-in"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
                     React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
                       React.createElement(Dot,{color:o.item.color,size:6}),
                       React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500}},o.item.name||o.item.color),
@@ -1924,7 +1965,7 @@ function App(){
                   React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:aiCritique.impact>=7?"var(--good)":aiCritique.impact>=4?"var(--gold)":"var(--warn)"}},aiCritique.impact>=8?"Commanding":aiCritique.impact>=6?"Solid":aiCritique.impact>=4?"Acceptable":"Needs Work"),
                   aiCritique.impact_why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginTop:2}},aiCritique.impact_why))),
               /* Details */
-              [aiCritique.works&&{l:"✓ What Works",t:aiCritique.works,c:"var(--good)"},aiCritique.risk&&{l:"⚠ Risk",t:aiCritique.risk,c:"var(--warn)"},aiCritique.strap_call&&{l:"🔗 Strap Call",t:aiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
+              [aiCritique.works&&{l:"✓ What Works",t:aiCritique.works,c:"var(--good)"},aiCritique.risk&&{l:"⚠ Risk",t:aiCritique.risk,c:"var(--warn)"},aiCritique.upgrade&&{l:"⬆ Upgrade",t:aiCritique.upgrade,c:"var(--gold)"},aiCritique.strap_call&&{l:"🔗 Strap Call",t:aiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
                 return React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:6}},
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
@@ -1992,6 +2033,12 @@ function App(){
             aiCoach.next_buys&&aiCoach.next_buys.length>0&&React.createElement("div",{style:{marginBottom:10}},
               React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:6}},"🛍️ NEXT BUYS"),
               aiCoach.next_buys.map(function(b,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"4px 0",borderBottom:"1px solid var(--border)"}},(i+1)+". "+b)})),
+            aiCoach.signature_combos&&aiCoach.signature_combos.length>0&&React.createElement("div",{style:{marginBottom:10}},
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:6}},"🔥 SIGNATURE COMBINATIONS"),
+              aiCoach.signature_combos.map(function(c,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"6px 8px",marginBottom:4,background:"rgba(201,168,76,0.04)",borderRadius:6,border:"1px solid rgba(201,168,76,0.1)",borderLeft:"3px solid var(--gold)"}},(i+1)+". "+c)})),
+            aiCoach.seasonal_weak&&React.createElement("div",{style:{background:"rgba(200,90,58,0.06)",borderRadius:8,padding:"8px 12px",marginBottom:8,border:"1px solid rgba(200,90,58,0.15)"}},
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},"📅 Seasonal Gap: "),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)"}},aiCoach.seasonal_weak)),
             aiCoach.style_tip&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"10px 12px",marginTop:8,border:"1px solid rgba(201,168,76,0.2)"}},
               React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"💡 Pro Tip: "),
               React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},aiCoach.style_tip)),
@@ -2024,7 +2071,7 @@ function App(){
                   React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:600,color:oi===0?"var(--gold)":"var(--text)"}},outfit.name),
                   outfit.confidence&&React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(outfit.confidence>=7?"var(--good)":"var(--gold)"),fontSize:11,fontFamily:"var(--f)",fontWeight:700,color:outfit.confidence>=7?"var(--good)":"var(--gold)"}},outfit.confidence)),
                 React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4,marginBottom:6}},
-                  [{l:"👕 Top",v:outfit.top},{l:"👖 Bottom",v:outfit.bottom},{l:"👞 Shoes",v:outfit.shoes},{l:"⌚ Watch",v:outfit.watch}].map(function(p,pi){
+                  [{l:"👕 Top",v:outfit.top},{l:"👖 Bottom",v:outfit.bottom},{l:"👞 Shoes",v:outfit.shoes},{l:"⌚ Watch",v:outfit.watch},outfit.layers&&{l:"🧥 Layers",v:outfit.layers}].filter(Boolean).map(function(p,pi){
                     return React.createElement("div",{key:pi,style:{display:"flex",gap:8,fontSize:10,fontFamily:"var(--f)"}},
                       React.createElement("span",{style:{color:"var(--dim)",minWidth:55}},p.l),
                       React.createElement("span",{style:{color:"var(--text)",fontWeight:500}},p.v))})),
@@ -2032,6 +2079,9 @@ function App(){
             aiOccasion.avoid&&React.createElement("div",{style:{background:"rgba(200,90,58,0.06)",borderRadius:8,padding:"8px 12px",border:"1px solid rgba(200,90,58,0.15)",marginBottom:8}},
               React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},"❌ Avoid: "),
               React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)"}},aiOccasion.avoid)),
+            aiOccasion.power_move&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"8px 12px",border:"1px solid rgba(201,168,76,0.2)",marginBottom:8}},
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"⚡ Power Move: "),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)"}},aiOccasion.power_move)),
             React.createElement("button",{className:"btn btn-ghost",style:{fontSize:10},onClick:function(){setAiOccasion(null)}},"↻ Try Again"))),
 
         /* ── AI WARDROBE AUDIT ── */
@@ -2075,6 +2125,9 @@ function App(){
             aiAudit.invest&&aiAudit.invest.length>0&&React.createElement("div",{style:{marginBottom:8}},
               React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--good)",fontWeight:600,marginBottom:4}},"💎 Worth Investing In"),
               aiAudit.invest.map(function(d,i){return React.createElement("div",{key:i,style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",padding:"3px 0"}},"• "+d)})),
+            aiAudit.style_identity&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"10px 12px",marginBottom:8,border:"1px solid var(--border)"}},
+              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:3}},"🎭 Style Identity"),
+              React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},aiAudit.style_identity)),
             aiAudit.pro_tip&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"10px 12px",marginTop:8,border:"1px solid rgba(201,168,76,0.2)"}},
               React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"💡 "),
               React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},aiAudit.pro_tip)),
