@@ -887,6 +887,7 @@ function App(){
   const[mode,setMode]=useState("auto");
   const[topType,setTopType]=useState("all");
   const[lockItem,setLockItem]=useState(null);
+  const[lockWatch,setLockWatch]=useState(null);
   const[shuffleKey,setShuffleKey]=useState(0);
   const[fitCount,setFitCount]=useState(12);
   const[buildSlot,setBuildSlot]=useState(null);
@@ -1033,8 +1034,9 @@ function App(){
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"})}},[wd]);
-  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
-  const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
+  const fitsWatches=useMemo(function(){return lockWatch?[lockWatch]:actW},[lockWatch,actW]);
+  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,fitsWatches,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,fitsWatches,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
+  const buildFit=useMemo(function(){var items=[bTop,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,fitsWatches,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bBot,bShoe,fitsWatches,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
   const updateW=useCallback(async function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n).then(function(ok){if(ok)showToast("✓ Watch saved","success");else showToast("⚠ Save failed","error")});return n})},[ps,showToast]);
@@ -1206,7 +1208,7 @@ function App(){
           saved.some(function(o){return(o.items||[]).some(function(it){return it.id===item.id})})&&React.createElement("span",{style:{color:"var(--good)"}},"✓ Used in "+saved.filter(function(o){return(o.items||[]).some(function(it){return it.id===item.id})}).length+" saved outfit(s)")),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setEditG(null)}},"✓ Save"),
-          f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setEditG(null);setView("fits");setMode("auto")},title:"Lock for fits"},"🔒"),
+          f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){alert("Pick a color");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setLockWatch(null);setEditG(null);setView("fits");setMode("auto")},title:"Lock for fits"},"🔒"),
           item.photoUrl&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:retry,disabled:retrying},retrying?"⏳":"🔄"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var dup=Object.assign({},f,{id:Date.now(),ts:Date.now(),name:(f.name||"")+" copy"});addGarment(dup);setEditG(null)},title:"Duplicate"},"📋"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(rmG(item.id))setEditG(null)}},"🗑️")));
@@ -1274,6 +1276,7 @@ function App(){
         React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}},EMOJIS.map(function(e){return React.createElement("span",{key:e,onClick:function(){set("i",e)},style:{fontSize:22,cursor:"pointer",opacity:f.i===e?1:0.25,padding:3,minWidth:30,textAlign:"center"}},e)})),
         React.createElement("div",{style:{display:"flex",gap:8}},
           React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setEditW(null)}},"Save"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var sv=IS_SHARED&&(!f.mc||!f.mc.length)?Object.assign({},f,{mc:autoMatchColors(f.d)}):f;updateW(w.id,sv);setLockWatch(Object.assign({},w,sv));setLockItem(null);setEditW(null);setView("fits");setMode("auto");showToast("👔 Styling around "+w.n,"info")},title:"Build outfits around this watch"},"👔"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 20px"},onClick:function(){if(removeW(w.id))setEditW(null)}},"🗑️")));
     };
     return React.createElement(WE,{key:w.id});
@@ -1544,7 +1547,7 @@ function App(){
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}},
           [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Build",d:"Pick items"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
             var on=mode===m.id;
-            return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
+            return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setLockWatch(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
               React.createElement("div",{style:{fontSize:20,marginBottom:2}},m.icon),
               React.createElement("div",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:on?700:500,color:on?"var(--gold)":"var(--text)"}},m.l),
               React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:on?"var(--gold)":"var(--dim)",opacity:0.7}},m.d))})),
@@ -1586,6 +1589,13 @@ function App(){
           React.createElement(Dot,{color:lockItem.color,size:8}),
           React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 Locked: "+( lockItem.name||lockItem.color)+" — showing fits around this piece"),
           React.createElement("button",{onClick:function(){setLockItem(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Unlock")),
+
+        /* Lock Watch banner */
+        mode==="auto"&&lockWatch&&React.createElement("div",{className:"fu",style:{display:"flex",alignItems:"center",gap:8,background:"rgba(122,180,216,0.06)",border:"1px solid rgba(122,180,216,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:10}},
+          React.createElement("span",{style:{fontSize:18}},lockWatch.i),
+          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"#7ab8d8",fontWeight:600,flex:1}},"🎯 Watch-first: "+lockWatch.n+" — outfits styled around this piece"),
+          !IS_SHARED&&lockWatch.t==="replica"&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid #2a2520",borderRadius:3,padding:"1px 5px"}},"REP"),
+          React.createElement("button",{onClick:function(){setLockWatch(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Clear")),
 
         /* BUILD */
         mode==="build"&&React.createElement("div",null,
@@ -1879,11 +1889,11 @@ function App(){
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
               o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(){setPhotoModal({src:o.item.photoUrl,name:o.item.name||o.item.color})},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"pointer",border:"2px solid transparent",transition:"border 0.2s"}}),
               React.createElement("div",{style:{flex:1}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
-              React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
+              React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);setLockWatch(null);setSelFit(null);setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
             swaps.length>0&&React.createElement("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em",textTransform:"uppercase"}},"SWAP WITH"),
               React.createElement("div",{style:{display:"flex",gap:6,marginTop:4},className:"hscroll"},
-                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);var recalc=makeOutfit(nf.items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);nf.fs=recalc.fs;nf.watches=recalc.watches;nf.allW=recalc.allW;nf.wxWarns=recalc.wxWarns;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
+                swaps.map(function(s){return React.createElement("div",{key:s.id,onClick:function(){var nf=Object.assign({},selFit);if(o.slot==="top")nf.top=s;else if(o.slot==="bot")nf.bot=s;else nf.shoe=s;nf.items=[nf.top,nf.bot,nf.shoe].filter(Boolean);var recalc=makeOutfit(nf.items,fitsWatches,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);nf.fs=recalc.fs;nf.watches=recalc.watches;nf.allW=recalc.allW;nf.wxWarns=recalc.wxWarns;setSelFit(nf)},style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"border-color 0.2s"}},
                   s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
@@ -2299,6 +2309,7 @@ function App(){
                 React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:st?st.c:"var(--dim)"}},st?st.l:"")),
               React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+" · "+(w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt),
               React.createElement("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},(w.cx||[]).map(function(c){return React.createElement("span",{key:c,style:{fontSize:8,fontFamily:"var(--f)",background:"var(--bg)",borderRadius:8,padding:"2px 6px",color:"var(--dim)"}},(CXI[c]||"")+c)}))),
+            w.active&&React.createElement("button",{onClick:function(e){e.stopPropagation();setLockWatch(w);setLockItem(null);setView("fits");setMode("auto");showToast("👔 Styling around "+w.n,"info")},style:{background:"none",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:28,whiteSpace:"nowrap"}},"👔 Style"),
             React.createElement("button",{onClick:function(e){e.stopPropagation();toggleW(w.id)},style:{width:44,height:26,borderRadius:13,background:w.active?"var(--gold)":"#1a1820",border:"none",cursor:"pointer",position:"relative",flexShrink:0,minHeight:26}},
               React.createElement("div",{style:{width:20,height:20,borderRadius:"50%",background:w.active?"var(--bg)":"#2a2830",position:"absolute",top:3,left:w.active?21:3,transition:"left .2s"}}))))}),
         React.createElement("button",{onClick:function(){if(confirm("Reset to defaults?")){setW(DEFAULTS);ps("w_"+SK,DEFAULTS)}},style:{display:"block",margin:"12px auto 0",background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"10px 16px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,minHeight:40}},"Reset Defaults")),
