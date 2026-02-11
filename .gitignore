@@ -1,18 +1,3 @@
-# Go build artifacts
-bin/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary
-*.test
-
-# Go coverage
-*.out
-coverage.html
-
 # IDE
 .idea/
 .vscode/
