@@ -1,7 +1,7 @@
 {
   "name": "Watch Advisor",
   "short_name": "WatchAdvisor",
-  "description": "AI-Powered Watch & Outfit Coordinator v14 — Alpine Eagle 8HF, enhanced rotation, weather error handling, collection status tracking",
+  "description": "AI-Powered Watch & Outfit Coordinator v16 — Full light/dark theme, algorithm upgrades, collection status tracking",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
