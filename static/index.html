@@ -1296,6 +1296,8 @@ function App(){
   const[expandDay,setExpandDay]=useState(null);
   const[altSwap,setAltSwap]=useState({});
   const[wearPicker,setWearPicker]=useState(null);
+  const[pieceSwap,setPieceSwap]=useState({});
+  const[piecePicker,setPiecePicker]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
@@ -1504,6 +1506,13 @@ function App(){
     });
     setWearPicker(null);
   },[ps]);
+
+  /* ═══ Per-piece swap helpers ═══ */
+  const getEP=useCallback(function(di,slot,orig){var k=di+"-"+slot;return pieceSwap[k]||orig},[pieceSwap]);
+  const slotAlts=useCallback(function(slot){
+    var cat=slot==="top"?"tops":slot==="bot"?"bottoms":"shoes";
+    return wd.filter(function(it){return catOf(it.garmentType)===cat}).slice(0,20);
+  },[wd]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
@@ -2252,18 +2261,30 @@ function App(){
 
                   /* Expanded: outfit mannequin */
                   expandDay===i&&React.createElement("div",{className:"fu",style:{marginTop:8,display:"flex",gap:12,alignItems:"flex-start",justifyContent:"center"}},
-                    React.createElement(OutfitFigure,{topColor:of.top?of.top.color:"grey",botColor:of.bot?of.bot.color:"charcoal",shoeColor:of.shoe?of.shoe.color:"black",watchColor:w.c,watchIcon:w.i,watchName:w.n,size:100}),
+                    React.createElement(OutfitFigure,{topColor:getEP(i,"top",of.top)?getEP(i,"top",of.top).color:"grey",botColor:getEP(i,"bot",of.bot)?getEP(i,"bot",of.bot).color:"charcoal",shoeColor:getEP(i,"shoe",of.shoe)?getEP(i,"shoe",of.shoe).color:"black",watchColor:w.c,watchIcon:w.i,watchName:w.n,size:100}),
                     React.createElement("div",{style:{flex:1,minWidth:0}},
-                      [{l:"TOP",item:of.top},{l:"BOTTOM",item:of.bot},{l:"SHOES",item:of.shoe}].map(function(o){
+                      [{l:"TOP",slot:"top",item:getEP(i,"top",of.top)},{l:"BOTTOM",slot:"bot",item:getEP(i,"bot",of.bot)},{l:"SHOES",slot:"shoe",item:getEP(i,"shoe",of.shoe)}].map(function(o){
                         if(!o.item)return null;
-                        return React.createElement("div",{key:o.l,style:{display:"flex",gap:8,alignItems:"center",marginBottom:8,background:"var(--bg)",borderRadius:8,padding:"6px 8px",border:"1px solid var(--border)"}},
-                          o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:6,flexShrink:0}}):React.createElement("div",{style:{width:44,height:44,borderRadius:6,background:(CM[o.item.color]||{}).h||"#3a3a3a",flexShrink:0}}),
-                          React.createElement("div",{style:{flex:1,minWidth:0}},
-                            React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em"}},o.l),
-                            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
-                              React.createElement(Dot,{color:o.item.color,size:6}),
-                              React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500}},o.item.name||o.item.color)),
-                            React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))))}),
+                        var pk=i+"-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
+                        return React.createElement("div",{key:o.l},
+                          React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:isOpen?4:8,background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:8,padding:"6px 8px",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk)}},
+                            o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:6,flexShrink:0}}):React.createElement("div",{style:{width:44,height:44,borderRadius:6,background:(CM[o.item.color]||{}).h||"#3a3a3a",flexShrink:0}}),
+                            React.createElement("div",{style:{flex:1,minWidth:0}},
+                              React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em"}},o.l+(isSwapped?" ✎":"")),
+                              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
+                                React.createElement(Dot,{color:o.item.color,size:6}),
+                                React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:isSwapped?"var(--gold)":"var(--text)",fontWeight:500}},o.item.name||o.item.color)),
+                              React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
+                            React.createElement("span",{style:{fontSize:10,color:"var(--dim)"}},isOpen?"▲":"🔄")),
+                          /* ═ Piece picker ═ */
+                          isOpen&&React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0 8px",marginBottom:8,WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
+                            isSwapped&&React.createElement("div",{onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);delete n[pk];return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 8px",borderRadius:8,border:"1px solid var(--del-border)",cursor:"pointer",minWidth:52}},
+                              React.createElement("span",{style:{fontSize:14}},"↩️"),
+                              React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
+                            slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).map(function(alt){
+                              return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
+                                alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))})))})},
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"6px 8px"}},
                         React.createElement("span",{style:{fontSize:16}},w.i),
                         React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},w.n),
@@ -2404,16 +2425,27 @@ function App(){
                 !IS_SHARED&&dailyPick.watch.t==="replica"&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid var(--rep-border)",borderRadius:3,padding:"1px 5px",marginTop:2,display:"inline-block"}},"REP"))),
             /* Outfit with mannequin */
             dailyPick.outfit&&React.createElement("div",{style:{display:"flex",gap:12,marginBottom:12,alignItems:"flex-start"}},
-              React.createElement(OutfitFigure,{topColor:dailyPick.outfit.top?dailyPick.outfit.top.color:"grey",botColor:dailyPick.outfit.bot?dailyPick.outfit.bot.color:"charcoal",shoeColor:dailyPick.outfit.shoe?dailyPick.outfit.shoe.color:"black",watchColor:dailyPick.watch.c,watchIcon:dailyPick.watch.i,watchName:dailyPick.watch.n,size:110}),
+              React.createElement(OutfitFigure,{topColor:getEP(0,"top",dailyPick.outfit.top)?getEP(0,"top",dailyPick.outfit.top).color:"grey",botColor:getEP(0,"bot",dailyPick.outfit.bot)?getEP(0,"bot",dailyPick.outfit.bot).color:"charcoal",shoeColor:getEP(0,"shoe",dailyPick.outfit.shoe)?getEP(0,"shoe",dailyPick.outfit.shoe).color:"black",watchColor:dailyPick.watch.c,watchIcon:dailyPick.watch.i,watchName:dailyPick.watch.n,size:110}),
               React.createElement("div",{style:{flex:1,display:"flex",flexDirection:"column",gap:6}},
-                [{l:"TOP",item:dailyPick.outfit.top},{l:"BTM",item:dailyPick.outfit.bot},{l:"SHOE",item:dailyPick.outfit.shoe}].map(function(o){
+                [{l:"TOP",slot:"top",item:getEP(0,"top",dailyPick.outfit.top)},{l:"BTM",slot:"bot",item:getEP(0,"bot",dailyPick.outfit.bot)},{l:"SHOE",slot:"shoe",item:getEP(0,"shoe",dailyPick.outfit.shoe)}].map(function(o){
                   if(!o.item)return null;
-                  return React.createElement("div",{key:o.l,style:{background:"var(--bg)",borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}},
-                    o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:"100%",height:64,objectFit:"cover",display:"block",cursor:"zoom-in"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
-                    React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
-                      React.createElement(Dot,{color:o.item.color,size:6}),
-                      React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500}},o.item.name||o.item.color),
-                      React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:"auto"}},o.l)))}))),
+                  var pk="t-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
+                  return React.createElement("div",{key:o.l},
+                    React.createElement("div",{style:{background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:10,overflow:"hidden",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk)}},
+                      o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
+                      React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
+                        React.createElement(Dot,{color:o.item.color,size:6}),
+                        React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:isSwapped?"var(--gold)":"var(--text)",fontWeight:500}},o.item.name||o.item.color),
+                        React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:"auto"}},o.l+(isSwapped?" ✎":"")),
+                        React.createElement("span",{style:{fontSize:10,color:"var(--dim)",marginLeft:4}},isOpen?"▲":"🔄"))),
+                    isOpen&&React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0",WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
+                      isSwapped&&React.createElement("div",{onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);delete n[pk];return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 8px",borderRadius:8,border:"1px solid var(--del-border)",cursor:"pointer",minWidth:52}},
+                        React.createElement("span",{style:{fontSize:14}},"↩️"),
+                        React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
+                      slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).map(function(alt){
+                        return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
+                          alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                          React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))})))}))),
             /* Actions */
             React.createElement("div",{style:{display:"flex",gap:8}},
               !todayWorn&&React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){logWear(dailyPick.watch.id,todayStr)}},"✓ Wearing This"),
@@ -2464,7 +2496,7 @@ function App(){
               React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)"}},(CXI[dailyPick.context]||"")+" "+dailyPick.context)),
             /* Mannequin + Color blocks */
             React.createElement("div",{style:{display:"flex",gap:12,marginBottom:16,alignItems:"center"}},
-              React.createElement(OutfitFigure,{topColor:dailyPick.outfit.top?dailyPick.outfit.top.color:"grey",botColor:dailyPick.outfit.bot?dailyPick.outfit.bot.color:"charcoal",shoeColor:dailyPick.outfit.shoe?dailyPick.outfit.shoe.color:"black",watchColor:dailyPick.watch.c,watchIcon:dailyPick.watch.i,watchName:"",size:90}),
+              React.createElement(OutfitFigure,{topColor:getEP(0,"top",dailyPick.outfit.top)?getEP(0,"top",dailyPick.outfit.top).color:"grey",botColor:getEP(0,"bot",dailyPick.outfit.bot)?getEP(0,"bot",dailyPick.outfit.bot).color:"charcoal",shoeColor:getEP(0,"shoe",dailyPick.outfit.shoe)?getEP(0,"shoe",dailyPick.outfit.shoe).color:"black",watchColor:dailyPick.watch.c,watchIcon:dailyPick.watch.i,watchName:"",size:90}),
               React.createElement("div",{style:{flex:1,display:"flex",gap:4,height:120}},
                 [dailyPick.outfit.top,dailyPick.outfit.bot,dailyPick.outfit.shoe].filter(Boolean).map(function(item,i){
                   return React.createElement("div",{key:i,style:{flex:1,borderRadius:10,overflow:"hidden",position:"relative"}},
