@@ -1,77 +1,15 @@
-# ⌚ Watch Advisor v19
+# Watch Advisor
 
-AI-powered watch & outfit coordinator for the strategic watch collector.
-
-**Live:** https://eiasash.github.io/Watch-advisor/
-
-## What It Does
-
-Manages a 23-piece watch collection (genuine + replica), pairs watches with wardrobe items, and generates 7-day outfit rotations scored by color harmony, context, weather, formality, and rotation freshness — all client-side, no backend.
-
-## Current Features
-
-### Rotation Engine
-- 7-day watch rotation with weather-aware outfit generation
-- Watch-first workflow: picks watch, then builds outfit around it
-- Formality tier scoring (clinic → smart casual → casual → weekend)
-- Genuine/replica context bonuses (genuine for clinic/formal, replica for casual)
-- Rotation freshness rewards (penalizes repeat wears, rewards variety)
-- Weekly dial color variety tracking
-- Tap-to-swap alternatives with smart filtering (click any alt outfit to promote it)
-- Watch lock per day (pin a specific watch to any day slot)
-- Wear logging with date tracking
-
-### Piece Picker & Smart Filters
-- Inline piece picker for swapping tops, bottoms, and shoes per day
-- Color filter pills with item count badges
-- Pattern filter pills with count badges (italic labels)
-- One-tap reset to undo individual slot swaps
-- "Reset all swaps" and "Save swapped as custom outfit" actions
-- Filters auto-reset when picker closes
-
-### Outfit Intelligence
-- Hard strap-shoe color enforcement (brown↔brown, black↔black/white)
-- Weather-responsive strap picks (leather avoided in rain, NATO for heat)
-- Temperature-based seasonal adjustments
-- AI outfit critique via OpenAI API (optional, user-provided key)
-- 5-slot layered outfit builder (base, mid, outer, bottoms, shoes)
-- Color distribution and gap analysis
-
-### Collection Management
-- Watch collection with dial colors, straps, materials, contexts
-- Structured strap system with per-watch assignments
-- Markdown collection import (parses structured .md files)
-- Wardrobe management with photo upload and AI color classification
-- Duplicate detection with side-by-side comparison
-- Export/import full collection data including rotation locks
-
-### AI Features (Optional — requires OpenAI API key)
-- AI Style Coach — wardrobe strengths, gaps, next-buy advice
-- AI Occasion Planner — event-specific outfit recommendations
-- AI Wardrobe Audit — A-F grading with seasonal scores
-- AI outfit critique with impact scoring
-- AI material/fabric detection from photos
-
-### UI
-- Day/night theme toggle (fully CSS-variable-driven)
-- PWA — installable, works offline
-- Image lightbox with multi-item photo labels
-- Persistent floating save button
-- Responsive mobile-first design
-
-## Stack
-
-Single-file React 18 PWA. No build step, no npm, no bundler.
+Personal watch & outfit coordination PWA. Single-file React 18 app.
+No build step, no npm, no bundler.
 
 | File | Purpose |
 |------|---------|
-| `static/index.html` | Entire app — HTML, CSS, JS (~325KB) |
-| `static/sw.js` | Service worker (cache v19) |
+| `index.html` | Entire app — HTML, CSS, JS (~329KB) |
+| `static/sw.js` | Service worker (cache v21) |
 | `static/manifest.json` | PWA manifest |
 | `static/icon-192.png` | App icon 192px |
 | `static/icon-512.png` | App icon 512px |
-| `.github/workflows/deploy.yml` | GitHub Pages deploy on push to main |
-| `.github/copilot-instructions.md` | AI coding assistant context |
 
 ## Install as PWA
 
@@ -83,16 +21,15 @@ Single-file React 18 PWA. No build step, no npm, no bundler.
 
 | Version | Changes |
 |---------|---------|
-| **v19** | Syntax fixes (piece picker closings), export/import rotation locks, filter count badges on color & pattern pills, double-filter-reset fix, in-app version bump |
-| **v18b** | Smart piece-picker filters — color pills, pattern pills, auto-reset on close, dynamic filter UI |
-| **v18** | Piece picker for outfit slots — inline swap UI with scrollable alternatives per slot |
+| **v21** | Merge fix: restored PiecePicker, full AI Coach, lightbox from v19 + correct straps[] data from v20 |
+| **v20** | Explicit straps[] arrays for all 24 watches (40 straps), removed traded pieces |
+| **v19** | Syntax fixes, export/import rotation locks, filter count badges |
+| **v18b** | Smart piece-picker filters — color pills, pattern pills, auto-reset |
+| **v18** | Piece picker for outfit slots — inline swap UI with scrollable alternatives |
 | **v17** | Tap-to-swap alternatives — click alt outfit to promote to main pick |
-| **v16** | Complete theme fix — 60+ hardcoded dark colors → CSS variables, light mode works |
+| **v16** | Complete theme fix — 60+ hardcoded dark colors → CSS variables, light mode |
 | **v15a** | 6 algorithm upgrades: formality tiers, rotation freshness, weather straps, genuine/replica context, strap-shoe enforcement, dial color variety |
-| **v15** | Collection audit: removed traded watches, added Speedmaster 3861, fixed OP color |
-| **PR #21** | Parser fuzzy matching and strap-to-watch assignment fixes |
-| **PR #20** | Markdown watch collection import with parser |
-| **PR #19** | Structured strap system with legacy fallback |
+| **v15** | Collection audit: removed traded watches, added Speedmaster 3861 |
 | **v14.5** | Persistent save, image lightbox, multi-item labels, enhanced AI prompts |
 | **v14.4** | Duplicate detection, AI Style Coach, AI Occasion Planner, AI Wardrobe Audit |
 | **v14.3** | Layered outfit builder, color gap analysis, watch pairing guide, theme toggle |
