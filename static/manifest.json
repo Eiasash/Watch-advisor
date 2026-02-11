@@ -1,7 +1,7 @@
 {
   "name": "Watch Advisor",
   "short_name": "WatchAdvisor",
-  "description": "AI-Powered Watch & Outfit Coordinator v19 \u2014 Smart piece-picker filters, strap-shoe enforcement, collection sync",
+  "description": "AI-Powered Watch & Outfit Coordinator v21 \u2014 Full feature set + 40 cataloged straps",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
