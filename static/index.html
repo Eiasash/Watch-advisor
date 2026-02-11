@@ -1298,6 +1298,7 @@ function App(){
   const[wearPicker,setWearPicker]=useState(null);
   const[pieceSwap,setPieceSwap]=useState({});
   const[piecePicker,setPiecePicker]=useState(null);
+  const[pieceFilter,setPieceFilter]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
@@ -1511,8 +1512,18 @@ function App(){
   const getEP=useCallback(function(di,slot,orig){var k=di+"-"+slot;return pieceSwap[k]||orig},[pieceSwap]);
   const slotAlts=useCallback(function(slot){
     var cat=slot==="top"?"tops":slot==="bot"?"bottoms":"shoes";
-    return wd.filter(function(it){return catOf(it.garmentType)===cat}).slice(0,20);
+    return wd.filter(function(it){return catOf(it.garmentType)===cat});
   },[wd]);
+  const slotColors=useCallback(function(slot){
+    var items=slotAlts(slot);
+    var seen={};items.forEach(function(it){if(it.color)seen[it.color]=1});
+    return Object.keys(seen).sort();
+  },[slotAlts]);
+  const slotPatterns=useCallback(function(slot){
+    var items=slotAlts(slot);
+    var seen={};items.forEach(function(it){if(it.pattern&&it.pattern!=="solid")seen[it.pattern]=1});
+    return Object.keys(seen).sort();
+  },[slotAlts]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
@@ -2267,7 +2278,7 @@ function App(){
                         if(!o.item)return null;
                         var pk=i+"-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
                         return React.createElement("div",{key:o.l},
-                          React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:isOpen?4:8,background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:8,padding:"6px 8px",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk)}},
+                          React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:isOpen?4:8,background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:8,padding:"6px 8px",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk);if(isOpen)setPieceFilter(null);setPieceFilter(null)}},
                             o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:6,flexShrink:0}}):React.createElement("div",{style:{width:44,height:44,borderRadius:6,background:(CM[o.item.color]||{}).h||"#3a3a3a",flexShrink:0}}),
                             React.createElement("div",{style:{flex:1,minWidth:0}},
                               React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em"}},o.l+(isSwapped?" ✎":"")),
@@ -2277,14 +2288,24 @@ function App(){
                               React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
                             React.createElement("span",{style:{fontSize:10,color:"var(--dim)"}},isOpen?"▲":"🔄")),
                           /* ═ Piece picker ═ */
-                          isOpen&&React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0 8px",marginBottom:8,WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
+                          isOpen&&React.createElement(React.Fragment,null,
+                          React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",padding:"4px 0 2px",marginBottom:2},onClick:function(ev){ev.stopPropagation()}},
+                        [null].concat(slotAlts(o.slot).reduce(function(acc,it){if(acc.indexOf(it.color)===-1)acc.push(it.color);return acc},[])).map(function(fc){
+                          var label=fc?fc.charAt(0).toUpperCase()+fc.slice(1):"All";
+                          var isActive=pieceFilter===fc;
+                          return React.createElement("button",{key:label,onClick:function(){setPieceFilter(isActive?null:fc)},style:{display:"flex",alignItems:"center",gap:3,background:isActive?"var(--gold)":"var(--bg)",color:isActive?"var(--bg)":"var(--sub)",border:"1px solid "+(isActive?"var(--gold)":"var(--border)"),borderRadius:12,padding:"2px 8px",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",fontWeight:isActive?600:400}},fc&&React.createElement(Dot,{color:fc,size:6}),label)})),
+                        slotPatterns(o.slot).length>0&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",padding:"2px 0 4px"},onClick:function(ev){ev.stopPropagation()}},
+                          slotPatterns(o.slot).map(function(pt){
+                            var isActive=pieceFilter==="p:"+pt;
+                            return React.createElement("button",{key:pt,onClick:function(){setPieceFilter(isActive?null:"p:"+pt)},style:{background:isActive?"var(--gold)":"var(--bg)",color:isActive?"var(--bg)":"var(--sub)",border:"1px solid "+(isActive?"var(--gold)":"var(--border)"),borderRadius:12,padding:"2px 8px",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",fontWeight:isActive?600:400,fontStyle:"italic"}},pt)})),
+                          React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0 8px",marginBottom:8,WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
                             isSwapped&&React.createElement("div",{onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);delete n[pk];return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 8px",borderRadius:8,border:"1px solid var(--del-border)",cursor:"pointer",minWidth:52}},
                               React.createElement("span",{style:{fontSize:14}},"↩️"),
                               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
-                            slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).map(function(alt){
+                            slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).filter(function(alt){if(!pieceFilter)return true;if(pieceFilter.startsWith("p:"))return alt.pattern===pieceFilter.slice(2);return alt.color===pieceFilter}).map(function(alt){
                               return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
                                 alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
-                                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))})))})},
+                                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))})},
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"6px 8px"}},
                         React.createElement("span",{style:{fontSize:16}},w.i),
                         React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},w.n),
@@ -2431,21 +2452,31 @@ function App(){
                   if(!o.item)return null;
                   var pk="t-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
                   return React.createElement("div",{key:o.l},
-                    React.createElement("div",{style:{background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:10,overflow:"hidden",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk)}},
+                    React.createElement("div",{style:{background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:10,overflow:"hidden",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk);if(isOpen)setPieceFilter(null);setPieceFilter(null)}},
                       o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
                       React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
                         React.createElement(Dot,{color:o.item.color,size:6}),
                         React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:isSwapped?"var(--gold)":"var(--text)",fontWeight:500}},o.item.name||o.item.color),
                         React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",marginLeft:"auto"}},o.l+(isSwapped?" ✎":"")),
                         React.createElement("span",{style:{fontSize:10,color:"var(--dim)",marginLeft:4}},isOpen?"▲":"🔄"))),
-                    isOpen&&React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0",WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
+                    isOpen&&React.createElement(React.Fragment,null,
+                    React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",padding:"4px 0 6px",marginBottom:2},onClick:function(ev){ev.stopPropagation()}},
+                      [null].concat(slotAlts(o.slot).reduce(function(acc,it){if(acc.indexOf(it.color)===-1)acc.push(it.color);return acc},[])).map(function(fc){
+                        var label=fc?fc.charAt(0).toUpperCase()+fc.slice(1):"All";
+                        var isActive=pieceFilter===fc;
+                        return React.createElement("button",{key:label,onClick:function(){setPieceFilter(isActive?null:fc)},style:{background:isActive?"var(--gold)":"var(--bg)",color:isActive?"var(--bg)":"var(--sub)",border:"1px solid "+(isActive?"var(--gold)":"var(--border)"),borderRadius:12,padding:"2px 8px",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",fontWeight:isActive?600:400}},fc?React.createElement(React.Fragment,null,React.createElement(Dot,{color:fc,size:5})," ",label):label)})),
+                    slotPatterns(o.slot).length>0&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",padding:"2px 0 4px"},onClick:function(ev){ev.stopPropagation()}},
+                      slotPatterns(o.slot).map(function(pt){
+                        var isActive=pieceFilter==="p:"+pt;
+                        return React.createElement("button",{key:pt,onClick:function(){setPieceFilter(isActive?null:"p:"+pt)},style:{background:isActive?"var(--gold)":"var(--bg)",color:isActive?"var(--bg)":"var(--sub)",border:"1px solid "+(isActive?"var(--gold)":"var(--border)"),borderRadius:12,padding:"2px 8px",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",fontWeight:isActive?600:400,fontStyle:"italic"}},pt)})),
+                    React.createElement("div",{style:{display:"flex",gap:6,overflowX:"auto",padding:"6px 0",WebkitOverflowScrolling:"touch"},onClick:function(ev){ev.stopPropagation()}},
                       isSwapped&&React.createElement("div",{onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);delete n[pk];return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 8px",borderRadius:8,border:"1px solid var(--del-border)",cursor:"pointer",minWidth:52}},
                         React.createElement("span",{style:{fontSize:14}},"↩️"),
                         React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
-                      slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).map(function(alt){
+                      slotAlts(o.slot).filter(function(alt){return alt.id!==(o.item&&o.item.id)}).filter(function(alt){if(!pieceFilter)return true;if(pieceFilter.startsWith("p:"))return alt.pattern===pieceFilter.slice(2);return alt.color===pieceFilter}).map(function(alt){
                         return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
                           alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
-                          React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))})))}))),
+                          React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))}))),
             /* Actions */
             React.createElement("div",{style:{display:"flex",gap:8}},
               !todayWorn&&React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){logWear(dailyPick.watch.id,todayStr)}},"✓ Wearing This"),
