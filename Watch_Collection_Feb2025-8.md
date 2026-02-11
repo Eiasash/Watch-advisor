@@ -89,6 +89,7 @@
 |-------|--------|--------|----------|
 | Five-link steel bracelet | Tudor OEM | — | Default. Sporty/casual |
 | Distressed brown leather (rough-out finish, contrast ecru stitching) | Tudor OEM | Tudor engraved deployant clasp | Smart casual, pairs with brown Ecco lace-ups. ✓ Received 11 Feb 2025 via Speedmaster trade (~₪800 value) |
+| Black leather, white contrast stitch | — | Silver pin buckle | Versatile dressy/clinic. Red bezel + black strap = classic contrast. 22/22mm. ✓ Cataloged 11 Feb 2025 |
 
 ### Hanhart Pioneer Flyback 417 ES (20mm)
 
@@ -97,12 +98,56 @@
 | Teal leather w/ yellow lining | Hanhart OEM | — | Primary strap, statement pairing |
 | Black leather | — | — | Versatile, pairs with formal shoes or white sneakers |
 | Light brown leather | — | — | Smart casual, pairs with brown Ecco lace-ups |
+| Dark green suede/rough-out, tan lining | — | Silver pin buckle | Textured casual. Complements teal OEM theme, adds earthy variety. ✓ Cataloged 11 Feb 2025 |
+| Sage/olive chunky leather, cream contrast stitch | — | Brushed steel pin buckle | Field/military vibe. German tool watch DNA. ✓ Cataloged 11 Feb 2025 |
+| Grey woven canvas, white center stitch | — | Bronze/gold-tone buckle | Vintage military casual. Bronze buckle echoes tool watch heritage. ✓ Cataloged 11 Feb 2025 |
 
 ### Omega Speedmaster Professional 3861 (20mm)
 
 | Strap | Source | Buckle | Use Case |
 |-------|--------|--------|----------|
 | Steel bracelet | Omega OEM | — | Default. Arrived on bracelet only |
+| Dark teal Buttero leather, cream contrast stitch | — | Brushed steel pin buckle | Statement — teal on black dial, Italian veg-tanned. Stamped "20MM" + "BUTTERO". ✓ Cataloged 11 Feb 2025 |
+| Black leather, orange lining, white contrast stitch | — | Brushed steel pin buckle | Sporty. NASA heritage nod — orange lining peeks when worn. ✓ Cataloged 11 Feb 2025 |
+| Navy leather/rubber, white contrast stitch | — | Brushed steel pin buckle | Smart casual / clinic. Tonal sophistication, navy on black. ✓ Cataloged 11 Feb 2025 |
+| White rubber, perforated rally-style | — | Silver pin buckle | Summer / Riviera. Bold contrast on Moonwatch. ✓ Cataloged 11 Feb 2025 |
+| Dark navy canvas, yellow/gold contrast stitch, saffiano texture | — | Gold-tone pin buckle | Warm accent on steel case. Gold hardware on steel = unconventional but intentional. ✓ Cataloged 11 Feb 2025 |
+| Black grained leather, gold butterfly deployant clasp | — | Gold butterfly deployant | Dressy warm accent. Gold deployant on steel Moonwatch = statement choice. ✓ Cataloged 11 Feb 2025 |
+| Tan/honey calf leather, white stitch | — | Silver pin buckle | Everyday smart casual. 20→18mm taper. Pairs with brown Ecco lace-ups. Stamped "GENUINE LEATHER 20x18". ✓ Cataloged 11 Feb 2025 |
+| Navy/white/orange striped NATO | — | Brushed steel hardware | Casual summer / regatta. Playful racing colorway. ~20mm. ✓ Cataloged 11 Feb 2025 |
+
+### Unassigned Straps
+
+| Strap | Width | Notes |
+|-------|-------|-------|
+| Beige/cream canvas/nylon, leather backing | TBC — needs measuring | Casual/summer piece. Assign once width confirmed. |
+
+---
+
+## Strap Count Summary (Feb 2025)
+
+| Watch | Bracelet | Leather | Canvas/NATO/Rubber | Total |
+|-------|----------|---------|---------------------|-------|
+| Speedmaster 3861 | 1 | 5 | 3 | **9** |
+| Hanhart Pioneer | 0 | 4 | 1 | **5** |
+| Tudor BB41 | 1 | 2 | 0 | **3** |
+| GS Snowflake | 0 | 2 | 0 | **2** |
+| GS Rikka | 0 | 2 | 0 | **2** |
+| GS SBGW267 | 0 | 3 | 0 | **3** |
+| Cartier Santos Large | 1 | 1 | 0 | **2** |
+| **Total cataloged straps** | | | | **26 + 1 unassigned** |
+
+---
+
+## Collection Gaps
+
+| Gap | Priority | Recommendation |
+|-----|----------|----------------|
+| ~~Speedmaster 3861 strap collection~~ | ~~Medium~~ | ✅ **RESOLVED** — now has 8 aftermarket straps covering every context |
+| True oxblood burgundy strap for SBGW267 | Low | Current "burgundy" straps read purple |
+| Brown/chocolate dial | Low | No current representation |
+| Orange/copper dial | Low | Would pair well with warm tone outfits |
+| Beige canvas strap assignment | Low | Width TBC — needs measuring before assignment |
 
 ---
 
@@ -165,6 +210,7 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 | Grand Seiko SBGW267 | 19mm lug width |
 | Tudor Black Bay 41 | 22mm lug width |
 | Omega Speedmaster 3861 | 20mm lug width |
+| Hanhart Pioneer 417 ES | 20mm lug width |
 
 ---
 
@@ -184,17 +230,6 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 |-------|-------|--------|
 | Grand Seiko Snowflake | Navy alligator, deployant clasp | ✓ Received |
 | Grand Seiko SBGW267 | Burgundy/purple alligator | ✓ Received |
-
----
-
-## Collection Gaps
-
-| Gap | Priority | Recommendation |
-|-----|----------|----------------|
-| Speedmaster 3861 strap collection | Medium | On bracelet only. Consider: black alligator for dressy, grey NATO for casual. 20mm lug width. |
-| True oxblood burgundy strap for SBGW267 | Low | Current "burgundy" straps read purple |
-| Brown/chocolate dial | Low | No current representation |
-| Orange/copper dial | Low | Would pair with burnt orange Timberland polo |
 
 ---
 
@@ -228,7 +263,7 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 | VC Overseas Ultra-Thin 2000V Grey (rep) | Feb 2025 | Passed — grey/silver space owned by Snowflake. |
 | IWC Ingenieur Grey (rep) | Feb 2025 | Passed — Snowflake covers quiet silver. |
 | IWC Ingenieur Blue (rep) | Feb 2025 | Passed — blue integrated bracelet owned by GP Laureato. |
-| Glashütte Original SeaQ Blue (rep) | Feb 2025 | Passed — not interested in German blue diver. |
+| Glashutte Original SeaQ Blue (rep) | Feb 2025 | Passed — not interested in German blue diver. |
 | Omega Aqua Terra Burgundy (rep) | Feb 2025 | Considered for oxblood gap. Chose VC Overseas Perpetual Calendar burgundy instead. |
 | Panerai Luminor Due Brown (rep) | Feb 2025 | Considered for brown gap. Deferred — brown not urgent. |
 
@@ -285,15 +320,15 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 **Repository:** [Eiasash/Watch-advisor](https://github.com/Eiasash/Watch-advisor)  
 **Live:** [eiasash.github.io/Watch-advisor](https://eiasash.github.io/Watch-advisor/)  
 **Friends fork:** [Eiasash/Style-advisor](https://github.com/Eiasash/Style-advisor)  
-**Stack:** Single-file React PWA (~325KB index.html), GitHub Pages, service worker offline support  
-**Current version:** v19
+**Stack:** Single-file React PWA (308KB index.html), GitHub Pages, service worker offline support  
+**Current version:** SW v20
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
 - Watch-first workflow: app picks watch, then builds outfit around it
 - AI outfit analysis via OpenAI API integration
 - Wardrobe management with photo upload and color classification
-- Strap system with per-watch strap assignments and recommendations
+- Strap system with per-watch explicit straps[] arrays (v19.2+)
 - Markdown collection import (parses Watch_Collection files)
 - Genuine/replica context scoring (genuine bonus for clinic, replica safe for casual)
 - Formality tier system (clinic → smart casual → casual → weekend)
@@ -303,8 +338,6 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 - Rotation freshness scoring (rewards watches not worn recently)
 - Day/night theme toggle (light and dark mode)
 - Tap-to-swap alternatives (click alt outfit to promote to main pick)
-- Piece picker with smart color/pattern filters and count badges
-- Reset swaps and save-swapped-as-custom-outfit actions
 - Wear logging with date tracking
 - Watch lock per day (lock specific watch to a day slot)
 - Save/export outfit plans
@@ -319,9 +352,8 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 | v15a | 6 algorithm upgrades: formality tiers, rotation freshness, weather straps, genuine/replica context, strap-shoe enforcement, dial color variety |
 | v16 | Complete theme fix: 60+ hardcoded dark colors → CSS variables, light mode fully functional |
 | v17 | Tap-to-swap alternatives: click any alt outfit row to promote it to main pick |
-| v18 | Piece picker for outfit slots — inline swap UI with scrollable alternatives per slot |
-| v18b | Smart piece-picker filters — color pills, pattern pills, auto-reset on close, dynamic filter UI |
-| v19 | Syntax fixes (picker closings), export/import rotation locks, filter count badges, version bump |
+| v19.2 | Explicit straps[] arrays replacing legacy br/sc flags. All 24 watches migrated. |
+| v20 | SW cache update |
 
 ---
 
@@ -334,4 +366,4 @@ Rolex Day-Date Turquoise, Rolex OP Purple/Grape, Chopard Alpine Eagle Red, IWC P
 
 ---
 
-*Last updated: 11 February 2025 — Tudor BB41 brown strap with deployant received and confirmed. Speedmaster trade fully complete. GMT still held for Chopard.*
+*Last updated: 11 February 2025 — Full strap inventory photo catalog completed. 10 new straps assigned (8 to Speedmaster, 3 to Hanhart, 1 to Tudor BB41). 1 unassigned (beige canvas, width TBC). Collection doc v8.*
