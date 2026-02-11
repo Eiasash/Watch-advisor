@@ -1,7 +1,7 @@
 {
   "name": "Watch Advisor",
   "short_name": "WatchAdvisor",
-  "description": "AI-Powered Watch & Outfit Coordinator v21 \u2014 Full feature set + 40 cataloged straps",
+  "description": "AI-Powered Watch & Outfit Coordinator v22 \u2014 Watch photo scan, 56 colors, improved AI & bug fixes",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
