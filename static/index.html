@@ -591,14 +591,21 @@ function compat(c1,c2){
   return 0.2;
 }
 
-function scoreW(w,items,ctx,reps){
-  if(!w.active||w.status==="sold"||w.status==="service")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0};
-  if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0};
-  let s=0;const bd={ctx:0,color:0,temp:0,strap:0,br:0};
+function scoreW(w,items,ctx,reps,opts){
+  if(!w.active||w.status==="sold"||w.status==="service")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+  if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+  var _o=opts||{};var wearLog=_o.wearLog||[];
+  let s=0;const bd={ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   const ic=items.filter(i=>i.color).map(i=>i.color.toLowerCase().trim());
   const shoe=items.find(i=>i.garmentType==="Shoes");
   const sc=shoe&&shoe.color?shoe.color.toLowerCase().trim():null;
-  if(ctx&&w.cx&&w.cx.includes(ctx)){s+=3;bd.ctx=3}
+  /* ══ UPGRADE: Formality tier scoring (gradient, not binary) ══ */
+  var FORM_TIERS={formal:["reverso","sbgw267","santos-lg","santos-oct","santos-rep"],event:["reverso","sbgw267","santos-lg","santos-oct","santos-rep","laureato","speedy","monaco","gmt"],clinic:["snowflake","rikka","sbgw267","santos-lg","reverso","bb41","speedy"],date:["santos-lg","reverso","laureato","rikka","snowflake","monaco","speedy"]};
+  var tierList=FORM_TIERS[ctx];
+  if(ctx&&w.cx&&w.cx.includes(ctx)){
+    if(tierList&&tierList.includes(w.id)){s+=5;bd.ctx=5}
+    else{s+=3;bd.ctx=3}
+  }else if(tierList&&tierList.includes(w.id)){s+=2;bd.ctx=2}
   for(const c of ic){
     if(!c)continue;
     let matched=false;
@@ -608,10 +615,27 @@ function scoreW(w,items,ctx,reps){
   const temps=ic.map(c=>{const e=Object.entries(CM).find(([k])=>c.includes(k));return e?e[1].t:"neutral"});
   const wm=temps.filter(x=>x==="warm").length,co=temps.filter(x=>x==="cool").length;
   if(w.mt==="warm"&&wm>co){s+=2;bd.temp=2}if(w.mt==="cool"&&co>=wm){s+=1;bd.temp=1}if(w.mt==="warm"&&co>wm+1){s-=1;bd.temp=-1}
+  /* ══ UPGRADE: Hard strap-shoe enforcement (non-negotiable leather rule) ══ */
   if(!w.br&&sc&&w.sc&&w.sc.length){
     const sB=sc.includes("black"),sBr=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
     const hB=w.sc.some(x=>x.includes("black")),hBr=w.sc.some(x=>x.includes("brown")||x.includes("tan")||x.includes("teal")||x.includes("green")||x.includes("burgundy")),hN=w.sc.some(x=>x.includes("navy")||x.includes("blue"));
-    if(sB&&hB){s+=3;bd.strap=3}if(sB&&!hB&&!hN){s-=3;bd.strap=-3}if(sBr&&hBr){s+=3;bd.strap=3}if(sBr&&hB&&!hBr){s-=3;bd.strap=-3}if(sB&&hN){s+=1;bd.strap+=1}
+    if(sB&&hB){s+=3;bd.strap=3}
+    if(sB&&!hB&&!hN){s-=5;bd.strap=-5}
+    if(sBr&&hBr){s+=3;bd.strap=3}
+    if(sBr&&hB&&!hBr){s-=5;bd.strap=-5}
+    if(sB&&hN){s+=1;bd.strap+=1}
+  }
+  /* New strap system: hard enforcement too */
+  if(!w.br&&sc&&w.straps&&w.straps.length){
+    var _sB2=sc.includes("black"),_sBr2=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
+    var _anyMatch=w.straps.some(function(st){
+      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato")return true;
+      var stc=(st.color||"").toLowerCase();
+      if(_sB2&&(stc.includes("black")||stc.includes("navy")))return true;
+      if(_sBr2&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")||stc.includes("green")||stc.includes("cognac")))return true;
+      return false;
+    });
+    if(!_anyMatch){s-=5;bd.strap-=5}
   }
   if(w.br){s+=1;bd.br=1}
   /* Strap type × context fitness */
@@ -621,7 +645,7 @@ function scoreW(w,items,ctx,reps){
     if(bestStrapFit>0){s+=Math.min(bestStrapFit,2);bd.strap+=Math.min(bestStrapFit,2)}
     else if(bestStrapFit<0&&w.straps.length===1){s+=bestStrapFit;bd.strap+=bestStrapFit}
   }
-  /* Watch size × context scoring — expanded */
+  /* Watch size × context scoring */
   var sz=w.size?parseInt(w.size):0;
   if(sz>0){
     if((ctx==="formal"||ctx==="clinic")&&sz>=43){s-=1;bd.ctx-=1}
@@ -631,7 +655,7 @@ function scoreW(w,items,ctx,reps){
     if((ctx==="casual"||ctx==="weekend")&&sz>=44){s+=0.5;bd.ctx+=0.5}
     if(ctx==="riviera"&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
   }
-  /* Material harmony: leather strap + leather shoes = bonus */
+  /* Material harmony */
   if(!w.br&&shoe){
     var sm=(shoe.material||shoe.name||"").toLowerCase();
     if(sm.includes("leather")&&w.sc&&w.sc.some(function(x){return x.includes("leather")||x.includes("croc")||x.includes("alligator")})){s+=1;bd.strap+=1}
@@ -641,14 +665,33 @@ function scoreW(w,items,ctx,reps){
   var hasCasualItem=items.some(function(it){return it.garmentType==="T-Shirt"||it.garmentType==="Shorts"});
   var isFormalCtx=ctx==="formal"||ctx==="event";
   if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
+  /* ══ UPGRADE: Rotation freshness — recently worn = score penalty ══ */
+  if(wearLog&&wearLog.length){
+    var _now2=Date.now();var _last=null;
+    for(var _e of wearLog){if(_e.watchId===w.id&&(!_last||_e.ts>_last))_last=_e.ts}
+    if(_last){
+      var _daysAgo=Math.floor((_now2-_last)/(864e5));
+      if(_daysAgo<=1){s-=3;bd.fresh=-3}
+      else if(_daysAgo<=3){s-=1.5;bd.fresh=-1.5}
+      else if(_daysAgo>=7){s+=1;bd.fresh=1}
+      else if(_daysAgo>=14){s+=2;bd.fresh=2}
+    }else{s+=1;bd.fresh=1}
+  }
+  /* ══ UPGRADE: Genuine/replica context bonus ══ */
+  var _authCtx=["formal","event","clinic","date"];
+  if(w.t==="genuine"&&_authCtx.includes(ctx)){s+=1.5;bd.auth=1.5}
+  if(w.t==="replica"&&(ctx==="casual"||ctx==="weekend"||ctx==="riviera")){s+=0.5;bd.auth=0.5}
   return{total:s,...bd};
 }
-function strapRec(w,items,ctx){
-  /* New straps-aware recommendation */
+function strapRec(w,items,ctx,wxOpts){
+  /* Weather + straps-aware recommendation — UPGRADED */
+  var _rain=wxOpts&&wxOpts.rain;
   if(w.straps&&w.straps.length){
     if(w.straps.length===1){
       var s0=w.straps[0];var st0=STRAP_TYPES.find(function(t){return t.id===s0.type})||STRAP_TYPES[0];
-      return{text:s0.type==="bracelet"?(st0.icon+" Bracelet ("+s0.material+")"):(st0.icon+" "+s0.color+" "+s0.type),type:"info",strap:s0};
+      var _warn="";
+      if(_rain&&s0.type==="leather")_warn=" ⚠️ rain";
+      return{text:s0.type==="bracelet"?(st0.icon+" Bracelet ("+s0.material+")"+_warn):(st0.icon+" "+s0.color+" "+s0.type+_warn),type:_rain&&s0.type==="leather"?"warn":"info",strap:s0};
     }
     var shoe=items.find(function(i){return i.garmentType==="Shoes"});
     var sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
@@ -667,14 +710,21 @@ function strapRec(w,items,ctx){
       /* Material harmony */
       if(sm.includes("leather")&&(st.material||"").toLowerCase().match(/leather|alligator|cordovan|nubuck/))pts+=1;
       if(sm.includes("suede")&&(st.material||"").toLowerCase().includes("suede"))pts+=1;
+      /* ══ UPGRADE: Weather-aware strap scoring ══ */
+      if(_rain){
+        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=4;
+        if(st.type==="leather")pts-=4;
+        if(st.type==="nato"||st.type==="canvas")pts+=1;
+      }
       return{strap:st,score:pts};
     }).sort(function(a,b){return b.score-a.score});
     var best=scored[0];var stDef=STRAP_TYPES.find(function(t){return t.id===best.strap.type})||STRAP_TYPES[0];
     var label=best.strap.type==="bracelet"?"Bracelet ("+best.strap.material+")":best.strap.color+" "+best.strap.type;
-    return{text:"→ "+stDef.icon+" "+label,type:"good",strap:best.strap,all:scored};
+    var _rainNote=_rain&&best.strap.type==="leather"?" ⚠️ rain":"";
+    return{text:"→ "+stDef.icon+" "+label+_rainNote,type:_rain&&best.strap.type==="leather"?"warn":"good",strap:best.strap,all:scored};
   }
   /* Legacy fallback */
-  if(w.br)return{text:"⛓️ Bracelet",type:"info"};
+  if(w.br)return{text:"⛓️ Bracelet"+(_rain?" ✓ rain-safe":""),type:"info"};
   if(!w.sc||!w.sc.length)return{text:"Default strap",type:"info"};
   const shoe2=items.find(i=>i.garmentType==="Shoes");const sc2=shoe2&&shoe2.color?shoe2.color.toLowerCase():"";
   if(w.sc.length===1)return{text:w.sc[0]+" strap",type:"info"};
@@ -720,7 +770,8 @@ const CXR={
 "office":{no:["Shorts","T-Shirt","Jeans"]},
 };
 
-function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
+function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
+  var _wl=extraOpts&&extraOpts.wearLog||[];
   var tops=items.filter(i=>catOf(i.garmentType)==="tops");
   const top=tops[0]||null,bot=items.find(i=>catOf(i.garmentType)==="bottoms"),shoe=items.find(i=>catOf(i.garmentType)==="shoes");
   /* outermost top layer is what's visible — used for primary color scoring */
@@ -788,7 +839,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
     });
   }
   const wr=watches.map(w=>{
-    var sc=scoreW(w,items,ctx,reps);
+    var sc=scoreW(w,items,ctx,reps,{wearLog:_wl});
     /* Rain: penalize leather/suede, boost bracelets & rubber */
     if(isRainy){
       if(w.straps&&w.straps.length){
@@ -800,7 +851,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal){
         if(w.br){sc.total+=2;sc.br+=2}else{sc.total-=2;sc.strap-=2}
       }
     }
-    return{...w,score:sc.total,bd:sc,sr:strapRec(w,items,ctx),wn:getWarns(w,items)}
+    return{...w,score:sc.total,bd:sc,sr:strapRec(w,items,ctx,{rain:isRainy}),wn:getWarns(w,items)}
   }).filter(w=>w.score>-1).sort((a,b)=>b.score-a.score);
   if(wr[0])fs+=wr[0].score*0.5;
   /* Rain warning */
@@ -844,7 +895,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
     for(const shoe of(shoes.length?shoes:[null])){
       if(shoe&&(shoe.id===top.id||shoe.id===bot.id))continue;
       const items=[top,bot].concat(shoe?[shoe]:[]);
-      const r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp);
+      const r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[]});
       combos.push({id:top.id+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.top,bot:r.bot,shoe:r.shoe,items:r.items,topType:top.garmentType,wxWarns:r.wxWarns});
     }
   }
@@ -1103,6 +1154,8 @@ const WCard=memo(function WCardC(props){
             w.bd.color!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:w.bd.color>0?"#0a1a0a":"#1a0a0a",color:w.bd.color>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},(w.bd.color>0?"✓":"✗")+" color "+(w.bd.color>0?"+":"")+w.bd.color),
             w.bd.strap!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:w.bd.strap>0?"#0a1a0a":"#1a0a0a",color:w.bd.strap>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},(w.bd.strap>0?"✓":"✗")+" strap "+(w.bd.strap>0?"+":"")+w.bd.strap),
             w.bd.temp!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:"#0a0a1a",color:"var(--sub)",borderRadius:4,padding:"2px 6px"}},"🌡️"+(w.bd.temp>0?"+":"")+w.bd.temp)),
+            w.bd.fresh&&w.bd.fresh!==0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",background:w.bd.fresh>0?"#0a1a0a":"#1a0a0a",color:w.bd.fresh>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},"🔄"+(w.bd.fresh>0?"+":"")+w.bd.fresh),
+            w.bd.auth&&w.bd.auth>0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",background:"#0a1a0a",color:"var(--good)",borderRadius:4,padding:"2px 6px"}},"✦ genuine +"+w.bd.auth),
           w.wn&&w.wn.map(function(x,i){return React.createElement("p",{key:i,style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",marginTop:3}},x)}))))
   );
 });
@@ -1144,6 +1197,9 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
         if(used[w.id])s-=8;
         if(w.id===lastId)s-=15; /* hard block consecutive same watch */
         if(plan.length>1&&plan[plan.length-2]&&plan[plan.length-2].watch&&plan[plan.length-2].watch.id===w.id)s-=10; /* 2-day minimum gap */
+        /* ══ UPGRADE: Dial color variety — penalize consecutive same dial color ══ */
+        if(plan.length>0){var _prevW=plan[plan.length-1].watch;if(_prevW&&_prevW.d&&w.d&&_prevW.d.toLowerCase()===w.d.toLowerCase())s-=4}
+        if(plan.length>1){var _prev2W=plan[plan.length-2]&&plan[plan.length-2].watch;if(_prev2W&&_prev2W.d&&w.d&&_prev2W.d.toLowerCase()===w.d.toLowerCase())s-=2}
         var types=plan.map(function(p){return p.watch?p.watch.t:""});
         var gc=types.filter(function(t){return t==="genuine"}).length;
         var rc=types.filter(function(t){return t==="replica"}).length;
@@ -1170,12 +1226,12 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
     var dayFit=null;var altFits=[];
     var dayWxOpts=fc?{rain:fc.cond&&fc.cond.rain,wind:fc.wind||0,uv:fc.uv||0,rainPct:fc.rainPct||0}:null;
     if(pick&&wardrobe&&wardrobe.length>=2){
-      var dayFits=genFits(wardrobe,[pick],cx,true,dayWt,4,{wx:dayWxOpts,temp:fc?fc.feelsAvg:18});
+      var dayFits=genFits(wardrobe,[pick],cx,true,dayWt,4,{wx:dayWxOpts,temp:fc?fc.feelsAvg:18,wearLog:wearLog});
       if(dayFits.length)dayFit=dayFits[0];
       altFits=dayFits.slice(1,4);
     }
     plan.push({day:d,dayIdx:dayIdx,dayName:dayName,date:fc?fc.date:"",context:cx,tier:dayTier,weight:dayWt,watch:pick,forecast:fc,outfit:dayFit,altOutfits:altFits,locked:!!lockedWatch,
-      strapPick:(function(){if(!pick)return null;var pw=pick.straps&&pick.straps.length?pick:migrateStraps(pick);if(pw.straps&&pw.straps.length>1&&dayFit)return strapRec(pw,dayFit.items,cx);if(pw.straps&&pw.straps.length===1)return{text:pw.straps[0].type==="bracelet"?"⛓️ Bracelet"+(pw.straps[0].material?" ("+pw.straps[0].material+")":""):pw.straps[0].color+" "+pw.straps[0].type,type:"info",strap:pw.straps[0]};return null})()});
+      strapPick:(function(){if(!pick)return null;var pw=pick.straps&&pick.straps.length?pick:migrateStraps(pick);if(pw.straps&&pw.straps.length>1&&dayFit)return strapRec(pw,dayFit.items,cx,dayWxOpts);if(pw.straps&&pw.straps.length===1)return{text:pw.straps[0].type==="bracelet"?"⛓️ Bracelet"+(pw.straps[0].material?" ("+pw.straps[0].material+")":""):pw.straps[0].color+" "+pw.straps[0].type,type:"info",strap:pw.straps[0]};return null})()});
   }
   /* Cross-day dedup: if consecutive days share same top+bot, swap second day to alt */
   for(var dd=0;dd<plan.length-1;dd++){
@@ -1311,7 +1367,7 @@ function App(){
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"})}},[wd]);
-  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
+  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
   const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
