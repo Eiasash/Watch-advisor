@@ -1,4 +1,4 @@
-# ⌚ Watch Advisor v17
+# ⌚ Watch Advisor v19
 
 AI-powered watch & outfit coordinator for the strategic watch collector.
 
@@ -17,9 +17,17 @@ Manages a 23-piece watch collection (genuine + replica), pairs watches with ward
 - Genuine/replica context bonuses (genuine for clinic/formal, replica for casual)
 - Rotation freshness rewards (penalizes repeat wears, rewards variety)
 - Weekly dial color variety tracking
-- Tap-to-swap alternatives (click any alt outfit to promote it)
+- Tap-to-swap alternatives with smart filtering (click any alt outfit to promote it)
 - Watch lock per day (pin a specific watch to any day slot)
 - Wear logging with date tracking
+
+### Piece Picker & Smart Filters
+- Inline piece picker for swapping tops, bottoms, and shoes per day
+- Color filter pills with item count badges
+- Pattern filter pills with count badges (italic labels)
+- One-tap reset to undo individual slot swaps
+- "Reset all swaps" and "Save swapped as custom outfit" actions
+- Filters auto-reset when picker closes
 
 ### Outfit Intelligence
 - Hard strap-shoe color enforcement (brown↔brown, black↔black/white)
@@ -35,7 +43,7 @@ Manages a 23-piece watch collection (genuine + replica), pairs watches with ward
 - Markdown collection import (parses structured .md files)
 - Wardrobe management with photo upload and AI color classification
 - Duplicate detection with side-by-side comparison
-- Export/import full collection data
+- Export/import full collection data including rotation locks
 
 ### AI Features (Optional — requires OpenAI API key)
 - AI Style Coach — wardrobe strengths, gaps, next-buy advice
@@ -57,8 +65,8 @@ Single-file React 18 PWA. No build step, no npm, no bundler.
 
 | File | Purpose |
 |------|---------|
-| `static/index.html` | Entire app — HTML, CSS, JS (~308KB) |
-| `static/sw.js` | Service worker (cache v17) |
+| `static/index.html` | Entire app — HTML, CSS, JS (~325KB) |
+| `static/sw.js` | Service worker (cache v19) |
 | `static/manifest.json` | PWA manifest |
 | `static/icon-192.png` | App icon 192px |
 | `static/icon-512.png` | App icon 512px |
@@ -75,6 +83,9 @@ Single-file React 18 PWA. No build step, no npm, no bundler.
 
 | Version | Changes |
 |---------|---------|
+| **v19** | Syntax fixes (piece picker closings), export/import rotation locks, filter count badges on color & pattern pills, double-filter-reset fix, in-app version bump |
+| **v18b** | Smart piece-picker filters — color pills, pattern pills, auto-reset on close, dynamic filter UI |
+| **v18** | Piece picker for outfit slots — inline swap UI with scrollable alternatives per slot |
 | **v17** | Tap-to-swap alternatives — click alt outfit to promote to main pick |
 | **v16** | Complete theme fix — 60+ hardcoded dark colors → CSS variables, light mode works |
 | **v15a** | 6 algorithm upgrades: formality tiers, rotation freshness, weather straps, genuine/replica context, strap-shoe enforcement, dial color variety |
