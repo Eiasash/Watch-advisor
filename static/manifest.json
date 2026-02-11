@@ -1,7 +1,7 @@
 {
   "name": "Watch Advisor",
   "short_name": "WatchAdvisor",
-  "description": "AI-Powered Watch & Outfit Coordinator v16 — Full light/dark theme, algorithm upgrades, collection status tracking",
+  "description": "AI-Powered Watch & Outfit Coordinator v19 \u2014 Smart piece-picker filters, strap-shoe enforcement, collection sync",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
