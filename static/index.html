@@ -1294,6 +1294,7 @@ function App(){
   const[editDayIdx,setEditDayIdx]=useState(null);
   const[editDayMode,setEditDayMode]=useState(null);
   const[expandDay,setExpandDay]=useState(null);
+  const[altSwap,setAltSwap]=useState({});
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
@@ -2029,6 +2030,19 @@ function App(){
         /* ROTATION */
         mode==="rotation"&&(function(){
           var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock);
+          /* Apply alt swaps */
+          Object.keys(altSwap).forEach(function(k){
+            var di=parseInt(k),ai=altSwap[k];
+            if(rotation[di]&&rotation[di].altOutfits&&rotation[di].altOutfits[ai]){
+              var orig=rotation[di].outfit;
+              var origFs=rotation[di].fs||rotation[di].altOutfits[ai].fs;
+              rotation[di].outfit=rotation[di].altOutfits[ai];
+              rotation[di].fs=rotation[di].altOutfits[ai].fs;
+              var newAlts=rotation[di].altOutfits.slice();
+              newAlts[ai]={top:orig.top,bot:orig.bot,shoe:orig.shoe,fs:origFs};
+              rotation[di].altOutfits=newAlts;
+            }
+          });
           var DAYS7=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
           var genC=rotation.filter(function(d){return d.watch&&d.watch.t==="genuine"}).length;
           var repC=rotation.filter(function(d){return d.watch&&d.watch.t==="replica"}).length;
@@ -2228,7 +2242,7 @@ function App(){
                   expandDay===i&&day.altOutfits&&day.altOutfits.length>0&&React.createElement("div",{className:"fu",style:{marginTop:6}},
                     React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:4,letterSpacing:"0.08em"}},"ALTERNATIVES"),
                     day.altOutfits.map(function(alt,ai2){
-                      return React.createElement("div",{key:ai2,style:{display:"flex",gap:6,marginBottom:4,padding:"4px 0",borderBottom:ai2<day.altOutfits.length-1?"1px solid var(--border)":"none"}},
+                      return React.createElement("div",{key:ai2,onClick:function(){var sw=Object.assign({},altSwap);if(sw[i]===ai2){delete sw[i]}else{sw[i]=ai2}setAltSwap(sw)},style:{display:"flex",gap:6,marginBottom:4,padding:"4px 0",borderBottom:ai2<day.altOutfits.length-1?"1px solid var(--border)":"none",cursor:"pointer",opacity:altSwap[i]===ai2?1:0.7,background:altSwap[i]===ai2?"rgba(184,150,42,0.08)":"none",borderRadius:4}},
                         [{item:alt.top},{item:alt.bot},{item:alt.shoe}].map(function(o,oi){
                           if(!o.item)return null;
                           return React.createElement("div",{key:oi,style:{display:"flex",alignItems:"center",gap:3,flex:"1 1 0",minWidth:0}},
@@ -2337,6 +2351,12 @@ function App(){
           !dailyPick?React.createElement("button",{className:"btn btn-gold",onClick:function(){
             var cx0=weekCtx[new Date().getDay()]||"smart-casual";
             var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock);
+            /* Apply alt swaps for today */
+            if(altSwap[0]!=null&&rotation[0]&&rotation[0].altOutfits&&rotation[0].altOutfits[altSwap[0]]){
+              var orig0=rotation[0].outfit;var origFs0=rotation[0].fs||rotation[0].altOutfits[altSwap[0]].fs;
+              rotation[0].outfit=rotation[0].altOutfits[altSwap[0]];rotation[0].fs=rotation[0].altOutfits[altSwap[0]].fs;
+              var na0=rotation[0].altOutfits.slice();na0[altSwap[0]]={top:orig0.top,bot:orig0.bot,shoe:orig0.shoe,fs:origFs0};rotation[0].altOutfits=na0;
+            }
             var today=rotation[0];
             if(today&&today.watch){
               var sp=today.strapPick;
