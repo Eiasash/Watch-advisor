@@ -1295,6 +1295,7 @@ function App(){
   const[editDayMode,setEditDayMode]=useState(null);
   const[expandDay,setExpandDay]=useState(null);
   const[altSwap,setAltSwap]=useState({});
+  const[wearPicker,setWearPicker]=useState(null);
   const[dayAi,setDayAi]=useState({});
   const[dayAiLoading,setDayAiLoading]=useState(null);
   const[userCx,setUserCx]=useState(null);
@@ -1473,6 +1474,36 @@ function App(){
 
   const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
   const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
+
+  const setOutfitWear=useCallback(function(id,dateStr){
+    setSaved(function(p){
+      var n=p.map(function(o){
+        if(o.id!==id)return o;
+        var u=Object.assign({},o);
+        if(dateStr){u.wearDate=dateStr}else{delete u.wearDate}
+        return u;
+      });
+      ps("of_"+SK,n);
+      /* If wearing today, also log watch to wearLog */
+      var todayISO=new Date().toISOString().slice(0,10);
+      if(dateStr===todayISO){
+        var outfit=p.find(function(o){return o.id===id});
+        if(outfit&&outfit.watches&&outfit.watches.length){
+          var wId=outfit.watches[0].id;
+          if(wId){setWearLog(function(prev){
+            var already=prev.find(function(e){return e.date===todayISO&&e.watchId===wId});
+            if(already)return prev;
+            var entry={watchId:wId,date:todayISO,ts:Date.now(),outfitId:id};
+            var next=prev.concat([entry]);
+            ps("wa_wearlog_"+SK,next);
+            return next;
+          })}
+        }
+      }
+      return n;
+    });
+    setWearPicker(null);
+  },[ps]);
 
   const CTXS=useMemo(function(){return activeCx.slice(0,8).map(function(c){return{id:c.id,l:c.icon+" "+c.l}})},[activeCx]);
   const filtW=wTab==="all"?W:wTab==="genuine"?W.filter(function(w){return w.t==="genuine"}):wTab==="replica"?W.filter(function(w){return w.t==="replica"}):W.filter(function(w){return w.status===wTab});
@@ -2901,7 +2932,19 @@ function App(){
       /* ═══ SAVED ═══ */
       view==="saved"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
         !saved.length?React.createElement("div",{style:{textAlign:"center",padding:"50px 16px"}},React.createElement("p",{style:{fontSize:28,margin:"0 0 8px"}},"📋"),React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--dim)"}},"No saved outfits"))
-        :saved.map(function(o){var oTop=o.items?o.items.find(function(i){return catOf(i.garmentType)==="tops"}):null;var oBot=o.items?o.items.find(function(i){return catOf(i.garmentType)==="bottoms"}):null;var oSh=o.items?o.items.find(function(i){return catOf(i.garmentType)==="shoes"}):null;return React.createElement("div",{key:o.id,className:"card-lift",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10}},
+        :function(){
+      var todayISO=new Date().toISOString().slice(0,10);
+      return saved.slice().sort(function(a,b){
+        var aIsToday=a.wearDate===todayISO?1:0;
+        var bIsToday=b.wearDate===todayISO?1:0;
+        if(aIsToday!==bIsToday)return bIsToday-aIsToday;
+        var aHasDate=a.wearDate?1:0;
+        var bHasDate=b.wearDate?1:0;
+        if(aHasDate!==bHasDate)return bHasDate-aHasDate;
+        if(aHasDate&&bHasDate)return a.wearDate<b.wearDate?-1:a.wearDate>b.wearDate?1:0;
+        return (b.ts||0)-(a.ts||0);
+      });
+    }().map(function(o){var oTop=o.items?o.items.find(function(i){return catOf(i.garmentType)==="tops"}):null;var oBot=o.items?o.items.find(function(i){return catOf(i.garmentType)==="bottoms"}):null;var oSh=o.items?o.items.find(function(i){return catOf(i.garmentType)==="shoes"}):null;return React.createElement("div",{key:o.id,className:"card-lift",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:10}},
           React.createElement("div",{style:{display:"flex",gap:10,marginBottom:8}},
             React.createElement(OutfitFigure,{topColor:oTop?oTop.color:"grey",botColor:oBot?oBot.color:"charcoal",shoeColor:oSh?oSh.color:"black",watchColor:o.watches&&o.watches[0]?o.watches[0].c:"#c9a84c",watchIcon:o.watches&&o.watches[0]?o.watches[0].i:"⌚",watchName:"",size:60}),
             React.createElement("div",{style:{flex:1,minWidth:0}},
@@ -2909,6 +2952,13 @@ function App(){
                 React.createElement("div",null,React.createElement("h3",{style:{fontSize:14,fontWeight:500,margin:"0 0 2px"}},o.name),React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},(activeCxIcons[o.context]||"")+" "+o.context+" · "+new Date(o.ts).toLocaleDateString()+(o.fs?" · Score "+o.fs:"")),o.weather&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"#7ab8d8",background:"rgba(100,150,220,0.08)",borderRadius:4,padding:"1px 6px",border:"1px solid rgba(100,150,220,0.15)",marginTop:2,display:"inline-block"}},(o.weather.cond?o.weather.cond.i:"")+" "+o.weather.temp+"°C")),
                 React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}},
                   React.createElement("button",{onClick:function(){delSaved(o.id)},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:6,padding:"6px 10px",cursor:"pointer",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:10,minHeight:30}},"✕"),
+                  /* ═══ WEAR DATE BUTTON ═══ */
+                    o.wearDate&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",fontWeight:600,padding:"2px 7px",borderRadius:4,color:o.wearDate===new Date().toISOString().slice(0,10)?"var(--good)":"var(--gold)",background:o.wearDate===new Date().toISOString().slice(0,10)?"rgba(122,184,122,0.12)":"rgba(201,168,76,0.1)",border:"1px solid "+(o.wearDate===new Date().toISOString().slice(0,10)?"rgba(122,184,122,0.25)":"rgba(201,168,76,0.2)")}},o.wearDate===new Date().toISOString().slice(0,10)?"👔 Wearing Today":"📌 "+new Date(o.wearDate+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})),
+                    React.createElement("button",{onClick:function(ev){ev.stopPropagation();setWearPicker(wearPicker===o.id?null:o.id)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"5px 9px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:9,minHeight:26}},o.wearDate?"✎ Change":"👔 Wear"),
+                    wearPicker===o.id&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4,padding:"8px 10px",background:"var(--card)",border:"1px solid var(--gold)",borderRadius:8,marginTop:2,boxShadow:"0 4px 16px rgba(0,0,0,0.15)"}},
+                      React.createElement("button",{onClick:function(){setOutfitWear(o.id,new Date().toISOString().slice(0,10))},style:{background:"rgba(122,184,122,0.12)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:6,padding:"6px 12px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:10,fontWeight:600}},"👔 Today"),
+                      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:6}},React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},"Pick:"),React.createElement("input",{type:"date",defaultValue:o.wearDate||"",onChange:function(ev){if(ev.target.value)setOutfitWear(o.id,ev.target.value)},style:{fontSize:10,fontFamily:"var(--f)",background:"var(--bg)",color:"var(--text)",border:"1px solid var(--border)",borderRadius:4,padding:"4px 6px"}})),
+                      o.wearDate&&React.createElement("button",{onClick:function(){setOutfitWear(o.id,null)},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:9}},"✕ Clear date")),
                   /* Weather match badge */
                   weather&&o.weather&&(function(){var ct=weather.temp||18,ot=o.weather.temp||18,diff=Math.abs(ct-ot);var cRain=weather.cond&&weather.cond.rain,oRain=o.weather.cond&&o.weather.cond.rain;var match=diff<=5&&cRain===oRain?"great":diff<=10?"ok":"poor";return React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",padding:"2px 6px",borderRadius:4,color:match==="great"?"var(--good)":match==="ok"?"var(--gold)":"var(--warn)",background:match==="great"?"rgba(122,184,122,0.1)":match==="ok"?"rgba(201,168,76,0.1)":"rgba(200,90,58,0.1)",border:"1px solid "+(match==="great"?"rgba(122,184,122,0.2)":match==="ok"?"rgba(201,168,76,0.2)":"rgba(200,90,58,0.2)")}},match==="great"?"✓ Today match":match==="ok"?"~ Similar wx":"✗ Diff weather")})())))),
           React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}},(o.items||[]).map(function(item,i){return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid var(--border)"}},item.photoUrl&&React.createElement("img",{src:item.photoUrl,alt:"",style:{width:20,height:20,objectFit:"cover",borderRadius:3}}),React.createElement(Dot,{color:item.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},item.name||item.color))})),
