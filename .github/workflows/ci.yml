@@ -54,4 +54,4 @@ jobs:
           NODE
 
       - name: Prettier check (small files only)
-        run: npx --yes prettier@3.4.2 --check sw.js manifest.json
+        run: npx --yes prettier@3.4.2 --check sw.js manifest.json .github/workflows/*.yml
