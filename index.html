@@ -1506,6 +1506,7 @@ function App(){
   const[lightboxSrc,setLightboxSrc]=useState(null);
   const[lightboxItems,setLightboxItems]=useState([]);
   const[showSaveToast,setShowSaveToast]=useState(false);
+  const[showSaveMenu,setShowSaveMenu]=useState(false);
   const[watchScanLoading,setWatchScanLoading]=useState(false);
   const[watchScanResult,setWatchScanResult]=useState(null);
   const[selfieHistory,setSelfieHistory]=useState([]);
@@ -1733,31 +1734,42 @@ function App(){
     _processingRef.current=false;
   },[ps]);
 
-  const scanWatch=useCallback(async function(file){
+  const scanWatch=useCallback(async function(files){
+    var arr=Array.isArray(files)?files:files instanceof FileList?Array.from(files):[files];
     setWatchScanLoading(true);setWatchScanResult(null);
-    try{
-      var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(file)});
-      var compressed=await compressImage(rawUrl,600,0.6);
-      var thumb=await compressImage(rawUrl,400,0.5);
-      var b64=compressed.split(",")[1];
-      var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
-      if(result&&result.brand){
-        var id="scan-"+Date.now();
-        var dialInfo=inferDial(result.brand+" "+result.model,result.dial_color||"");
-        var mc=autoMatchColors(result.dial_color||dialInfo.color);
-        var straps=[];
-        if(result.has_bracelet||result.strap_type==="bracelet"){straps.push({type:"bracelet",color:"silver",material:result.case_material||"steel"})}
-        if(result.strap_type&&result.strap_type!=="bracelet"){straps.push({type:result.strap_type==="nato"?"nato":result.strap_type==="rubber"?"rubber":result.strap_type==="canvas"?"canvas":"leather",color:result.strap_color||"black",material:result.strap_type||"calf leather"})}
-        if(!straps.length)straps.push({type:"bracelet",color:"silver",material:"steel"});
-        var nw={id:id,n:(result.brand||"")+" "+(result.model||""),t:"genuine",d:result.dial_color||dialInfo.color||"",c:result.dial_hex||dialInfo.hex||"#5a5a5a",straps:straps,br:straps.some(function(s){return s.type==="bracelet"}),sc:straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color}),mt:result.temperature||"neutral",i:result.emoji||dialInfo.emoji||"⌚",mc:mc,ac:[],cx:result.suggested_contexts||inferContexts(result.brand+" "+result.model,""),wt:["light","mid","heavy"],sg:result.notes||"",active:true,status:"active",photoUrl:thumb,size:result.case_size?result.case_size+"mm":null,ref:result.reference||null,scanData:result};
-        setWatchScanResult({watch:nw,ai:result});
-      }else{
-        setWatchScanResult({error:getLastAiError()||"Could not identify watch"});
-        setAiErr(getLastAiError()||"Watch identification failed");
+    var scannedWatches=[];
+    for(var fi=0;fi<arr.length;fi++){
+      try{
+        var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(arr[fi])});
+        var compressed=await compressImage(rawUrl,600,0.6);
+        var thumb=await compressImage(rawUrl,400,0.5);
+        var b64=compressed.split(",")[1];
+        var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
+        if(result&&result.brand){
+          var id="scan-"+Date.now()+"-"+fi;
+          var dialInfo=inferDial(result.brand+" "+result.model,result.dial_color||"");
+          var mc=autoMatchColors(result.dial_color||dialInfo.color);
+          var straps=[];
+          if(result.has_bracelet||result.strap_type==="bracelet"){straps.push({type:"bracelet",color:"silver",material:result.case_material||"steel"})}
+          if(result.strap_type&&result.strap_type!=="bracelet"){straps.push({type:result.strap_type==="nato"?"nato":result.strap_type==="rubber"?"rubber":result.strap_type==="canvas"?"canvas":"leather",color:result.strap_color||"black",material:result.strap_type||"calf leather"})}
+          if(!straps.length)straps.push({type:"bracelet",color:"silver",material:"steel"});
+          var nw={id:id,n:(result.brand||"")+" "+(result.model||""),t:"genuine",d:result.dial_color||dialInfo.color||"",c:result.dial_hex||dialInfo.hex||"#5a5a5a",straps:straps,br:straps.some(function(s){return s.type==="bracelet"}),sc:straps.filter(function(s){return s.type!=="bracelet"}).map(function(s){return s.color}),mt:result.temperature||"neutral",i:result.emoji||dialInfo.emoji||"⌚",mc:mc,ac:[],cx:result.suggested_contexts||inferContexts(result.brand+" "+result.model,""),wt:["light","mid","heavy"],sg:result.notes||"",active:true,status:"active",photoUrl:thumb,size:result.case_size?result.case_size+"mm":null,ref:result.reference||null,scanData:result};
+          scannedWatches.push({watch:nw,ai:result});
+        }else{
+          if(arr.length===1){setWatchScanResult({error:getLastAiError()||"Could not identify watch"});setAiErr(getLastAiError()||"Watch identification failed")}
+        }
+      }catch(e){
+        if(arr.length===1){setWatchScanResult({error:"Error: "+String(e.message||e)});setAiErr("Watch scan error: "+String(e))}
       }
-    }catch(e){
-      setWatchScanResult({error:"Error: "+String(e.message||e)});
-      setAiErr("Watch scan error: "+String(e));
+      if(fi<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
+    }
+    if(scannedWatches.length===1){
+      setWatchScanResult(scannedWatches[0]);
+    }else if(scannedWatches.length>1){
+      /* Auto-add all scanned watches to collection */
+      var newWatches=scannedWatches.map(function(s){return s.watch});
+      setW(function(p){var u=p.concat(newWatches);ps("w_"+SK,u);return u});
+      setWatchScanResult({batch:true,count:scannedWatches.length,watches:scannedWatches});
     }
     setWatchScanLoading(false);
   },[ps]);
@@ -2241,7 +2253,51 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
     /* Floating Save Button */
-    React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
+    React.createElement("button",{onClick:function(){setShowSaveMenu(function(p){return!p})},style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
+    /* Save Menu */
+    showSaveMenu&&React.createElement("div",{style:{position:"fixed",bottom:84,right:16,zIndex:92,background:"var(--card)",borderRadius:14,padding:"16px",boxShadow:"0 8px 32px rgba(0,0,0,0.4)",border:"1px solid var(--border)",width:280,maxWidth:"calc(100vw - 32px)"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+        React.createElement("span",{style:{fontSize:14,fontWeight:600,fontFamily:"var(--sf)",color:"var(--gold)"}},"Save Options"),
+        React.createElement("button",{onClick:function(){setShowSaveMenu(false)},style:{background:"none",border:"none",color:"var(--dim)",cursor:"pointer",fontSize:16}},"✕")),
+      React.createElement("button",{onClick:function(){saveAll();setShowSaveMenu(false)},style:{width:"100%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:10,padding:"12px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:12,fontWeight:600,marginBottom:10}},"💾 Quick Save to Device"),
+      React.createElement("div",{style:{borderTop:"1px solid var(--border)",paddingTop:10}},
+        React.createElement("label",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.05em",textTransform:"uppercase",display:"block",marginBottom:6}},"🔐 Encrypted Backup"),
+        React.createElement("div",{style:{display:"flex",gap:6,marginBottom:8}},
+          React.createElement("input",{className:"inp",type:"text",value:recUser,onChange:function(e){setRecUser(e.target.value)},placeholder:"Username",style:{flex:1,fontSize:11,padding:"8px 10px"}}),
+          React.createElement("input",{className:"inp",type:"password",value:recPass,onChange:function(e){setRecPass(e.target.value)},placeholder:"Password",style:{flex:1,fontSize:11,padding:"8px 10px"}})),
+        React.createElement("div",{style:{display:"flex",gap:6}},
+          React.createElement("button",{onClick:async function(){
+            if(!recUser.trim()||!recPass.trim()){alert("Enter both username and password.");return}
+            localStorage.setItem("wa_rec_user",recUser);localStorage.setItem("wa_rec_pass",recPass);
+            try{
+              var data=JSON.stringify({version:"v22",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
+              var blob=new Blob([encrypted],{type:"application/octet-stream"});
+              var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
+              setShowSaveMenu(false);
+            }catch(e){alert("Backup failed: "+e.message)}
+          },style:{flex:1,background:"rgba(122,184,216,0.08)",border:"1px solid rgba(122,184,216,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--info)",fontFamily:"var(--f)",fontSize:10,fontWeight:600}},"📤 Export Backup"),
+          React.createElement("button",{onClick:function(){
+            if(!recPass.trim()){alert("Enter your password to decrypt.");return}
+            var inp=document.createElement("input");inp.type="file";inp.accept=".wabackup";inp.onchange=async function(ev){
+              var f=ev.target.files[0];if(!f)return;
+              try{
+                var buf=await f.arrayBuffer();var packed=new Uint8Array(buf);
+                var json=await decryptData(packed,((recUser||"").trim()||f.name.replace("watch-advisor-","").replace(".wabackup",""))+"::"+recPass.trim());
+                var d=JSON.parse(json);var imported=[];
+                if(d.watches&&Array.isArray(d.watches)){var mw=d.watches.filter(function(w){return w&&w.id&&w.n}).map(migrateStraps);if(mw.length){setW(mw);ps("w_"+SK,mw);imported.push(mw.length+" watches")}}
+                if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" items")}}
+                if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}
+                if(d.wearLog&&Array.isArray(d.wearLog)){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}
+                if(d.weekCtx)ps("wa_weekctx",d.weekCtx);if(d.userCx)ps("wa_usercx_"+SK,d.userCx);
+                if(d.rotLock)ps("wa_rotlock_"+SK,d.rotLock);if(d.selfieHistory)ps("wa_selfie_"+SK,d.selfieHistory);
+                alert(imported.length?"Restored: "+imported.join(", "):"No valid data found");
+                setShowSaveMenu(false);
+              }catch(e){alert("Restore failed: "+e.message)}
+            };inp.click();
+          },style:{flex:1,background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:10,fontWeight:600}},"📥 Restore")),
+        React.createElement("p",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",marginTop:6,textAlign:"center"}},"AES-256-GCM · PBKDF2 310K · Password never leaves device"))),
+    showSaveMenu&&React.createElement("div",{onClick:function(){setShowSaveMenu(false)},style:{position:"fixed",inset:0,zIndex:89,background:"transparent"}}),
     /* Save Toast */
     showSaveToast&&React.createElement("div",{className:"fu",style:{position:"fixed",bottom:84,right:16,zIndex:91,background:"rgba(122,184,122,0.95)",color:"#fff",borderRadius:10,padding:"10px 18px",fontFamily:"var(--f)",fontSize:12,fontWeight:600,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}},"✓ All changes saved!"),
 
@@ -3494,7 +3550,7 @@ function App(){
           React.createElement("button",{onClick:function(){var nw={id:"c-"+Date.now(),n:"New Watch",t:"genuine",d:"",c:"#5a5a5a",br:true,sc:[],straps:[{type:"bracelet",color:"silver",material:"steel"}],mt:"neutral",i:"⌚",mc:IS_SHARED?autoMatchColors(""):[],ac:[],cx:["casual"],wt:IS_SHARED?["light","mid","heavy"]:["mid"],sg:"",active:true,status:"active"};setW(function(p){var u=p.concat([nw]);ps("w_"+SK,u);return u});setEditW(nw)},style:{background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:20,padding:"8px 16px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"+ Add"),
           React.createElement("button",{onClick:function(){var d=findWatchDupes();setWDupeGroups(d);setShowWDupes(true)},style:{background:"none",border:"1px solid rgba(200,90,58,0.4)",borderRadius:20,padding:"8px 12px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:36}},"🔍 Dupes")),
         /* Hidden file inputs for watch scan */
-        React.createElement("input",{ref:wPhotoRef,type:"file",accept:"image/*",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){scanWatch(e.target.files[0]);e.target.value=""}}}),
+        React.createElement("input",{ref:wPhotoRef,type:"file",accept:"image/*",multiple:true,style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files.length){scanWatch(e.target.files);e.target.value=""}}}),
         React.createElement("input",{ref:wCamRef,type:"file",accept:"image/*",capture:"environment",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){scanWatch(e.target.files[0]);e.target.value=""}}}),
         /* Watch scan loading */
         watchScanLoading&&React.createElement("div",{style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:12,padding:"16px",marginBottom:12,textAlign:"center"}},
@@ -3502,7 +3558,13 @@ function App(){
           React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",color:"var(--gold)"}},"Identifying watch...")),
         /* Watch scan result */
         watchScanResult&&!watchScanLoading&&React.createElement("div",{style:{background:"linear-gradient(135deg,var(--card),var(--card2))",border:"1px solid rgba(201,168,76,0.3)",borderRadius:14,padding:"16px",marginBottom:12}},
-          watchScanResult.error?React.createElement("div",null,
+          watchScanResult.batch?React.createElement("div",null,
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+              React.createElement("span",{style:{fontSize:18}},"✅"),
+              React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--good)",fontWeight:600}},watchScanResult.count+" watches identified & added")),
+            React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}},watchScanResult.watches.map(function(s,i){return React.createElement("span",{key:i,style:{fontSize:10,fontFamily:"var(--f)",background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid var(--border)",color:"var(--sub)"}},s.ai.brand+" "+s.ai.model)})),
+            React.createElement("button",{onClick:function(){setWatchScanResult(null)},className:"btn btn-gold",style:{fontSize:10}},"Done"))
+          :watchScanResult.error?React.createElement("div",null,
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
               React.createElement("span",{style:{fontSize:18}},"⚠️"),
               React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},"Could Not Identify Watch")),
