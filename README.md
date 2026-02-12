@@ -41,6 +41,8 @@ No build step, no npm, no bundler.
 - Hard strap-shoe color enforcement (brown strap → brown shoes, black → black/white)
 - Weather-responsive strap picks (leather avoided in rain, NATO for heat)
 - Watch specs display: reference number, case size (mm), movement on all watch cards
+- Multi-vibe context selection: tap multiple vibes (e.g. Smart Casual + Date)
+- Create mode: 6 slots — base/mid/outer layers + bottoms + shoes + accessory
 - Day/night theme toggle
 - PWA with offline support
 
