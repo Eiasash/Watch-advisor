@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v23.7</title>
+<title>Watch Advisor v23.8</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -203,17 +203,51 @@ function buildGarmentName(color,material,garmentType){
   if(garmentType)parts.push(garmentType);
   return parts.join(" ")||"";
 }
-/* Check if a name looks auto-generated (matches "Color [Material] Type" pattern or is empty) */
+/* Garment type aliases — AI might say "Blazer" instead of "Jacket/Blazer" */
+var _typeAliases={"jacket/blazer":["blazer","jacket","sport coat","sports coat"],"sweater/knit":["sweater","knit","knitwear","jumper","pullover"],"pants/trousers":["trousers","pants","slacks","dress pants"],"t-shirt":["tee","t shirt","tshirt"]};
+function _typeWords(gt){
+  if(!gt)return[];
+  var lc=gt.toLowerCase();
+  var words=[lc];
+  Object.keys(_typeAliases).forEach(function(k){
+    if(k===lc)words=words.concat(_typeAliases[k]);
+    else if(_typeAliases[k].indexOf(lc)>=0)words.push(k);
+    _typeAliases[k].forEach(function(a){if(a===lc)words.push(k)});
+  });
+  return words;
+}
+/* Check if a name looks auto-generated (matches "Color [Material] Type" pattern or is empty).
+   Also detects AI-style names like "Navy Wool Blazer" where Type is an alias. */
 function isAutoName(name,color,material,garmentType){
   if(!name||!name.trim())return true;
-  /* Build all possible auto-names from the current and common field combos */
+  var nm=name.trim().toLowerCase();
+  /* Exact match against buildGarmentName combos */
   var candidates=[
     buildGarmentName(color,material,garmentType),
     buildGarmentName(color,null,garmentType),
     buildGarmentName(color,material,null),
     (color||"")+" "+(garmentType||"")
   ].map(function(s){return s.trim().toLowerCase()});
-  return candidates.indexOf(name.trim().toLowerCase())>=0;
+  if(candidates.indexOf(nm)>=0)return true;
+  /* Fuzzy: also check with type aliases ("Blazer" ↔ "Jacket/Blazer") */
+  var tw=_typeWords(garmentType);
+  for(var i=0;i<tw.length;i++){
+    var alt=[buildGarmentName(color,material,tw[i]),buildGarmentName(color,null,tw[i])].map(function(s){return s.trim().toLowerCase()});
+    if(alt.indexOf(nm)>=0)return true;
+  }
+  /* Pattern: name is just color + optional material + any garment-ish word */
+  if(color&&nm.indexOf(color.toLowerCase())===0){
+    var rest=nm.slice(color.length).trim();
+    if(!rest)return true; /* just the color */
+    /* Check if the remaining text is just material + type or type alone */
+    var matLc=(material||"").toLowerCase();
+    if(matLc&&rest.indexOf(matLc)===0)rest=rest.slice(matLc.length).trim();
+    var gtLc=(garmentType||"").toLowerCase();
+    if(!rest)return true;
+    if(rest===gtLc)return true;
+    if(tw.indexOf(rest)>=0)return true;
+  }
+  return false;
 }
 function smartDefaults(ai){
   var d={};var gt=ai.garmentType;var nm=(ai.name||"").toLowerCase();
@@ -1572,13 +1606,16 @@ function App(){
   const navPushingRef=useRef(false); /* flag to avoid re-entrant pushes from popstate */
   const viewRef=useRef("wardrobe");
   const selFitRef=useRef(null);
+  /* Reactive counter — increments on every nav change so buttons re-render */
+  const[navVer,setNavVer]=useState(0);
+  const canGoBack=navStack.current.length>0;
+  const canGoFwd=navForward.current.length>0;
   const navTo=useCallback(function(newView,newSelFit){
-    /* Push current state onto back stack */
     navStack.current.push({view:viewRef.current,selFit:selFitRef.current});
     navForward.current=[];
     if(!navPushingRef.current){try{window.history.pushState({idx:navStack.current.length},"","")}catch(e){}}
     viewRef.current=newView;selFitRef.current=newSelFit||null;
-    setView(newView);setSelFit(newSelFit||null);
+    setView(newView);setSelFit(newSelFit||null);setNavVer(function(v){return v+1});
   },[]);
   const navBack=useCallback(function(){
     if(!navStack.current.length)return;
@@ -1586,7 +1623,7 @@ function App(){
     var prev=navStack.current.pop();
     navPushingRef.current=true;
     viewRef.current=prev.view;selFitRef.current=prev.selFit||null;
-    setView(prev.view);setSelFit(prev.selFit||null);
+    setView(prev.view);setSelFit(prev.selFit||null);setNavVer(function(v){return v+1});
     navPushingRef.current=false;
   },[]);
   const navFwd=useCallback(function(){
@@ -1596,7 +1633,7 @@ function App(){
     navPushingRef.current=true;
     try{window.history.pushState({idx:navStack.current.length},"","")}catch(e){}
     viewRef.current=next.view;selFitRef.current=next.selFit||null;
-    setView(next.view);setSelFit(next.selFit||null);
+    setView(next.view);setSelFit(next.selFit||null);setNavVer(function(v){return v+1});
     navPushingRef.current=false;
   },[]);
   /* Browser back button support */
@@ -1607,12 +1644,11 @@ function App(){
         var prev=navStack.current.pop();
         navPushingRef.current=true;
         viewRef.current=prev.view;selFitRef.current=prev.selFit||null;
-        setView(prev.view);setSelFit(prev.selFit||null);
+        setView(prev.view);setSelFit(prev.selFit||null);setNavVer(function(v){return v+1});
         navPushingRef.current=false;
       }
     }
     window.addEventListener("popstate",onPop);
-    /* Seed initial history entry so first back doesn't leave the page */
     try{window.history.replaceState({idx:0},"","")}catch(e){}
     return function(){window.removeEventListener("popstate",onPop)};
   },[]);
@@ -2440,7 +2476,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){alert("Enter username and password first.");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v23.7",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v23.8",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2481,7 +2517,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.7",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.8",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -2502,8 +2538,8 @@ function App(){
           React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
             React.createElement("h1",{style:{fontSize:20,fontWeight:300,letterSpacing:"0.14em",color:"var(--gold)"}},"WATCH ADVISOR"),
             /* Back / Forward nav buttons */
-            navStack.current.length>0&&React.createElement("button",{onClick:function(){try{window.history.back()}catch(e){navBack()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontSize:14,minHeight:32,transition:"all .2s cubic-bezier(.22,.68,0,1)",opacity:1},title:"Back"},"‹"),
-            navForward.current.length>0&&React.createElement("button",{onClick:navFwd,style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontSize:14,minHeight:32,transition:"all .2s cubic-bezier(.22,.68,0,1)",opacity:1},title:"Forward"},"›")),
+            canGoBack&&React.createElement("button",{onClick:function(){try{window.history.back()}catch(e){navBack()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontSize:14,minHeight:32,transition:"all .2s cubic-bezier(.22,.68,0,1)",opacity:1},title:"Back"},"‹"),
+            canGoFwd&&React.createElement("button",{onClick:navFwd,style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontSize:14,minHeight:32,transition:"all .2s cubic-bezier(.22,.68,0,1)",opacity:1},title:"Forward"},"›")),
           React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},
             React.createElement("button",{className:"theme-toggle",onClick:function(){var nt=theme==="dark"?"light":"dark";setTheme(nt);ps("wa_theme",nt)},title:theme==="dark"?"Switch to Day mode":"Switch to Night mode"},theme==="dark"?"☀️":"🌙"),
             React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️"))),
@@ -2511,7 +2547,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){if(view!==t.id||selFit)navTo(t.id,null)},style:{background:"none",border:"none",borderBottom:view===t.id&&!selFit?"2px solid var(--gold)":"2px solid transparent",color:view===t.id&&!selFit?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.7"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.8"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
