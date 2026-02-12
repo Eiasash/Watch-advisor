@@ -525,6 +525,28 @@ function migrateStraps(w){
   return Object.assign({},w,{straps:straps});
 }
 const DEFAULTS=IS_SHARED?[]:_OWNER_DEFAULTS.map(migrateStraps);
+const _OWNER_WARDROBE=[
+{id:"ow-blazer-camel",garmentType:"Jacket/Blazer",name:"Camel Wool Blazer",color:"camel",pattern:"solid",active:true,ts:1},
+{id:"ow-hoodie-grey",garmentType:"Sweater/Knit",name:"Grey Zip Hoodie",color:"grey",pattern:"solid",active:true,ts:2},
+{id:"ow-sweater-ltblue",garmentType:"Sweater/Knit",name:"Light Blue Cable Sweater",color:"light blue",pattern:"textured",active:true,ts:3},
+{id:"ow-sweater-black",garmentType:"Sweater/Knit",name:"Black Cable Knit Sweater",color:"black",pattern:"textured",active:true,ts:4},
+{id:"ow-coat-camel",garmentType:"Jacket/Blazer",name:"Camel Wool Coat",color:"camel",pattern:"solid",active:true,ts:5},
+{id:"ow-shirt-plaid-brown",garmentType:"Shirt",name:"Plaid Button Down Shirt",color:"brown",pattern:"plaid",active:true,ts:6},
+{id:"ow-shirt-plaid-blue",garmentType:"Shirt",name:"Blue Plaid Flannel Shirt",color:"blue",pattern:"plaid",active:true,ts:7},
+{id:"ow-cardigan-beige",garmentType:"Sweater/Knit",name:"Beige Ribbed Cardigan",color:"beige",pattern:"textured",active:true,ts:8},
+{id:"ow-shirt-stripe",garmentType:"Shirt",name:"Striped Button-Up Shirt",color:"cream",pattern:"striped",active:true,ts:9},
+{id:"ow-shirt-dot-blue",garmentType:"Shirt",name:"Blue Dotted Dress Shirt",color:"blue",pattern:"print",active:true,ts:10},
+{id:"ow-shirt-plaid-multi",garmentType:"Shirt",name:"Multicolor Plaid Flannel Shirt",color:"cream",pattern:"plaid",active:true,ts:11},
+{id:"ow-cardigan-grey",garmentType:"Jacket/Blazer",name:"Light Grey Knit Cardigan",color:"light grey",pattern:"textured",active:true,ts:12},
+{id:"ow-shirt-dot-cream",garmentType:"Shirt",name:"Cream Dotted Button Shirt",color:"cream",pattern:"print",active:true,ts:13},
+{id:"ow-jeans-dist",garmentType:"Jeans",name:"Distressed Blue Jeans",color:"denim",pattern:"solid",active:true,ts:14},
+{id:"ow-jeans-light",garmentType:"Jeans",name:"Light Wash Denim Jeans",color:"denim",pattern:"solid",active:true,ts:15},
+/* ── ESSENTIALS (photograph these to add photos) ── */
+{id:"ow-shoe-ecco",garmentType:"Shoes",name:"Brown Ecco Lace-ups",color:"brown",pattern:"solid",active:true,ts:16},
+{id:"ow-shoe-white",garmentType:"Shoes",name:"White Sneakers",color:"white",pattern:"solid",active:true,ts:17},
+{id:"ow-shoe-formal",garmentType:"Shoes",name:"Formal Black Shoes",color:"black",pattern:"solid",active:true,ts:18}
+];
+const WD_DEFAULTS=IS_SHARED?[]:_OWNER_WARDROBE;
 
 /* ═══ MARKDOWN WATCH LOG PARSER ═══ */
 function parseWatchLog(mdText, existingWatches){
@@ -1787,6 +1809,7 @@ function App(){
     // Migrate from older versions (v12 first, then older)
     if(!wLoaded){for(var vk of["w_v12","w_v11","w_v9","watches_v8"]){try{var pm=await loadKey(vk);if(pm&&pm.length){var mw=pm.map(function(w){return migrateStraps(Object.assign({size:null,photoUrl:null},w))});setW(mw);ps("w_"+SK,mw);wLoaded=true;break}}catch(e){console.warn("[WA]",e)}}}
     if(!wdLoaded){for(var vk2 of["wd_v12","wd_v11","wd_v9","wd_v8"]){try{var pm2=await loadKey(vk2);if(pm2&&pm2.length){var mg=pm2.map(function(g){return Object.assign({material:null,seasons:[],positionHint:null,lastWorn:null},g)});setWd(mg);ps("wd_"+SK,mg);wdLoaded=true;break}}catch(e){console.warn("[WA]",e)}}}
+    if(!wdLoaded&&WD_DEFAULTS.length){setWd(WD_DEFAULTS);ps("wd_"+SK,WD_DEFAULTS);wdLoaded=true}
     if(!ofLoaded){for(var vk3 of["of_v12","of_v11","of_v9","of_v8"]){try{var pm3=await loadKey(vk3);if(pm3&&pm3.length){setSaved(pm3);ps("of_"+SK,pm3);ofLoaded=true;break}}catch(e){console.warn("[WA]",e)}}}
     // Load API key
     try{var ak=await loadKey("wa_apikey");if(ak){var dk=decryptApiKey(ak);setApiKey(dk);apiKeyRef.current=dk;/* Auto-upgrade plaintext key to encrypted */if(!String(ak).startsWith("ENC:")){ps("wa_apikey",encryptApiKey(dk))}}}catch(e){console.warn("[WA]",e)}
