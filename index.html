@@ -3206,6 +3206,58 @@ function App(){
             React.createElement("div",{style:{textAlign:"center",marginTop:12}},
               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--border)",letterSpacing:"0.2em"}},"WATCH ADVISOR")))),
 
+        /* ── WATCH WEAR STATS ── */
+        (function(){
+          if(!wearLog.length&&!actW.length)return null;
+          var now=Date.now();var d30=now-30*864e5;var d7=now-7*864e5;
+          var last30=wearLog.filter(function(e){return e.ts>d30});
+          var last7=wearLog.filter(function(e){return e.ts>d7});
+          /* Frequency map: watchId → count in last 30 days */
+          var freq={};last30.forEach(function(e){freq[e.watchId]=(freq[e.watchId]||0)+1});
+          /* Last worn map: watchId → most recent timestamp */
+          var lastW={};wearLog.forEach(function(e){if(!lastW[e.watchId]||e.ts>lastW[e.watchId])lastW[e.watchId]=e.ts});
+          /* Build sorted watch stats */
+          var stats=actW.filter(function(w){return w.status==="active"}).map(function(w){
+            var cnt=freq[w.id]||0;var lw=lastW[w.id]||0;var ago=lw?Math.floor((now-lw)/864e5):999;
+            return{id:w.id,n:w.n,i:w.i,c:w.c,t:w.t,d:w.d,cnt:cnt,ago:ago,lw:lw}});
+          stats.sort(function(a,b){return b.cnt-a.cnt});
+          var maxCnt=Math.max.apply(null,stats.map(function(s){return s.cnt}).concat([1]));
+          /* Neglected: active genuine watches not worn in 7+ days */
+          var neglected=stats.filter(function(s){return s.ago>=7&&s.t!=="replica"});
+          /* Current streak: consecutive days with a logged wear */
+          var streak=0;var sd=new Date();sd.setHours(0,0,0,0);
+          for(var si=0;si<60;si++){var ds=new Date(sd.getTime()-si*864e5).toISOString().slice(0,10);if(wearLog.some(function(e){return e.date===ds}))streak++;else break}
+          return React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
+              React.createElement("span",{style:{fontSize:20}},"📊"),
+              React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"Wear Stats")),
+            /* Summary row */
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}},
+              [{v:last30.length,l:"This Month",i:"📅"},{v:last7.length,l:"This Week",i:"🗓️"},{v:streak,l:"Day Streak",i:"🔥"}].map(function(st){
+                return React.createElement("div",{key:st.l,style:{background:"var(--bg)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid var(--border)"}},
+                  React.createElement("div",{style:{fontSize:22,fontFamily:"var(--f)",fontWeight:700,color:"var(--gold)"}},st.v),
+                  React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginTop:2}},st.i+" "+st.l))})),
+            /* Frequency bars */
+            React.createElement("div",{style:{marginBottom:neglected.length?12:0}},
+              stats.slice(0,12).map(function(s){
+                var pct=maxCnt>0?Math.round(s.cnt/maxCnt*100):0;
+                var agoLabel=s.ago===0?"today":s.ago===1?"yesterday":s.ago<999?s.ago+"d ago":"never";
+                var barColor=s.cnt>=6?"var(--good)":s.cnt>=3?"var(--gold)":"var(--warn)";
+                return React.createElement("div",{key:s.id,style:{display:"flex",alignItems:"center",gap:8,marginBottom:5}},
+                  React.createElement("span",{style:{fontSize:14,width:20,textAlign:"center",flexShrink:0}},s.i),
+                  React.createElement("div",{style:{width:70,fontSize:9,fontFamily:"var(--f)",color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0}},s.n),
+                  React.createElement("div",{style:{flex:1,height:12,background:"var(--bg)",borderRadius:6,overflow:"hidden",border:"1px solid var(--border)"}},
+                    React.createElement("div",{style:{width:Math.max(pct,2)+"%",height:"100%",background:barColor,borderRadius:6,transition:"width 0.3s"}})),
+                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,minWidth:16,textAlign:"right",flexShrink:0}},s.cnt),
+                  React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:s.ago>=7?"var(--warn)":"var(--dim)",minWidth:42,textAlign:"right",flexShrink:0}},agoLabel))})),
+            /* Neglected watches alert */
+            neglected.length>0&&React.createElement("div",{style:{background:"rgba(200,90,58,0.06)",border:"1px solid rgba(200,90,58,0.15)",borderRadius:10,padding:"10px 12px"}},
+              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:6}},"⏰ Neglected — "+neglected.length+" watch"+(neglected.length>1?"es":"")+" not worn in 7+ days"),
+              React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+                neglected.slice(0,6).map(function(s){
+                  return React.createElement("span",{key:s.id,style:{display:"inline-flex",alignItems:"center",gap:4,fontSize:9,fontFamily:"var(--f)",color:"var(--text)",background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid var(--border)"}},
+                    React.createElement("span",{style:{fontSize:12}},s.i),s.n+" ("+s.ago+"d)")}))))})(),
+
         /* ── AI STYLE COACH ── */
         React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
           React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
