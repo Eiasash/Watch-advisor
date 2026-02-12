@@ -19,7 +19,7 @@ No build step, no npm, no bundler.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v22
+## Current Version: v23
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -30,10 +30,10 @@ No build step, no npm, no bundler.
 - AI Occasion Planner — event-specific outfit recommendations
 - Wear Stats Dashboard — 30/60/90 day views, per-watch bars, genuine/replica split, neglected watch alerts
 - Strap-Specific Logging — per-strap wear tracking with condition estimates
-- Wear History Search — filterable chronological log
+- Wear History Search — filterable chronological log (365-day retention)
 - Dial Color Heatmap — 7-day strip with consecutive-color warnings
 - Seasonal Presets — save/load/delete watch lineups
-- Outfit Builder — 5-slot layered outfit creation with AI critique
+- **🧱 Dynamic Outfit Builder** — unlimited renameable layer slots (add/remove/rename layers freely), no 3-slot limit
 - Weekly rotation planner with lock/swap
 - Wardrobe management with photo upload and AI color classification
 - Genuine/replica context scoring (genuine bonus for clinic, replica safe for casual)
@@ -42,7 +42,8 @@ No build step, no npm, no bundler.
 - Weather-responsive strap picks (leather avoided in rain, NATO for heat)
 - Watch specs display: reference number, case size (mm), movement on all watch cards
 - Multi-vibe context selection: tap multiple vibes (e.g. Smart Casual + Date)
-- Create mode: 6 slots — base/mid/outer layers + bottoms + shoes + accessory
+- React Error Boundary — graceful crash recovery instead of white screen
+- Network-first service worker — always serves latest version
 - Day/night theme toggle
 - PWA with offline support
 
@@ -50,7 +51,8 @@ No build step, no npm, no bundler.
 
 | Version | Changes |
 |---------|---------|
-| **v22** | Full audit: QuotaExceeded handling, scoreW freshness fix, WCard badge fix, export/import selfieHistory+rotLock+theme, color_story in outfit critique. Watch specs (ref/size/mvmt) on all 24 pieces, enhanced AI watch detection with ref numbers, strap_call+better_watch in selfie results |
+| **v23** | 🧱 **Dynamic layers**: unlimited renameable upper-body slots in Build mode (replaces fixed BASE/MID/OUTER). 🛡️ Error boundary: crash → reload button instead of white screen. 🔧 Service worker rewrite: network-first for HTML (fixes stale cache). 📱 Manifest icon fix: split any/maskable purpose. 🏔️→🔺 Alpine Eagle replica emoji deconflict. 🚫 Brown Loafers→Lace-ups in presets. 📊 Wear log retention 90d→365d for seasonal analysis. |
+| **v22** | Full audit: QuotaExceeded handling, scoreW freshness fix, WCard badge fix, export/import selfieHistory+rotLock+theme. Watch specs (ref/size/mvmt) on all 24 pieces, enhanced AI watch detection with ref numbers, strap_call+better_watch in selfie results |
 | **v21** | 📸 Selfie Check: front camera, rear camera, gallery upload → AI vision identifies items + watch, scores impact 1-10, critique with upgrade/strap/better-watch suggestions, save history with photos |
 | **v20** | Wear Stats Dashboard (30/60/90d), strap-specific logging, wear history search, dial color heatmap, seasonal presets, insight sub-tabs |
 | **v19.2** | Explicit straps[] arrays for all 24 watches (40 straps) |

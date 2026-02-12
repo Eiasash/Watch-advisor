@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v22</title>
+<title>Watch Advisor v23</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -270,7 +270,7 @@ const GARMENT_PRESETS=[
 {garmentType:"Polo",name:"White Polo",color:"white",pattern:"solid"},
 {garmentType:"Sweater/Knit",name:"Grey Sweater",color:"grey",pattern:"solid"},
 {garmentType:"Jacket/Blazer",name:"Navy Blazer",color:"navy",pattern:"solid"},
-{garmentType:"Shoes",name:"Brown Loafers",color:"brown",pattern:"solid"},
+{garmentType:"Shoes",name:"Brown Lace-ups",color:"brown",pattern:"solid"},
 ];
 function autoMatchColors(dialColor){
   var dc=(dialColor||"").toLowerCase().trim();
@@ -356,7 +356,7 @@ const _OWNER_DEFAULTS=[
 ],mt:"cool",i:"◻️",mc:["white","light blue","cream","grey"],ac:[],cx:["clinic","smart-casual"],sg:"Universal.",wt:["light","mid"],active:true,status:"active",size:35},
 {id:"alpine-red",n:"Chopard Alpine",t:"replica",d:"Red",c:"#b83a3a",straps:[
   {type:"bracelet",color:"rose gold",material:"steel"}
-],mt:"warm",i:"🏔️",mc:["black","cream","burgundy","charcoal","white"],ac:["cool blues"],cx:["date","flex","riviera"],sg:"Rose gold. Black anchors.",wt:["light","mid"],active:true,status:"active",size:41},
+],mt:"warm",i:"🔺",mc:["black","cream","burgundy","charcoal","white"],ac:["cool blues"],cx:["date","flex","riviera"],sg:"Rose gold. Black anchors.",wt:["light","mid"],active:true,status:"active",size:41},
 {id:"ap-roc",n:"AP Royal Oak",t:"replica",d:"Green",c:"#1a5a2a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
 ],mt:"cool",i:"🟢",mc:["dark green","cream","white","olive","black","navy"],ac:["close greens"],cx:["smart-casual","flex","date"],sg:"Dark makes green pop.",wt:["mid","heavy"],active:true,status:"active",size:41},
@@ -1426,6 +1426,21 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
 }
 
 /* ══════ APP ══════ */
+/* ══════ ERROR BOUNDARY ══════ */
+class ErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={hasError:false,error:null}}
+  static getDerivedStateFromError(error){return{hasError:true,error:error}}
+  componentDidCatch(error,info){console.error("WatchAdvisor crashed:",error,info)}
+  render(){
+    if(this.state.hasError)return React.createElement("div",{style:{padding:40,textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#c9a84c",background:"#12101a",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}},
+      React.createElement("div",{style:{fontSize:48,marginBottom:16}},"⚠️"),
+      React.createElement("h2",{style:{margin:"0 0 12px",fontSize:18}},"Something went wrong"),
+      React.createElement("p",{style:{color:"#999",fontSize:12,marginBottom:16,maxWidth:300}},String(this.state.error&&this.state.error.message||"Unknown error").slice(0,200)),
+      React.createElement("button",{onClick:function(){window.location.reload()},style:{background:"linear-gradient(135deg,#c9a84c,#a8882a)",border:"none",borderRadius:10,padding:"12px 28px",cursor:"pointer",color:"#12101a",fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700}},"🔄 Reload App"));
+    return this.props.children;
+  }
+}
+
 function App(){
   const[W,setW]=useState(DEFAULTS);
   const[wd,setWd]=useState([]);
@@ -1450,9 +1465,9 @@ function App(){
   const[shuffleKey,setShuffleKey]=useState(0);
   const[fitCount,setFitCount]=useState(12);
   const[buildSlot,setBuildSlot]=useState(null);
-  const[bTop,setBTop]=useState(null);
-  const[bMid,setBMid]=useState(null);
-  const[bOuter,setBOuter]=useState(null);
+  /* Dynamic layers — unlimited, renameable upper-body slots */
+  const[buildLayers,setBuildLayers]=useState([{id:1,label:"BASE",item:null}]);
+  const nextLayerId=useRef(2);
   const[bBot,setBBot]=useState(null);
   const[bShoe,setBShoe]=useState(null);
   const[bAcc,setBAcc]=useState(null);
@@ -1570,7 +1585,7 @@ function App(){
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"&&w.status!=="pending-trade"&&w.status!=="incoming"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"}),accessories:wd.filter(function(i){return catOf(i.garmentType)==="accessories"||catOf(i.garmentType)==="other"})}},[wd]);
   const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
-  const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe,bAcc].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,bAcc,actW,effectiveCtx,reps,planWx,planTemp]);
+  const buildFit=useMemo(function(){var layerItems=buildLayers.map(function(l){return l.item}).filter(Boolean);var items=layerItems.concat([bBot,bShoe,bAcc]).filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[buildLayers,bBot,bShoe,bAcc,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
   const findDuplicates=useCallback(function(){
@@ -1679,8 +1694,8 @@ function App(){
     setWearLog(function(p){
       /* Remove existing entry for same date, then add new */
       var n=p.filter(function(e){return e.date!==dateStr}).concat([{date:dateStr,watchId:watchId,ts:Date.now()}]);
-      /* Keep last 90 days only */
-      var cutoff=Date.now()-90*24*60*60*1000;
+      /* Keep last 365 days for seasonal analysis */
+      var cutoff=Date.now()-365*24*60*60*1000;
       n=n.filter(function(e){return e.ts>cutoff});
       ps("wa_wearlog_"+SK,n);return n;
     });
@@ -2195,7 +2210,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){alert("Enter username and password first.");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v22",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v23",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2236,7 +2251,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v22",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -2257,7 +2272,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v22"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -2392,18 +2407,31 @@ function App(){
 
         /* BUILD */
         mode==="build"&&React.createElement("div",null,
-          /* Top row: 3 top layer slots */
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}},
-            [{slot:"top",l:"BASE",sub:"T-Shirt / Shirt",val:bTop,set:setBTop},{slot:"mid",l:"MID",sub:"Sweater / Knit",val:bMid,set:setBMid},{slot:"outer",l:"OUTER",sub:"Jacket / Blazer",val:bOuter,set:setBOuter}].map(function(o){
-              return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)}},
-                o.val?React.createElement(React.Fragment,null,
-                  o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
-                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
-                  React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
-                :React.createElement(React.Fragment,null,
-                  React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
-                  React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
-                  React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
+          /* ═══ DYNAMIC UPPER LAYERS — unlimited, renameable ═══ */
+          React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8,marginBottom:8}},
+            /* Section label */
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,letterSpacing:"0.15em"}},"LAYERS"),
+              React.createElement("div",{style:{display:"flex",gap:6}},
+                buildLayers.length>1&&React.createElement("button",{onClick:function(){setBuildLayers([{id:1,label:"BASE",item:null}]);nextLayerId.current=2;setBuildSlot(null);setBuildAiCritique(null)},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:6,padding:"3px 8px",cursor:"pointer",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:8,minHeight:22}},"✕ Clear all"),
+                React.createElement("button",{onClick:function(){var nid=nextLayerId.current++;var defaultLabels=["BASE","MID","OUTER","SHELL","LAYER "+nid];var lbl=defaultLabels[buildLayers.length]||"LAYER "+nid;setBuildLayers(function(p){return p.concat([{id:nid,label:lbl,item:null}])})},style:{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"3px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:8,fontWeight:600,minHeight:22}},"+ Add Layer"))),
+            /* Layer slots grid — responsive: 3 cols if ≤3, else wrapping */
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:buildLayers.length<=3?"repeat("+buildLayers.length+",1fr)":"repeat(auto-fill,minmax(90px,1fr))",gap:8}},
+              buildLayers.map(function(layer,li){
+                var slotId="layer-"+layer.id;
+                return React.createElement("div",{key:layer.id,className:"outfit-slot "+(layer.item?"filled":"")+" "+(buildSlot===slotId?"active":""),onClick:function(){setBuildSlot(buildSlot===slotId?null:slotId)},style:{position:"relative"}},
+                  layer.item?React.createElement(React.Fragment,null,
+                    layer.item.photoUrl?React.createElement("img",{src:layer.item.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:layer.item.color,size:18}),
+                    React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},layer.item.name||layer.item.color),
+                    React.createElement("div",{style:{display:"flex",gap:2,justifyContent:"center"}},
+                      React.createElement("button",{onClick:function(e){e.stopPropagation();setBuildLayers(function(p){return p.map(function(l){return l.id===layer.id?Object.assign({},l,{item:null}):l})});setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",minHeight:20}},"✕"),
+                      buildLayers.length>1&&React.createElement("button",{onClick:function(e){e.stopPropagation();setBuildLayers(function(p){return p.filter(function(l){return l.id!==layer.id})});if(buildSlot===slotId)setBuildSlot(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--del-text)",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",minHeight:20}},"🗑️")))
+                  :React.createElement(React.Fragment,null,
+                    /* Editable label — tap to rename */
+                    React.createElement("input",{value:layer.label,onClick:function(e){e.stopPropagation()},onChange:function(e){var newLabel=e.target.value.toUpperCase().slice(0,12);setBuildLayers(function(p){return p.map(function(l){return l.id===layer.id?Object.assign({},l,{label:newLabel}):l})})},style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em",background:"transparent",border:"none",textAlign:"center",width:"100%",cursor:"text",outline:"none",padding:0},maxLength:12}),
+                    React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
+                    React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},li===0?"T-Shirt / Shirt":"Any top layer"),
+                    buildLayers.length>1&&React.createElement("button",{onClick:function(e){e.stopPropagation();setBuildLayers(function(p){return p.filter(function(l){return l.id!==layer.id})});if(buildSlot===slotId)setBuildSlot(null)},style:{background:"none",border:"none",color:"var(--del-text)",fontSize:7,fontFamily:"var(--f)",cursor:"pointer",minHeight:16,marginTop:2}},"remove")))}))),
           /* Bottom row: bottoms + shoes */
           React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}},
             [{slot:"bot",l:"BOTTOM",sub:"Pants / Jeans",val:bBot,set:setBBot},{slot:"shoe",l:"SHOES",sub:"Footwear",val:bShoe,set:setBShoe}].map(function(o){
@@ -2430,16 +2458,21 @@ function App(){
                   React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
 
           buildSlot&&(function(){
-            var cat=buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"?"tops":buildSlot==="bot"?"bottoms":buildSlot==="acc"?"accessories":"shoes";
-            /* Filter items by garment type for layer slots */
+            /* Determine category and setter based on slot type */
+            var isLayer=buildSlot.startsWith("layer-");
+            var cat=isLayer?"tops":buildSlot==="bot"?"bottoms":buildSlot==="acc"?"accessories":"shoes";
             var items=byCat[cat].filter(function(i){return i.color&&!i.needsEdit});
-            if(buildSlot==="top")items=items.filter(function(i){return["Shirt","Polo","T-Shirt"].includes(i.garmentType)});
-            if(buildSlot==="mid")items=items.filter(function(i){return["Sweater/Knit","Shirt","Polo"].includes(i.garmentType)});
-            if(buildSlot==="outer")items=items.filter(function(i){return["Jacket/Blazer","Sweater/Knit"].includes(i.garmentType)});
-            /* Fallback: if no items match the layer filter, show all tops */
-            if(!items.length&&(buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"))items=byCat.tops.filter(function(i){return i.color&&!i.needsEdit});
-            var setter=buildSlot==="top"?setBTop:buildSlot==="mid"?setBMid:buildSlot==="outer"?setBOuter:buildSlot==="bot"?setBBot:buildSlot==="acc"?setBAcc:setBShoe;
-            var pickLabel=buildSlot==="top"?"a base layer":buildSlot==="mid"?"a mid layer":buildSlot==="outer"?"an outer layer":buildSlot==="bot"?"bottoms":buildSlot==="acc"?"an accessory":"shoes";
+            /* For layers: show all tops, no restrictive filtering — full flexibility */
+            var setter;var pickLabel;
+            if(isLayer){
+              var layerId=parseInt(buildSlot.split("-")[1]);
+              setter=function(item){setBuildLayers(function(p){return p.map(function(l){return l.id===layerId?Object.assign({},l,{item:item}):l})})};
+              var layerObj=buildLayers.find(function(l){return l.id===layerId});
+              pickLabel=(layerObj?layerObj.label.toLowerCase():"a")+" layer piece";
+            }else{
+              setter=buildSlot==="bot"?setBBot:buildSlot==="acc"?setBAcc:setBShoe;
+              pickLabel=buildSlot==="bot"?"bottoms":buildSlot==="acc"?"an accessory":"shoes";
+            }
             return React.createElement("div",{className:"fu",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px",marginBottom:16}},
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+pickLabel),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
@@ -2474,10 +2507,10 @@ function App(){
             (function(){var selW=buildWatch||((buildFit.watches&&buildFit.watches[0])?buildFit.watches[0]:null);return React.createElement("div",{style:{display:"flex",justifyContent:"center",marginTop:14,marginBottom:8}},
               React.createElement(OutfitFigure,{topColor:buildFit.outerTop?buildFit.outerTop.color:buildFit.top?buildFit.top.color:"grey",botColor:buildFit.bot?buildFit.bot.color:"charcoal",shoeColor:buildFit.shoe?buildFit.shoe.color:"black",watchColor:selW?selW.c:"#c9a84c",watchIcon:selW?selW.i:"⌚",watchName:selW?selW.n:"",size:120}))})(),
             /* Layers summary */
-            buildFit.tops&&buildFit.tops.length>1&&React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:6,marginBottom:8}},
-              buildFit.tops.map(function(t,ti){return React.createElement("div",{key:ti,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"3px 8px",border:"1px solid var(--border)"}},
+            buildFit.tops&&buildFit.tops.length>1&&React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:6,marginBottom:8,flexWrap:"wrap"}},
+              buildFit.tops.map(function(t,ti){var layerLabel=buildLayers[ti]?buildLayers[ti].label:(ti===0?"Base":"L"+(ti+1));return React.createElement("div",{key:ti,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"3px 8px",border:"1px solid var(--border)"}},
                 t.photoUrl?React.createElement("img",{src:t.photoUrl,alt:"",style:{width:16,height:16,objectFit:"cover",borderRadius:3}}):React.createElement(Dot,{color:t.color,size:6}),
-                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)"}},ti===0?"Base":ti===1&&buildFit.tops.length===2?"Outer":"L"+(ti+1)),
+                React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)"}},layerLabel),
                 React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--text)"}},t.name||t.color))})),
             /* AI Critique for custom build */
             buildAiCritique&&React.createElement("div",{className:"fu",style:{background:"rgba(201,168,76,0.04)",borderRadius:12,padding:"14px",marginTop:10,border:"1px solid rgba(201,168,76,0.2)"}},
@@ -2496,7 +2529,7 @@ function App(){
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
               React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8,fontSize:10},onClick:function(){setBuildAiCritique(null)}},"↻ Re-analyze")))
-          :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to build your outfit — use layers for sweater + jacket combos")),
+          :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to build your outfit — use \"+Add Layer\" for sweater + jacket combos")),
 
         /* SELFIE CHECK */
         mode==="selfie"&&React.createElement("div",null,
@@ -3578,7 +3611,7 @@ function App(){
           React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},(o.watches||[]).slice(0,3).map(function(w,i){return React.createElement("div",{key:w.id||i,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:i===0?"1px solid rgba(201,168,76,0.2)":"1px solid var(--border)"}},React.createElement("span",{style:{fontSize:12}},w.i),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:i===0?"var(--gold)":"var(--sub)"}},w.n))})))})))
   );
 }
-ReactDOM.render(React.createElement(App),document.getElementById("root"));
+ReactDOM.render(React.createElement(ErrorBoundary,null,React.createElement(App)),document.getElementById("root"));
 </script>
 <script>
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(function(e){console.log('SW reg failed:',e)})}
