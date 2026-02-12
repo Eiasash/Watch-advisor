@@ -1,4 +1,4 @@
-const CACHE='wa-v23';
+const CACHE='wa-v23.2';
 /* Install: skip waiting to activate immediately */
 self.addEventListener('install',e=>{self.skipWaiting()});
 /* Activate: purge old caches, claim all clients */
