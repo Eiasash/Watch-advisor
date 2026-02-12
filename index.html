@@ -161,9 +161,9 @@ const SHARE_DEFAULT_CX=[
 {id:"weekend",l:"Weekend",icon:"🛒"},{id:"flex",l:"Flex",icon:"💎"},{id:"travel",l:"Travel",icon:"✈️"},{id:"event",l:"Event",icon:"🎭"}];
 var ALL_CX=DEFAULT_CX.map(function(c){return c.id});
 var CXI={};DEFAULT_CX.forEach(function(c){CXI[c.id]=c.icon});
-const CATS={tops:["Shirt","Polo","T-Shirt","Sweater/Knit","Jacket/Blazer"],bottoms:["Pants/Trousers","Chinos","Jeans","Shorts"],shoes:["Shoes"]};
-const ALL_T=[...CATS.tops,...CATS.bottoms,...CATS.shoes];
-const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":"other";
+const CATS={tops:["Shirt","Polo","T-Shirt","Sweater/Knit","Jacket/Blazer"],bottoms:["Pants/Trousers","Chinos","Jeans","Shorts"],shoes:["Shoes"],accessories:["Hat","Scarf","Belt","Bag","Sunglasses","Accessory"]};
+const ALL_T=[...CATS.tops,...CATS.bottoms,...CATS.shoes,...CATS.accessories];
+const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":CATS.accessories.includes(g)?"accessories":"other";
 const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜"];
 const STRAP_TYPES=[
 {id:"bracelet",l:"Bracelet",icon:"⛓️",mats:["steel","titanium","gold","rose gold","ceramic"]},
@@ -705,6 +705,8 @@ function compat(c1,c2){
 function scoreW(w,items,ctx,reps,opts){
   if(!w.active||w.status==="sold"||w.status==="service")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+  /* Multi-ctx support: ctx can be string or array */
+  var _ctxArr=Array.isArray(ctx)?ctx:[ctx];var _ctxPri=_ctxArr[0]||"smart-casual";var _ctxSet=new Set(_ctxArr);
   var _o=opts||{};var wearLog=_o.wearLog||[];
   let s=0;const bd={ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   const ic=items.filter(i=>i.color).map(i=>i.color.toLowerCase().trim());
@@ -712,11 +714,18 @@ function scoreW(w,items,ctx,reps,opts){
   const sc=shoe&&shoe.color?shoe.color.toLowerCase().trim():null;
   /* ══ UPGRADE: Formality tier scoring (gradient, not binary) ══ */
   var FORM_TIERS={formal:["reverso","sbgw267","santos-lg","santos-oct","santos-rep"],event:["reverso","sbgw267","santos-lg","santos-oct","santos-rep","laureato","speedy","monaco","gmt"],clinic:["snowflake","rikka","sbgw267","santos-lg","reverso","bb41","speedy"],date:["santos-lg","reverso","laureato","rikka","snowflake","monaco","speedy"]};
-  var tierList=FORM_TIERS[ctx];
-  if(ctx&&w.cx&&w.cx.includes(ctx)){
-    if(tierList&&tierList.includes(w.id)){s+=5;bd.ctx=5}
-    else{s+=3;bd.ctx=3}
-  }else if(tierList&&tierList.includes(w.id)){s+=2;bd.ctx=2}
+  /* Score against ALL selected contexts, take best match */
+  var _bestCxScore=0;
+  _ctxArr.forEach(function(_cx){
+    var tierList=FORM_TIERS[_cx];
+    var _cxS=0;
+    if(_cx&&w.cx&&w.cx.includes(_cx)){
+      if(tierList&&tierList.includes(w.id)){_cxS=5}
+      else{_cxS=3}
+    }else if(tierList&&tierList.includes(w.id)){_cxS=2}
+    if(_cxS>_bestCxScore)_bestCxScore=_cxS;
+  });
+  s+=_bestCxScore;bd.ctx=_bestCxScore;
   for(const c of ic){
     if(!c)continue;
     let matched=false;
@@ -750,8 +759,8 @@ function scoreW(w,items,ctx,reps,opts){
   }
   if(w.br){s+=1;bd.br=1}
   /* Strap type × context fitness */
-  if(ctx&&w.straps&&w.straps.length){
-    var ctxMap=STRAP_CTX[ctx]||{};
+  if(_ctxPri&&w.straps&&w.straps.length){
+    var ctxMap=STRAP_CTX[_ctxPri]||{};
     var bestStrapFit=Math.max.apply(null,w.straps.map(function(st){return ctxMap[st.type]||0}));
     if(bestStrapFit>0){s+=Math.min(bestStrapFit,2);bd.strap+=Math.min(bestStrapFit,2)}
     else if(bestStrapFit<0&&w.straps.length===1){s+=bestStrapFit;bd.strap+=bestStrapFit}
@@ -759,12 +768,12 @@ function scoreW(w,items,ctx,reps,opts){
   /* Watch size × context scoring */
   var sz=w.size?parseInt(w.size):0;
   if(sz>0){
-    if((ctx==="formal"||ctx==="clinic")&&sz>=43){s-=1;bd.ctx-=1}
-    if((ctx==="formal"||ctx==="clinic")&&sz<=39){s+=0.5;bd.ctx+=0.5}
-    if(ctx==="date"&&sz<=37){s+=0.5;bd.ctx+=0.5}
-    if(ctx==="date"&&sz>=44){s-=0.5;bd.ctx-=0.5}
-    if((ctx==="casual"||ctx==="weekend")&&sz>=44){s+=0.5;bd.ctx+=0.5}
-    if(ctx==="riviera"&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
+    if((_ctxSet.has("formal")||_ctxSet.has("clinic"))&&sz>=43){s-=1;bd.ctx-=1}
+    if((_ctxSet.has("formal")||_ctxSet.has("clinic"))&&sz<=39){s+=0.5;bd.ctx+=0.5}
+    if(_ctxSet.has("date")&&sz<=37){s+=0.5;bd.ctx+=0.5}
+    if(_ctxSet.has("date")&&sz>=44){s-=0.5;bd.ctx-=0.5}
+    if((_ctxSet.has("casual")||_ctxSet.has("weekend"))&&sz>=44){s+=0.5;bd.ctx+=0.5}
+    if(_ctxSet.has("riviera")&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
   }
   /* Material harmony */
   if(!w.br&&shoe){
@@ -774,7 +783,7 @@ function scoreW(w,items,ctx,reps,opts){
   }
   /* Formality: penalize dressy watches with very casual items */
   var hasCasualItem=items.some(function(it){return it.garmentType==="T-Shirt"||it.garmentType==="Shorts"});
-  var isFormalCtx=ctx==="formal"||ctx==="event";
+  var isFormalCtx=_ctxSet.has("formal")||_ctxSet.has("event");
   if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
   /* ══ UPGRADE: Rotation freshness — recently worn = score penalty ══ */
   if(wearLog&&wearLog.length){
@@ -790,8 +799,8 @@ function scoreW(w,items,ctx,reps,opts){
   }
   /* ══ UPGRADE: Genuine/replica context bonus ══ */
   var _authCtx=["formal","event","clinic","date"];
-  if(w.t==="genuine"&&_authCtx.includes(ctx)){s+=1.5;bd.auth=1.5}
-  if(w.t==="replica"&&(ctx==="casual"||ctx==="weekend"||ctx==="riviera")){s+=0.5;bd.auth=0.5}
+  if(w.t==="genuine"&&_authCtx.some(function(a){return _ctxSet.has(a)})){s+=1.5;bd.auth=1.5}
+  if(w.t==="replica"&&(_ctxSet.has("casual")||_ctxSet.has("weekend")||_ctxSet.has("riviera"))){s+=0.5;bd.auth=0.5}
   return{total:s,...bd};
 }
 function strapRec(w,items,ctx,wxOpts){
@@ -807,7 +816,7 @@ function strapRec(w,items,ctx,wxOpts){
     var shoe=items.find(function(i){return i.garmentType==="Shoes"});
     var sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
     var sm=(shoe&&(shoe.material||shoe.name)||"").toLowerCase();
-    var ctxMap=STRAP_CTX[ctx]||{};
+    var _ctxPri2=Array.isArray(ctx)?ctx[0]||"smart-casual":ctx;var ctxMap=STRAP_CTX[_ctxPri2]||{};
     var scored=w.straps.map(function(st){
       var pts=ctxMap[st.type]||0;
       var stc=st.color?st.color.toLowerCase():"";
@@ -1061,7 +1070,7 @@ async function aiID(b64,mime,apiKey){
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,
-        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"Identify ALL distinct clothing items visible in this photo for a luxury wardrobe management app.\n\nRules:\n1. If a FULL OUTFIT is shown (person wearing top+bottom+shoes), return EACH as a separate item.\n2. If photo shows a single garment laid flat or folded, return just one item.\n3. If multiple garments are layered (e.g. blazer over shirt), identify each distinct layer.\n4. If multiple garments are stacked/folded together, identify each distinct one.\n5. For each item, note its position in the frame (e.g. 'top half','bottom half','left','right','center','full frame','layered front','layered back').\n6. Include shoes if visible.\n7. Maximum 5 items per photo.\n8. Detect fabric/material where possible (cotton, wool, linen, denim, leather, silk, cashmere, knit, corduroy, tweed, fleece, suede, canvas, nylon, chino, synthetic).\n9. COLOR ACCURACY IS CRITICAL: Look carefully at the actual garment color. Distinguish between navy vs black, charcoal vs grey, cream vs white, olive vs sage, burgundy vs brown, tan vs beige vs camel, etc. If a color is between two options, pick the closest match.\n10. For patterns: 'textured' means visible weave/knit texture but no distinct pattern. 'print' means graphic/floral/abstract. Be specific.\n\nReturn ONLY a JSON ARRAY, no markdown:\n[{\"garmentType\":\"Shirt\"|\"Polo\"|\"T-Shirt\"|\"Sweater/Knit\"|\"Jacket/Blazer\"|\"Pants/Trousers\"|\"Chinos\"|\"Jeans\"|\"Shorts\"|\"Shoes\",\"name\":\"2-4 word descriptive name (e.g. 'Navy Wool Blazer', 'White Oxford Shirt')\",\"color\":\"one from: "+AC.join(",")+"\",\"pattern\":\"solid\"|\"plaid\"|\"striped\"|\"checked\"|\"print\"|\"textured\",\"material\":\"detected fabric type or null\",\"position\":\"where in frame\",\"season_hint\":\"all-season\"|\"warm-weather\"|\"cold-weather\"|\"transitional\"}]\nPick the single dominant color per item. If only ONE item is visible, still return an array with one element."}]}]})});
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"Identify ALL distinct clothing items visible in this photo for a luxury wardrobe management app.\n\nRules:\n1. If a FULL OUTFIT is shown (person wearing top+bottom+shoes), return EACH as a separate item.\n2. If photo shows a single garment laid flat or folded, return just one item.\n3. If multiple garments are layered (e.g. blazer over shirt), identify each distinct layer.\n4. If multiple garments are stacked/folded together, identify each distinct one.\n5. For each item, note its position in the frame (e.g. 'top half','bottom half','left','right','center','full frame','layered front','layered back').\n6. Include shoes if visible.\n7. Maximum 5 items per photo.\n8. Detect fabric/material where possible (cotton, wool, linen, denim, leather, silk, cashmere, knit, corduroy, tweed, fleece, suede, canvas, nylon, chino, synthetic).\n9. COLOR ACCURACY IS CRITICAL: Look carefully at the actual garment color. Distinguish between navy vs black, charcoal vs grey, cream vs white, olive vs sage, burgundy vs brown, tan vs beige vs camel, etc. If a color is between two options, pick the closest match.\n10. For patterns: 'textured' means visible weave/knit texture but no distinct pattern. 'print' means graphic/floral/abstract. Be specific.\n\nReturn ONLY a JSON ARRAY, no markdown:\n[{\"garmentType\":\"Shirt\"|\"Polo\"|\"T-Shirt\"|\"Sweater/Knit\"|\"Jacket/Blazer\"|\"Pants/Trousers\"|\"Chinos\"|\"Jeans\"|\"Shorts\"|\"Shoes\"|\"Hat\"|\"Scarf\"|\"Belt\"|\"Bag\"|\"Sunglasses\"|\"Accessory\",\"name\":\"2-4 word descriptive name (e.g. 'Navy Wool Blazer', 'White Oxford Shirt')\",\"color\":\"one from: "+AC.join(",")+"\",\"pattern\":\"solid\"|\"plaid\"|\"striped\"|\"checked\"|\"print\"|\"textured\",\"material\":\"detected fabric type or null\",\"position\":\"where in frame\",\"season_hint\":\"all-season\"|\"warm-weather\"|\"cold-weather\"|\"transitional\"}]\nPick the single dominant color per item. If only ONE item is visible, still return an array with one element."}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     var p=JSON.parse(txt);
@@ -1084,7 +1093,7 @@ async function aiVision(fit,watch,ctx,apiKey){
   if(bot)prompt+="- Bottom: "+bot.color+" "+(bot.pattern||"solid")+" "+(bot.garmentType||"")+(bot.name?" ("+bot.name+")":"")+(bot.material?" ["+bot.material+"]":"")+"\n";
   if(shoe)prompt+="- Shoes: "+shoe.color+" "+(shoe.name||shoe.garmentType||"shoes")+(shoe.material?" ["+shoe.material+"]":"")+"\n";
   prompt+="- Watch: "+watch.n+" — "+watch.d+" dial, "+(watch.straps&&watch.straps.length?watch.straps.map(function(s){return s.type+(s.material?" ("+s.material+")":"")+(s.color&&s.type!=="bracelet"?" in "+s.color:"")}).join(" + "):watch.br?"steel bracelet":"leather strap"+(watch.sc?" ("+watch.sc.join("/")+")":""))+(IS_SHARED?"":", "+(watch.t==="replica"?"replica":"genuine"))+"\n";
-  prompt+="- Context: "+ctx+"\n\n";
+  prompt+="- Context: "+(Array.isArray(ctx)?ctx.join(" + "):ctx)+"\n\n";
   prompt+="Return ONLY valid JSON, no markdown fences:\n";
   prompt+='{"vision":"A 3-4 sentence cinematic, editorial description. Describe the man walking into the room — how fabrics drape, colors interact, and the watch catches light. Write like a luxury editorial spread.",';
   prompt+='"impact":1-10,"impact_why":"One sentence explaining the psychological impact on observers.",';
@@ -1197,7 +1206,7 @@ async function aiSelfieCheck(b64,mime,apiKey){
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,
-        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor with encyclopedic horological knowledge.\n\nOWNER'S COLLECTION (ref numbers, sizes, movements for watch identification):\n"+JSON.stringify(watchList,null,0)+"\n\n"+(selWatch?"CONFIRMED: "+selWatch.n+(selWatch.ref?" (Ref "+selWatch.ref+")":"")+(selWatch.size?" "+selWatch.size+"mm":"")+"\n":"")+"Context: "+(selCtx||ctx)+"\n\nAnalyze:\n1. Every visible garment — color, material, fit, proportion\n2. WATCH DETECTION — examine wrist for: case shape, dial color/texture, bezel, bracelet/strap, size. Match against collection using ref numbers.\n3. Color harmony, formality coherence\n4. CRITICAL: brown strap MUST match brown shoes, black strap MUST match black shoes\n5. Overall impression\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"strap_call\":\"Strap recommendation for the watch, or null if current is optimal (1 sentence)\",\"better_watch\":\"If a different watch from the collection would score higher, name it with ref and why (1 sentence, or null)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor with encyclopedic horological knowledge.\n\nOWNER'S COLLECTION (ref numbers, sizes, movements for watch identification):\n"+JSON.stringify(watchList,null,0)+"\n\n"+(selWatch?"CONFIRMED: "+selWatch.n+(selWatch.ref?" (Ref "+selWatch.ref+")":"")+(selWatch.size?" "+selWatch.size+"mm":"")+"\n":"")+"Context: "+(selCtx||(Array.isArray(ctx)?ctx.join(" + "):ctx))+"\n\nAnalyze:\n1. Every visible garment — color, material, fit, proportion\n2. WATCH DETECTION — examine wrist for: case shape, dial color/texture, bezel, bracelet/strap, size. Match against collection using ref numbers.\n3. Color harmony, formality coherence\n4. CRITICAL: brown strap MUST match brown shoes, black strap MUST match black shoes\n5. Overall impression\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"strap_call\":\"Strap recommendation for the watch, or null if current is optimal (1 sentence)\",\"better_watch\":\"If a different watch from the collection would score higher, name it with ref and why (1 sentence, or null)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="Selfie HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     return JSON.parse(txt);
@@ -1394,7 +1403,7 @@ function App(){
   const[W,setW]=useState(DEFAULTS);
   const[wd,setWd]=useState([]);
   const[view,setView]=useState("wardrobe");
-  const[ctx,setCtx]=useState("smart-casual");
+  const[ctx,setCtx]=useState(["smart-casual"]);
   const[reps,setReps]=useState(true);
   const[proc,setProc]=useState([]);
   const[saved,setSaved]=useState([]);
@@ -1419,6 +1428,7 @@ function App(){
   const[bOuter,setBOuter]=useState(null);
   const[bBot,setBBot]=useState(null);
   const[bShoe,setBShoe]=useState(null);
+  const[bAcc,setBAcc]=useState(null);
   const[wTab,setWTab]=useState("all");
   const[aiErr,setAiErr]=useState("");
   const[apiKey,setApiKey]=useState("");
@@ -1517,16 +1527,18 @@ function App(){
     return null;
   },[weather,forecast,planDay]);
   const effectiveCtx=useMemo(function(){
-    if(planDay>0){var dayIdx=(new Date().getDay()+planDay)%7;return weekCtx[dayIdx]||ctx}
+    if(planDay>0){var dayIdx=(new Date().getDay()+planDay)%7;var wc=weekCtx[dayIdx];return wc?[wc]:ctx}
     return ctx;
   },[planDay,weekCtx,ctx]);
+  const primaryCtx=useMemo(function(){return Array.isArray(effectiveCtx)?effectiveCtx[0]||"smart-casual":effectiveCtx},[effectiveCtx]);
+  const ctxSet=useMemo(function(){return new Set(Array.isArray(effectiveCtx)?effectiveCtx:[effectiveCtx])},[effectiveCtx]);
   const activeCx=useMemo(function(){return userCx||(IS_SHARED?SHARE_DEFAULT_CX:DEFAULT_CX)},[userCx]);
   const activeCxIds=useMemo(function(){return activeCx.map(function(c){return c.id})},[activeCx]);
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
-  const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"})}},[wd]);
+  const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"}),accessories:wd.filter(function(i){return catOf(i.garmentType)==="accessories"||catOf(i.garmentType)==="other"})}},[wd]);
   const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
-  const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,actW,effectiveCtx,reps,planWx,planTemp]);
+  const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe,bAcc].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,bAcc,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
   const findDuplicates=useCallback(function(){
@@ -1706,7 +1718,7 @@ function App(){
     setSelfieHistory(function(p){var n=p.filter(function(e){return e.id!==id});ps("wa_selfie_"+SK,n);return n});
   },[ps]);
 
-  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
+  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:Array.isArray(effectiveCtx)?effectiveCtx.join(" + "):effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
   const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
 
   const setOutfitWear=useCallback(function(id,dateStr){
@@ -2197,8 +2209,8 @@ function App(){
         /* CONTEXT + CONTROLS ROW */
         mode!=="rotation"&&mode!=="selfie"&&React.createElement("div",{style:{marginBottom:10}},
           React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}},
-            planDay>0&&effectiveCtx!==ctx&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",alignSelf:"center",marginRight:4}},"📅 "+(activeCxIcons[effectiveCtx]||CXI[effectiveCtx]||"")+effectiveCtx),
-            CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:ctx===c.id,onClick:function(){setCtx(c.id);if(planDay>0)setPlanDay(0)}},c.l)}),
+            planDay>0&&JSON.stringify(effectiveCtx)!==JSON.stringify(ctx)&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",alignSelf:"center",marginRight:4}},"📅 "+(activeCxIcons[primaryCtx]||CXI[primaryCtx]||"")+primaryCtx),
+            CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:Array.isArray(ctx)?ctx.includes(c.id):ctx===c.id,onClick:function(){setCtx(function(prev){var arr=Array.isArray(prev)?prev:[prev];if(arr.includes(c.id)){var f=arr.filter(function(x){return x!==c.id});return f.length?f:["smart-casual"]}return arr.concat([c.id])});if(planDay>0)setPlanDay(0)}},c.l)}),
             !IS_SHARED&&React.createElement("button",{onClick:function(){setReps(!reps)},style:{background:reps?"rgba(201,168,76,0.08)":"var(--card)",border:"1px solid "+(reps?"rgba(201,168,76,0.25)":"var(--border)"),borderRadius:20,padding:"8px 14px",cursor:"pointer",marginLeft:"auto",color:reps?"var(--gold)":"var(--dim)",fontFamily:"var(--f)",fontSize:11,minHeight:36}},reps?"Rep ON":"Rep OFF"))),
 
         /* AUTO-SPECIFIC FILTERS */
@@ -2245,9 +2257,21 @@ function App(){
                   React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
                   React.createElement("span",{style:{fontSize:18,color:"var(--dim)"}},"+"),
                   React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
+          /* Accessory row */
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr",gap:8,marginBottom:16}},
+            [{slot:"acc",l:"ACCESSORY",sub:"Hat / Scarf / Belt / Bag",val:bAcc,set:setBAcc}].map(function(o){
+              return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)},style:{minHeight:48}},
+                o.val?React.createElement(React.Fragment,null,
+                  o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:40,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:16}),
+                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
+                  React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
+                :React.createElement(React.Fragment,null,
+                  React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.1em"}},o.l),
+                  React.createElement("span",{style:{fontSize:16,color:"var(--dim)"}},"+"),
+                  React.createElement("div",{style:{fontSize:6,fontFamily:"var(--f)",color:"var(--dim)",opacity:0.6,marginTop:1}},o.sub)))})),
 
           buildSlot&&(function(){
-            var cat=buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"?"tops":buildSlot==="bot"?"bottoms":"shoes";
+            var cat=buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"?"tops":buildSlot==="bot"?"bottoms":buildSlot==="acc"?"accessories":"shoes";
             /* Filter items by garment type for layer slots */
             var items=byCat[cat].filter(function(i){return i.color&&!i.needsEdit});
             if(buildSlot==="top")items=items.filter(function(i){return["Shirt","Polo","T-Shirt"].includes(i.garmentType)});
@@ -2255,8 +2279,8 @@ function App(){
             if(buildSlot==="outer")items=items.filter(function(i){return["Jacket/Blazer","Sweater/Knit"].includes(i.garmentType)});
             /* Fallback: if no items match the layer filter, show all tops */
             if(!items.length&&(buildSlot==="top"||buildSlot==="mid"||buildSlot==="outer"))items=byCat.tops.filter(function(i){return i.color&&!i.needsEdit});
-            var setter=buildSlot==="top"?setBTop:buildSlot==="mid"?setBMid:buildSlot==="outer"?setBOuter:buildSlot==="bot"?setBBot:setBShoe;
-            var pickLabel=buildSlot==="top"?"a base layer":buildSlot==="mid"?"a mid layer":buildSlot==="outer"?"an outer layer":buildSlot==="bot"?"bottoms":"shoes";
+            var setter=buildSlot==="top"?setBTop:buildSlot==="mid"?setBMid:buildSlot==="outer"?setBOuter:buildSlot==="bot"?setBBot:buildSlot==="acc"?setBAcc:setBShoe;
+            var pickLabel=buildSlot==="top"?"a base layer":buildSlot==="mid"?"a mid layer":buildSlot==="outer"?"an outer layer":buildSlot==="bot"?"bottoms":buildSlot==="acc"?"an accessory":"shoes";
             return React.createElement("div",{className:"fu",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px",marginBottom:16}},
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+pickLabel),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
