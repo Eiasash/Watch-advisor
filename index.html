@@ -86,6 +86,32 @@ const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
 /* ══════ CONFIG ══════ */
 /* Set IS_SHARED=true to create a version for friends (empty collection, onboarding) */
 const IS_SHARED=false;
+
+/* ═══ ENCRYPTED BACKUP / RECOVERY ═══ */
+async function deriveKey(password,salt){
+  var enc=new TextEncoder();
+  var keyMaterial=await crypto.subtle.importKey("raw",enc.encode(password),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:310000,hash:"SHA-256"},keyMaterial,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptData(plaintext,password){
+  var salt=crypto.getRandomValues(new Uint8Array(16));
+  var iv=crypto.getRandomValues(new Uint8Array(12));
+  var key=await deriveKey(password,salt);
+  var enc=new TextEncoder();
+  var ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},key,enc.encode(plaintext));
+  /* Pack: 16 salt + 12 iv + ciphertext */
+  var buf=new Uint8Array(16+12+ct.byteLength);
+  buf.set(salt,0);buf.set(iv,16);buf.set(new Uint8Array(ct),28);
+  return buf;
+}
+async function decryptData(packed,password){
+  var salt=packed.slice(0,16);
+  var iv=packed.slice(16,28);
+  var ct=packed.slice(28);
+  var key=await deriveKey(password,salt);
+  var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,ct);
+  return new TextDecoder().decode(pt);
+}
 const SK="v14"; /* storage key suffix — change to reset data */
 
 /* ══════ DATA ══════ */
@@ -1432,6 +1458,9 @@ function App(){
   const[wTab,setWTab]=useState("all");
   const[aiErr,setAiErr]=useState("");
   const[apiKey,setApiKey]=useState("");
+  const[recUser,setRecUser]=useState(function(){try{return localStorage.getItem("wa_rec_user")||""}catch(e){return""}});
+  const[recPass,setRecPass]=useState(function(){try{return localStorage.getItem("wa_rec_pass")||""}catch(e){return""}});
+  const[recStatus,setRecStatus]=useState("");
   const[showSettings,setShowSettings]=useState(false);
   const[forecast,setForecast]=useState([]);
   const[planDay,setPlanDay]=useState(0);
@@ -1464,6 +1493,8 @@ function App(){
   const[buildWatch,setBuildWatch]=useState(null);
   const[showDupes,setShowDupes]=useState(false);
   const[dupeGroups,setDupeGroups]=useState([]);
+  const[wDupeGroups,setWDupeGroups]=useState([]);
+  const[showWDupes,setShowWDupes]=useState(false);
   const[aiCoach,setAiCoach]=useState(null);
   const[aiCoachLoading,setAiCoachLoading]=useState(false);
   const[aiOccasion,setAiOccasion]=useState(null);
@@ -1576,6 +1607,43 @@ function App(){
     });
     return unique;
   },[wd]);
+
+  /* Watch duplicate detection */
+  const findWatchDupes=useCallback(function(){
+    var groups={};
+    /* Group by normalized name */
+    W.forEach(function(w){
+      var normName=w.n.toLowerCase().replace(/[^a-z0-9]/g,"");
+      var key="name_"+normName;
+      if(!groups[key])groups[key]=[];
+      groups[key].push(w);
+    });
+    /* Group by dial color + type */
+    W.forEach(function(w){
+      var key2="dial_"+w.t+"_"+(w.d||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+      if(!groups[key2])groups[key2]=[];
+      var already=groups[key2].some(function(g){return g.id===w.id});
+      if(!already)groups[key2].push(w);
+    });
+    /* Group by fuzzy name similarity (contains check) */
+    for(var i=0;i<W.length;i++){
+      for(var j=i+1;j<W.length;j++){
+        var a=W[i].n.toLowerCase(),b=W[j].n.toLowerCase();
+        if(a.length>4&&b.length>4&&(a.includes(b.substring(0,5))||b.includes(a.substring(0,5)))){
+          var fk="fuzzy_"+[W[i].id,W[j].id].sort().join("_");
+          if(!groups[fk])groups[fk]=[W[i],W[j]];
+        }
+      }
+    }
+    /* Filter to groups with 2+ items, dedup */
+    var allGroups=Object.values(groups).filter(function(g){return g.length>=2});
+    var seen={};var unique=[];
+    allGroups.forEach(function(g){
+      var ids=g.map(function(w){return w.id}).sort().join(",");
+      if(!seen[ids]){seen[ids]=true;unique.push(g)}
+    });
+    return unique;
+  },[W]);
 
   const saveAll=useCallback(function(){
     ps("w_"+SK,W);ps("wd_"+SK,wd);ps("of_"+SK,saved);
@@ -2052,7 +2120,45 @@ function App(){
             React.createElement("span",{style:{fontSize:11,color:"rgba(255,255,255,0.4)",marginLeft:4}},"✏️"),
             item.positionHint&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"rgba(255,255,255,0.35)",marginLeft:4}},"📸 "+item.positionHint))}))),
 
-    showSettings&&React.createElement(Modal,{onClose:function(){setShowSettings(false)}},
+    showWDupes&&React.createElement(Modal,{onClose:function(){setShowWDupes(false)}},
+      React.createElement("h2",{style:{fontSize:18,fontWeight:600,marginBottom:6}},"🔍 Watch Duplicates"),
+      React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:14}},"Watches with matching names, dials, or similar identifiers. Review and delete extras."),
+      wDupeGroups.length===0?React.createElement("div",{style:{textAlign:"center",padding:30}},
+        React.createElement("span",{style:{fontSize:28}},"✅"),
+        React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--good)",marginTop:8}},"No duplicate watches found!"),
+        React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},W.length+" watches are all unique."))
+      :React.createElement("div",null,
+        React.createElement("div",{style:{background:"rgba(200,90,58,0.08)",borderRadius:8,padding:"8px 12px",marginBottom:14,border:"1px solid rgba(200,90,58,0.2)"}},
+          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600}},wDupeGroups.length+" potential duplicate group"+(wDupeGroups.length>1?"s":"")+" found")),
+        wDupeGroups.map(function(group,gi){
+          return React.createElement("div",{key:gi,style:{background:"var(--bg)",borderRadius:12,padding:"14px",marginBottom:12,border:"1px solid var(--border)"}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:10}},
+              React.createElement("span",{style:{fontSize:16}},group[0].i||"⌚"),
+              React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,color:"var(--text)"}},group[0].t.toUpperCase()+" — "+group[0].d+" dial"),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",background:"rgba(200,90,58,0.1)",borderRadius:4,padding:"2px 6px"}},group.length+" watches")),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(group.length,2)+",1fr)",gap:10}},
+              group.map(function(w){
+                return React.createElement("div",{key:w.id,style:{background:"var(--card)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
+                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+                    React.createElement("div",{style:{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"20",fontSize:18,border:"2px solid "+w.c+"60"}},w.photoUrl?React.createElement("img",{src:w.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}):w.i||"⌚"),
+                    React.createElement("div",{style:{flex:1}},
+                      React.createElement("div",{style:{fontSize:12,fontWeight:600}},w.n),
+                      React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},w.d+" · "+(w.ref||"no ref")+" · "+(w.size?w.size+"mm":"")+" · "+w.t),
+                      w.status&&w.status!=="active"&&React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:w.status==="incoming"?"#7ab8d8":"var(--warn)",marginTop:2}},w.status))),
+                  React.createElement("div",{style:{display:"flex",gap:6}},
+                    React.createElement("button",{onClick:function(){setEditW(w);setShowWDupes(false)},style:{flex:1,background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"6px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,fontWeight:600,minHeight:28}},"✏️ Edit"),
+                    React.createElement("button",{onClick:function(){if(confirm("Delete watch \""+w.n+"\"? This cannot be undone.")){removeW(w.id);setWDupeGroups(function(prev){return prev.map(function(g){return g.filter(function(x){return x.id!==w.id})}).filter(function(g){return g.length>=2})})}},style:{flex:1,background:"rgba(200,90,58,0.1)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"6px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,fontWeight:600,minHeight:28}},"🗑️ Delete")))}))),
+          /* Bulk remove all non-first items */
+          React.createElement("div",{style:{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:8}},
+            React.createElement("button",{onClick:function(){
+              var toRemove=[];
+              wDupeGroups.forEach(function(g){g.slice(1).forEach(function(w){toRemove.push(w.id)})});
+              if(!toRemove.length)return;
+              if(confirm("Delete "+toRemove.length+" duplicate watch"+(toRemove.length>1?"es":"")+"? This keeps the first watch from each group.")){
+                setW(function(p){var n=p.filter(function(w){return!toRemove.includes(w.id)});ps("w_"+SK,n);return n});
+                setWDupeGroups([]);
+              }},style:{width:"100%",background:"rgba(200,90,58,0.12)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:8,padding:"10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"🗑️ Remove All Duplicates (keep first of each group)"))}))),
+        showSettings&&React.createElement(Modal,{onClose:function(){setShowSettings(false)}},
       React.createElement("h2",{style:{fontSize:18,fontWeight:600,marginBottom:6}},"⚙️ Settings"),
       React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:16}},"AI photo classification works automatically inside Claude.ai. To use it in a standalone browser, add your Anthropic API key below."),
       React.createElement("label",{className:"lbl"},"Anthropic API Key"),
@@ -2075,6 +2181,56 @@ function App(){
           React.createElement("button",{onClick:function(){var nameEl=document.getElementById("newCxName");var iconEl=document.getElementById("newCxIcon");var nm=(nameEl?nameEl.value:"").trim();var ic=(iconEl?iconEl.value:"").trim()||"📌";if(!nm)return;var nid=nm.toLowerCase().replace(/\s+/g,"-");var n=(userCx||activeCx).concat([{id:nid,l:nm,icon:ic}]);setUserCx(n);ps("wa_usercx_"+SK,n);if(nameEl)nameEl.value="";if(iconEl)iconEl.value=""},style:{background:"var(--gold)",color:"var(--bg)",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"var(--f)",fontSize:11,fontWeight:600}},"+Add")),
         React.createElement("button",{onClick:function(){setUserCx(null);ps("wa_usercx_"+SK,null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"6px 12px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:9,marginBottom:8}},"Reset to Defaults")),
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
+        React.createElement("label",{className:"lbl"},"🔐 Recovery Credentials"),
+        React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:8}},"Set a username + password to encrypt your backups. You'll need these to restore on a new device."),
+        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:6}},
+          React.createElement("input",{className:"inp",type:"text",value:recUser,onChange:function(e){setRecUser(e.target.value)},placeholder:"Username",style:{flex:1,fontSize:11,padding:"8px 12px"}}),
+          React.createElement("input",{className:"inp",type:"password",value:recPass,onChange:function(e){setRecPass(e.target.value)},placeholder:"Password",style:{flex:1,fontSize:11,padding:"8px 12px"}})),
+        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+          React.createElement("button",{onClick:function(){if(!recUser.trim()||!recPass.trim()){alert("Enter both username and password.");return}localStorage.setItem("wa_rec_user",recUser);localStorage.setItem("wa_rec_pass",recPass);setRecStatus("saved");setTimeout(function(){setRecStatus("")},2500)},style:{flex:1,background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"💾 Save Credentials"),
+          React.createElement("button",{onClick:async function(){
+            if(!recUser.trim()||!recPass.trim()){alert("Enter username and password first.");return}
+            setRecStatus("encrypting...");
+            try{
+              var data=JSON.stringify({version:"v22",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
+              var blob=new Blob([encrypted],{type:"application/octet-stream"});
+              var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
+              setRecStatus("exported \u2713");setTimeout(function(){setRecStatus("")},3000);
+            }catch(e){setRecStatus("error: "+e.message);setTimeout(function(){setRecStatus("")},4000)}
+          },style:{flex:1,background:"rgba(122,184,216,0.08)",border:"1px solid rgba(122,184,216,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--info)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"📤 Encrypted Export"),
+          React.createElement("button",{onClick:function(){
+            if(!recPass.trim()){alert("Enter your password to decrypt the backup.");return}
+            var inp=document.createElement("input");inp.type="file";inp.accept=".wabackup";inp.onchange=async function(e){
+              var f=e.target.files[0];if(!f)return;
+              setRecStatus("decrypting...");
+              try{
+                var buf=await f.arrayBuffer();
+                var packed=new Uint8Array(buf);
+                var json=await decryptData(packed,((recUser||"").trim()||f.name.replace("watch-advisor-","").replace(".wabackup",""))+"::"+recPass.trim());
+                var d=JSON.parse(json);
+                var imported=[];
+                if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}
+                if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}
+                if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}
+                if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e2){return e2&&e2.date&&e2.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}
+                if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}
+                if(d.userCx&&Array.isArray(d.userCx)){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}
+                if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}
+                if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfies")}
+                if(d.theme){setTheme(d.theme);ps("wa_theme",d.theme)}
+                setRecStatus("restored \u2713");alert("\u2705 Restored: "+imported.join(", "));setTimeout(function(){setRecStatus("")},4000);
+              }catch(err){
+                setRecStatus("");
+                if(err.name==="OperationError")alert("\u274c Wrong password or username. Decryption failed.");
+                else alert("Error: "+err.message);
+              }
+            };inp.click();
+          },style:{flex:1,background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"📥 Restore .wabackup")),
+        recStatus&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:recStatus.includes("error")?"var(--warn)":recStatus.includes("\u2713")?"var(--good)":"var(--info)",marginBottom:6,fontWeight:500}},recStatus),
+        React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:16,border:"1px solid var(--border)"}},
+          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"AES-256-GCM encryption · PBKDF2 310K iterations · Your password never leaves this device · .wabackup files are unreadable without your credentials"))),
+      React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v22",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
@@ -3332,7 +3488,8 @@ function App(){
         React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}},
           (IS_SHARED?[{id:"all",l:"All "+W.length},{id:"incoming",l:"Incoming"},{id:"pending-trade",l:"Pending"}]:[{id:"all",l:"All "+W.length},{id:"genuine",l:"Gen"},{id:"replica",l:"Rep"},{id:"incoming",l:"Incoming"},{id:"pending-trade",l:"Pending"}]).map(function(f){return React.createElement(Pill,{key:f.id,on:wTab===f.id,onClick:function(){setWTab(f.id)}},f.l)}),
           React.createElement("button",{onClick:function(){wPhotoRef.current?wPhotoRef.current.click():wCamRef.current&&wCamRef.current.click()},style:{marginLeft:"auto",background:"none",border:"1px solid rgba(201,168,76,0.4)",borderRadius:20,padding:"8px 14px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"📸 Scan"),
-          React.createElement("button",{onClick:function(){var nw={id:"c-"+Date.now(),n:"New Watch",t:"genuine",d:"",c:"#5a5a5a",br:true,sc:[],straps:[{type:"bracelet",color:"silver",material:"steel"}],mt:"neutral",i:"⌚",mc:IS_SHARED?autoMatchColors(""):[],ac:[],cx:["casual"],wt:IS_SHARED?["light","mid","heavy"]:["mid"],sg:"",active:true,status:"active"};setW(function(p){var u=p.concat([nw]);ps("w_"+SK,u);return u});setEditW(nw)},style:{background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:20,padding:"8px 16px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"+ Add")),
+          React.createElement("button",{onClick:function(){var nw={id:"c-"+Date.now(),n:"New Watch",t:"genuine",d:"",c:"#5a5a5a",br:true,sc:[],straps:[{type:"bracelet",color:"silver",material:"steel"}],mt:"neutral",i:"⌚",mc:IS_SHARED?autoMatchColors(""):[],ac:[],cx:["casual"],wt:IS_SHARED?["light","mid","heavy"]:["mid"],sg:"",active:true,status:"active"};setW(function(p){var u=p.concat([nw]);ps("w_"+SK,u);return u});setEditW(nw)},style:{background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:20,padding:"8px 16px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"+ Add"),
+          React.createElement("button",{onClick:function(){var d=findWatchDupes();setWDupeGroups(d);setShowWDupes(true)},style:{background:"none",border:"1px solid rgba(200,90,58,0.4)",borderRadius:20,padding:"8px 12px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:36}},"🔍 Dupes")),
         /* Hidden file inputs for watch scan */
         React.createElement("input",{ref:wPhotoRef,type:"file",accept:"image/*",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){scanWatch(e.target.files[0]);e.target.value=""}}}),
         React.createElement("input",{ref:wCamRef,type:"file",accept:"image/*",capture:"environment",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){scanWatch(e.target.files[0]);e.target.value=""}}}),
