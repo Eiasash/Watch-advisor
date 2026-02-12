@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v23.4</title>
+<title>Watch Advisor v23.5</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -777,7 +777,8 @@ const COLOR_FAMILIES={
   "purples":["purple","plum","lavender","mauve"],
 };
 function getColorFamily(c){for(var fam in COLOR_FAMILIES){if(COLOR_FAMILIES[fam].includes(c))return fam}return null}
-var _compatCache={};
+var _compatCache={},_compatCacheSize=0;
+function clearCompatCache(){_compatCache={};_compatCacheSize=0}
 function compat(c1,c2){
   if(!c1||!c2)return 0.1;
   const a=(c1||"").toLowerCase().trim(),b=(c2||"").toLowerCase().trim();
@@ -809,7 +810,8 @@ function compat(c1,c2){
       }else{r=0.2}
     }
   }
-  _compatCache[ck]=r;
+  _compatCache[ck]=r;_compatCacheSize++;
+  if(_compatCacheSize>500){_compatCache={};_compatCacheSize=0}
   return r;
 }
 
@@ -1027,14 +1029,17 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
   /* Layer-to-layer color harmony */
   for(var li=0;li<tops.length-1;li++){fs+=compat(tops[li].color,tops[li+1].color)*1.5}
-  /* Jeans-first preference: jeans are the default bottom unless formality demands otherwise */
+  /* Jeans-first preference: jeans are the default bottom unless formality demands otherwise.
+     If no jeans exist in the current bottom pool, remove casual penalties on chinos/trousers
+     so scores don't get artificially depressed when jeans simply aren't available. */
   if(bot){
     var _cx=Array.isArray(ctx)?ctx[0]:ctx;
     var _formalCx=_cx==="formal"||_cx==="event"||_cx==="office";
     var _semiCx=_cx==="clinic"||_cx==="smart-casual"||_cx==="date";
+    var _hasJeans=extraOpts&&extraOpts.hasJeansInPool||false;
     if(bot.garmentType==="Jeans"){fs+=_formalCx?0:_semiCx?1.2:2.0}
-    else if(bot.garmentType==="Chinos"){fs+=_formalCx?1.0:_semiCx?0:-0.8}
-    else if(bot.garmentType==="Pants/Trousers"){fs+=_formalCx?1.5:_semiCx?0.3:-1.2}
+    else if(bot.garmentType==="Chinos"){fs+=_formalCx?1.0:_semiCx?0:(_hasJeans?-0.8:0.5)}
+    else if(bot.garmentType==="Pants/Trousers"){fs+=_formalCx?1.5:_semiCx?0.3:(_hasJeans?-1.2:0)}
   }
   /* Pattern bonus — check outermost top vs bottom */
   if(outerTop&&bot){
@@ -1130,7 +1135,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
     for(const shoe of(shoes.length?shoes:[null])){
       if(shoe&&(shoe.id===top.id||shoe.id===bot.id))continue;
       const items=[top,bot].concat(shoe?[shoe]:[]);
-      const r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[]});
+      const r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b){return b.garmentType==="Jeans"})});
       combos.push({id:top.id+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.top,bot:r.bot,shoe:r.shoe,items:r.items,topType:top.garmentType,wxWarns:r.wxWarns});
     }
   }
@@ -1644,7 +1649,10 @@ function App(){
     // Auto-onboard if existing data found
     if(wLoaded||wdLoaded)setOnboarded(true);
     /* ── AUTO-CLEANUP: purge traded watches and ghost entries from localStorage ── */
-    if(wLoaded&&!IS_SHARED){
+    /* Only runs once per version — sets a flag so it doesn't repeat on every load */
+    var _cleanedFlag="wa_cleaned_v23";
+    var _alreadyCleaned=false;try{_alreadyCleaned=!!localStorage.getItem(_cleanedFlag)}catch(e){}
+    if(wLoaded&&!IS_SHARED&&!_alreadyCleaned){
       setW(function(prev){
         /* Known traded/sold watch names and IDs to purge */
         var TRADED_NAMES=["sinn 613","rolex date 15203","sugess chronograph","seiko srph","sugess","srph"];
@@ -1660,6 +1668,7 @@ function App(){
           console.log("[WA] Auto-cleaned "+(prev.length-cleaned.length)+" stale watch entries");
           ps("w_"+SK,cleaned);
         }
+        try{localStorage.setItem(_cleanedFlag,"1")}catch(e){}
         return cleaned;
       });
     }
@@ -1795,10 +1804,10 @@ function App(){
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
   const removeW=useCallback(function(id){setW(function(p){var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
 
-  const saveWd=useCallback(function(n){setWd(n);ps("wd_"+SK,n)},[ps]);
-  const rmG=useCallback(function(id){setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n})},[ps]);
-  const updG=useCallback(function(id,u){setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
-  const addGarment=useCallback(function(item){setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
+  const saveWd=useCallback(function(n){clearCompatCache();setWd(n);ps("wd_"+SK,n)},[ps]);
+  const rmG=useCallback(function(id){clearCompatCache();setWd(function(p){var n=p.filter(function(i){return i.id!==id});ps("wd_"+SK,n);return n})},[ps]);
+  const updG=useCallback(function(id,u){clearCompatCache();setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
+  const addGarment=useCallback(function(item){clearCompatCache();setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
 
   const logWear=useCallback(function(watchId,dateStr){
     setWearLog(function(p){
@@ -2341,7 +2350,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){alert("Enter username and password first.");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v23.4",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v23.5",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2382,7 +2391,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.4",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.5",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -2408,7 +2417,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.4"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.5"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -3239,12 +3248,15 @@ function App(){
         (function(){
           if(!wearLog.length&&!actW.length)return null;
           var now=Date.now();var d30=now-30*864e5;var d7=now-7*864e5;
-          var last30=wearLog.filter(function(e){return e.ts>d30});
-          var last7=wearLog.filter(function(e){return e.ts>d7});
+          /* Only count wears for watches that still exist in the collection */
+          var activeIds=new Set(actW.map(function(w){return w.id}));
+          var validLog=wearLog.filter(function(e){return activeIds.has(e.watchId)&&(e.ts||0)>0});
+          var last30=validLog.filter(function(e){return e.ts>d30});
+          var last7=validLog.filter(function(e){return e.ts>d7});
           /* Frequency map: watchId → count in last 30 days */
           var freq={};last30.forEach(function(e){freq[e.watchId]=(freq[e.watchId]||0)+1});
           /* Last worn map: watchId → most recent timestamp */
-          var lastW={};wearLog.forEach(function(e){if(!lastW[e.watchId]||e.ts>lastW[e.watchId])lastW[e.watchId]=e.ts});
+          var lastW={};validLog.forEach(function(e){if(!lastW[e.watchId]||e.ts>lastW[e.watchId])lastW[e.watchId]=e.ts});
           /* Build sorted watch stats */
           var stats=actW.filter(function(w){return w.status==="active"}).map(function(w){
             var cnt=freq[w.id]||0;var lw=lastW[w.id]||0;var ago=lw?Math.floor((now-lw)/864e5):999;
@@ -3255,7 +3267,13 @@ function App(){
           var neglected=stats.filter(function(s){return s.ago>=7&&s.t!=="replica"});
           /* Current streak: consecutive days with a logged wear */
           var streak=0;var sd=new Date();sd.setHours(0,0,0,0);
-          for(var si=0;si<60;si++){var ds=new Date(sd.getTime()-si*864e5).toISOString().slice(0,10);if(wearLog.some(function(e){return e.date===ds}))streak++;else break}
+          for(var si=0;si<60;si++){var ds=new Date(sd.getTime()-si*864e5).toISOString().slice(0,10);if(validLog.some(function(e){return e.date===ds}))streak++;else break}
+          /* Empty state: watches exist but no wear data yet */
+          if(!validLog.length)return React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+              React.createElement("span",{style:{fontSize:20}},"📊"),
+              React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600}},"Wear Stats")),
+            React.createElement("div",{style:{textAlign:"center",padding:"12px 0",color:"var(--dim)",fontSize:10,fontFamily:"var(--f)"}},"No wear data yet. Tap \"✓ Wearing this today\" on a watch to start tracking."));
           return React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
               React.createElement("span",{style:{fontSize:20}},"📊"),
