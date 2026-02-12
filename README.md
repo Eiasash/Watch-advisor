@@ -7,11 +7,11 @@ No build step, no npm, no bundler.
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Entire app — HTML, CSS, JS (~370KB) |
-| `static/sw.js` | Service worker |
-| `static/manifest.json` | PWA manifest |
-| `static/icon-192.png` | App icon 192px |
-| `static/icon-512.png` | App icon 512px |
+| `index.html` | Entire app — HTML, CSS, JS (~368KB) |
+| `sw.js` | Service worker |
+| `manifest.json` | PWA manifest |
+| `icon-192.png` | App icon 192px |
+| `icon-512.png` | App icon 512px |
 
 ## Install as PWA
 
@@ -19,7 +19,7 @@ No build step, no npm, no bundler.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v21
+## Current Version: v22
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -40,6 +40,7 @@ No build step, no npm, no bundler.
 - Formality tier system (clinic → smart casual → casual → weekend)
 - Hard strap-shoe color enforcement (brown strap → brown shoes, black → black/white)
 - Weather-responsive strap picks (leather avoided in rain, NATO for heat)
+- Watch specs display: reference number, case size (mm), movement on all watch cards
 - Day/night theme toggle
 - PWA with offline support
 
@@ -47,6 +48,7 @@ No build step, no npm, no bundler.
 
 | Version | Changes |
 |---------|---------|
+| **v22** | Full audit: QuotaExceeded handling, scoreW freshness fix, WCard badge fix, export/import selfieHistory+rotLock+theme, color_story in outfit critique. Watch specs (ref/size/mvmt) on all 24 pieces, enhanced AI watch detection with ref numbers, strap_call+better_watch in selfie results |
 | **v21** | 📸 Selfie Check: front camera, rear camera, gallery upload → AI vision identifies items + watch, scores impact 1-10, critique with upgrade/strap/better-watch suggestions, save history with photos |
 | **v20** | Wear Stats Dashboard (30/60/90d), strap-specific logging, wear history search, dial color heatmap, seasonal presets, insight sub-tabs |
 | **v19.2** | Explicit straps[] arrays for all 24 watches (40 straps) |
