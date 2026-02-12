@@ -89,6 +89,7 @@ const IS_SHARED=false;
 
 /* ═══ ENCRYPTED BACKUP / RECOVERY ═══ */
 async function deriveKey(password,salt){
+  if(!crypto||!crypto.subtle)throw new Error("Web Crypto API requires HTTPS. Backup/restore is not available on HTTP pages.");
   var enc=new TextEncoder();
   var keyMaterial=await crypto.subtle.importKey("raw",enc.encode(password),"PBKDF2",false,["deriveKey"]);
   return crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:310000,hash:"SHA-256"},keyMaterial,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
@@ -729,7 +730,7 @@ function compat(c1,c2){
 }
 
 function scoreW(w,items,ctx,reps,opts){
-  if(!w.active||w.status==="sold"||w.status==="service")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+  if(!w.active||w.status==="sold"||w.status==="service"||w.status==="pending-trade"||w.status==="incoming")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   /* Multi-ctx support: ctx can be string or array */
   var _ctxArr=Array.isArray(ctx)?ctx:[ctx];var _ctxPri=_ctxArr[0]||"smart-casual";var _ctxSet=new Set(_ctxArr);
@@ -762,7 +763,7 @@ function scoreW(w,items,ctx,reps,opts){
   const wm=temps.filter(x=>x==="warm").length,co=temps.filter(x=>x==="cool").length;
   if(w.mt==="warm"&&wm>co){s+=2;bd.temp=2}if(w.mt==="cool"&&co>=wm){s+=1;bd.temp=1}if(w.mt==="warm"&&co>wm+1){s-=1;bd.temp=-1}
   /* ══ UPGRADE: Hard strap-shoe enforcement (non-negotiable leather rule) ══ */
-  if(!w.br&&sc&&w.sc&&w.sc.length){
+  if(!w.br&&sc&&w.sc&&w.sc.length&&!(w.straps&&w.straps.length)){
     const sB=sc.includes("black"),sBr=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
     const hB=w.sc.some(x=>x.includes("black")),hBr=w.sc.some(x=>x.includes("brown")||x.includes("tan")||x.includes("teal")||x.includes("green")||x.includes("burgundy")),hN=w.sc.some(x=>x.includes("navy")||x.includes("blue"));
     if(sB&&hB){s+=3;bd.strap=3}
@@ -1010,7 +1011,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
 function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
   count=count||10;opts=opts||{};
   var wxOpts=opts.wx||null;
-  const rules=CXR[ctx]||CXR["smart-casual"];
+  const rules=CXR[Array.isArray(ctx)?ctx[0]:ctx]||CXR["smart-casual"];
   var curSeason=(function(){if(opts.temp!==undefined){var t=opts.temp;if(t>=28)return"summer";if(t>=20)return"spring";if(t>=12)return"fall";return"winter"}var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
   var seasonFilter=function(i){var s=i.seasons;if(!s||!s.length||s.length>=4)return true;return s.includes(curSeason)};
   const valid=wardrobe.filter(function(i){return i.color&&!i.needsEdit});
@@ -1225,14 +1226,14 @@ async function aiWatchID(b64,mime,apiKey){
 }
 
 /* ══════ AI SELFIE CHECK ══════ */
-async function aiSelfieCheck(b64,mime,apiKey){
+async function aiSelfieCheck(b64,mime,apiKey,watches,selWatch,ctx){
   _lastAiError="";
   try{
     var headers={"Content-Type":"application/json"};
     if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
     var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,
-        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor with encyclopedic horological knowledge.\n\nOWNER'S COLLECTION (ref numbers, sizes, movements for watch identification):\n"+JSON.stringify(watchList,null,0)+"\n\n"+(selWatch?"CONFIRMED: "+selWatch.n+(selWatch.ref?" (Ref "+selWatch.ref+")":"")+(selWatch.size?" "+selWatch.size+"mm":"")+"\n":"")+"Context: "+(selCtx||(Array.isArray(ctx)?ctx.join(" + "):ctx))+"\n\nAnalyze:\n1. Every visible garment — color, material, fit, proportion\n2. WATCH DETECTION — examine wrist for: case shape, dial color/texture, bezel, bracelet/strap, size. Match against collection using ref numbers.\n3. Color harmony, formality coherence\n4. CRITICAL: brown strap MUST match brown shoes, black strap MUST match black shoes\n5. Overall impression\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"strap_call\":\"Strap recommendation for the watch, or null if current is optimal (1 sentence)\",\"better_watch\":\"If a different watch from the collection would score higher, name it with ref and why (1 sentence, or null)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor with encyclopedic horological knowledge.\n\nOWNER'S COLLECTION (ref numbers, sizes, movements for watch identification):\n"+JSON.stringify((watches||[]).map(function(w){return{name:w.n,ref:w.ref||null,size_mm:w.size||null,movement:w.mvmt||null,dial:w.d,bracelet:w.br,straps:w.straps?w.straps.map(function(s){return{type:s.type,color:s.color}}):[]}}),null,0)+"\n\n"+(selWatch?"CONFIRMED: "+selWatch.n+(selWatch.ref?" (Ref "+selWatch.ref+")":"")+(selWatch.size?" "+selWatch.size+"mm":"")+"\n":"")+"Context: "+(Array.isArray(ctx)?ctx.join(" + "):ctx||"smart-casual")+"\n\nAnalyze:\n1. Every visible garment — color, material, fit, proportion\n2. WATCH DETECTION — examine wrist for: case shape, dial color/texture, bezel, bracelet/strap, size. Match against collection using ref numbers.\n3. Color harmony, formality coherence\n4. CRITICAL: brown strap MUST match brown shoes, black strap MUST match black shoes\n5. Overall impression\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"strap_call\":\"Strap recommendation for the watch, or null if current is optimal (1 sentence)\",\"better_watch\":\"If a different watch from the collection would score higher, name it with ref and why (1 sentence, or null)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="Selfie HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
     return JSON.parse(txt);
@@ -1371,7 +1372,7 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
       pick=lockedWatch;
     }else{
       /* Score watches */
-      var scored=watches.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"&&(reps||w.t!=="replica")}).map(function(w){
+      var scored=watches.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"&&w.status!=="pending-trade"&&w.status!=="incoming"&&(reps||w.t!=="replica")}).map(function(w){
         var s=0;
         if(w.cx&&w.cx.includes(cx))s+=4;
         if(w.wt&&w.wt.includes(dayWt))s+=2;
@@ -1516,7 +1517,7 @@ function App(){
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){if(e2.name==="QuotaExceededError")console.warn("Storage quota exceeded for key:",k)}}},[]);
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){if(e2.name==="QuotaExceededError"){console.warn("Storage quota exceeded for key:",k);throw e2}}}},[]);
   const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){(async function(){
@@ -1566,7 +1567,7 @@ function App(){
   const activeCx=useMemo(function(){return userCx||(IS_SHARED?SHARE_DEFAULT_CX:DEFAULT_CX)},[userCx]);
   const activeCxIds=useMemo(function(){return activeCx.map(function(c){return c.id})},[activeCx]);
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
-  const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"})},[W]);
+  const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"&&w.status!=="pending-trade"&&w.status!=="incoming"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"}),accessories:wd.filter(function(i){return catOf(i.garmentType)==="accessories"||catOf(i.garmentType)==="other"})}},[wd]);
   const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
   const buildFit=useMemo(function(){var items=[bTop,bMid,bOuter,bBot,bShoe,bAcc].filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[bTop,bMid,bOuter,bBot,bShoe,bAcc,actW,effectiveCtx,reps,planWx,planTemp]);
@@ -1629,7 +1630,7 @@ function App(){
     for(var i=0;i<W.length;i++){
       for(var j=i+1;j<W.length;j++){
         var a=W[i].n.toLowerCase(),b=W[j].n.toLowerCase();
-        if(a.length>4&&b.length>4&&(a.includes(b.substring(0,5))||b.includes(a.substring(0,5)))){
+        if(a.length>7&&b.length>7&&(a.includes(b.substring(0,8))||b.includes(a.substring(0,8)))){
           var fk="fuzzy_"+[W[i].id,W[j].id].sort().join("_");
           if(!groups[fk])groups[fk]=[W[i],W[j]];
         }
@@ -1645,15 +1646,17 @@ function App(){
     return unique;
   },[W]);
 
-  const saveAll=useCallback(function(){
-    ps("w_"+SK,W);ps("wd_"+SK,wd);ps("of_"+SK,saved);
-    ps("wa_wearlog_"+SK,wearLog);ps("wa_weekctx",weekCtx);
-    if(userCx)ps("wa_usercx_"+SK,userCx);
-    ps("wa_theme",theme);
-    ps("wa_selfie_"+SK,selfieHistory);
-    ps("wa_rotlock_"+SK,rotLock);
-    setShowSaveToast(true);
-    setTimeout(function(){setShowSaveToast(false)},2000);
+  const saveAll=useCallback(async function(){
+    try{
+      await ps("w_"+SK,W);await ps("wd_"+SK,wd);await ps("of_"+SK,saved);
+      await ps("wa_wearlog_"+SK,wearLog);await ps("wa_weekctx",weekCtx);
+      if(userCx)await ps("wa_usercx_"+SK,userCx);
+      await ps("wa_theme",theme);
+      await ps("wa_selfie_"+SK,selfieHistory);
+      await ps("wa_rotlock_"+SK,rotLock);
+      setShowSaveToast(true);
+      setTimeout(function(){setShowSaveToast(false)},2000);
+    }catch(e){console.error("Save failed:",e);alert("Save failed: "+String(e.message||e))}
   },[W,wd,saved,wearLog,weekCtx,userCx,theme,selfieHistory,rotLock,ps]);
 
   const openLightbox=useCallback(function(src,itemId){
@@ -1766,7 +1769,7 @@ function App(){
       var compressed=await compressImage(rawUrl,600,0.6);
       var thumb=await compressImage(rawUrl,300,0.5);
       var b64=compressed.split(",")[1];
-      var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current);
+      var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current,W,null,effectiveCtx);
       if(result&&result.impact){
         var entry={id:Date.now(),ts:Date.now(),thumb:thumb,result:result,impact:result.impact};
         setSelfieResult(entry);
@@ -1780,13 +1783,13 @@ function App(){
       setAiErr("Selfie error: "+String(e));
     }
     setSelfieLoading(false);
-  },[ps]);
+  },[ps,W,effectiveCtx]);
 
   const delSelfie=useCallback(function(id){
     setSelfieHistory(function(p){var n=p.filter(function(e){return e.id!==id});ps("wa_selfie_"+SK,n);return n});
   },[ps]);
 
-  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:Array.isArray(effectiveCtx)?effectiveCtx.join(" + "):effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
+  const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:Array.isArray(effectiveCtx)?effectiveCtx.slice():effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
   const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
 
   const setOutfitWear=useCallback(function(id,dateStr){
