@@ -1634,6 +1634,26 @@ function App(){
     try{var rl=await loadKey("wa_rotlock_"+SK);if(rl&&rl.length===7)setRotLock(rl);else{for(var rlk of["wa_rotlock_v12","wa_rotlock_v11"]){try{var rlm=await loadKey(rlk);if(rlm&&rlm.length===7){setRotLock(rlm);ps("wa_rotlock_"+SK,rlm);break}}catch(e){}}}}catch(e){}
     // Auto-onboard if existing data found
     if(wLoaded||wdLoaded)setOnboarded(true);
+    /* ── AUTO-CLEANUP: purge traded watches and ghost entries from localStorage ── */
+    if(wLoaded&&!IS_SHARED){
+      setW(function(prev){
+        /* Known traded/sold watch names and IDs to purge */
+        var TRADED_NAMES=["sinn 613","rolex date 15203","sugess chronograph","seiko srph","sugess","srph"];
+        var cleaned=prev.filter(function(w){
+          /* Remove blank "New Watch" ghosts: default name + no dial color set */
+          if(w.n==="New Watch"&&(!w.d||w.d===""))return false;
+          /* Remove known traded watches by name match */
+          var ln=(w.n||"").toLowerCase();
+          for(var tn of TRADED_NAMES){if(ln.includes(tn))return false}
+          return true;
+        });
+        if(cleaned.length!==prev.length){
+          console.log("[WA] Auto-cleaned "+(prev.length-cleaned.length)+" stale watch entries");
+          ps("w_"+SK,cleaned);
+        }
+        return cleaned;
+      });
+    }
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
     try{var th=await loadKey("wa_theme");if(th)setTheme(th)}catch(e){}
     try{var sh=await loadKey("wa_selfie_"+SK);if(sh&&sh.length)setSelfieHistory(sh)}catch(e){}
