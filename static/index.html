@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v20</title>
+<title>Watch Advisor v21</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -992,6 +992,39 @@ async function aiVision(fit,watch,ctx,apiKey){
   }catch(e){_lastAiError="Vision error: "+String(e.message||e).slice(0,100);return null}
 }
 
+async function aiSelfieCheck(imageB64,mime,watchName,ctx,apiKey,watches){
+  _lastAiError="";
+  var watchList=watches.map(function(w){return w.n+" ("+w.d+" dial, "+(w.t==="replica"?"rep":"gen")+")"}).join(", ");
+  var prompt="You are an elite men's luxury style advisor. Analyze this selfie/outfit photo with the precision of a GQ editor.\n\n";
+  prompt+="INSTRUCTIONS:\n1. Identify EVERY visible clothing item (top layers, bottom, shoes, accessories)\n2. Identify the watch on wrist if visible, or use the provided watch info\n3. Score the overall outfit coordination and watch pairing\n4. Be brutally honest about execution flaws\n\n";
+  if(watchName)prompt+="WATCH BEING WORN: "+watchName+"\n";
+  prompt+="CONTEXT: "+(ctx||"smart casual")+"\n";
+  prompt+="COLLECTION (for reference): "+watchList+"\n\n";
+  prompt+="Return ONLY valid JSON, no markdown fences:\n";
+  prompt+='{';
+  prompt+='"identified_items":[{"type":"top/bottom/shoes/outerwear/accessory","description":"specific item description with color and material","color":"dominant color"}],';
+  prompt+='"watch_spotted":"watch name if visible on wrist, or null",';
+  prompt+='"vision":"A 3-4 sentence cinematic editorial description. Describe the man — how fabrics drape, colors interact, the watch catches light. Write like a luxury editorial.",';
+  prompt+='"impact":1-10,';
+  prompt+='"impact_why":"One sentence explaining psychological impact on observers.",';
+  prompt+='"works":"What color/texture/material combinations create the strongest visual effect (1-2 sentences).",';
+  prompt+='"risk":"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless).",';
+  prompt+='"upgrade":"One specific change that would elevate this outfit (1 sentence).",';
+  prompt+='"strap_call":"Strap recommendation for the watch in this outfit (1 sentence, or null if bracelet is correct).",';
+  prompt+='"better_watch":"If a different watch from the collection would score higher, name it and why (1 sentence, or null if current is optimal).",';
+  prompt+='"fit_check":"Comment on visible fit/proportion of garments if assessable (1 sentence, or null if not visible enough)."}';
+  try{
+    var headers={"Content-Type":"application/json"};
+    if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:imageB64}},{type:"text",text:prompt}]}]})});
+    if(!r.ok){_lastAiError="Selfie HTTP "+r.status;return null}
+    var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(txt);
+  }catch(e){_lastAiError="Selfie error: "+String(e.message||e).slice(0,100);return null}
+}
+
 async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
   _lastAiError="";
   var colorCounts={};wardrobe.filter(function(i){return i.color}).forEach(function(i){colorCounts[i.color]=(colorCounts[i.color]||0)+1});
@@ -1305,6 +1338,14 @@ function App(){
   const[buildAiCritique,setBuildAiCritique]=useState(null);
   const[buildAiLoading,setBuildAiLoading]=useState(false);
   const[buildWatch,setBuildWatch]=useState(null);
+  const[selfieImg,setSelfieImg]=useState(null);
+  const[selfieResult,setSelfieResult]=useState(null);
+  const[selfieLoading,setSelfieLoading]=useState(false);
+  const[selfieWatch,setSelfieWatch]=useState(null);
+  const[selfieCtx,setSelfieCtx]=useState(null);
+  const[selfieName,setSelfieName]=useState("");
+  const[selfieHistory,setSelfieHistory]=useState(function(){try{var d=localStorage.getItem("wa_selfies_"+SK);return d?JSON.parse(d):[]}catch(e){return[]}});
+  const[selfieHistView,setSelfieHistView]=useState(false);
   const[showDupes,setShowDupes]=useState(false);
   const[dupeGroups,setDupeGroups]=useState([]);
   const[aiCoach,setAiCoach]=useState(null);
@@ -1737,7 +1778,7 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"12px 14px",fontSize:11},onClick:function(){
             var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){
               var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){
-                try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock){setRotLock(d.rotLock);Object.keys(d.rotLock).forEach(function(k){try{localStorage.setItem("wa_rotlock_"+SK+"_"+k,d.rotLock[k])}catch(e){}})}setOnboarded(true);if(d.strapLog){setStrapLog(d.strapLog);ps("wa_straplog_"+SK,d.strapLog)}if(d.seasonPresets){setSeasonPresets(d.seasonPresets);ps("wa_seasons_"+SK,d.seasonPresets)};ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
+                try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock){setRotLock(d.rotLock);Object.keys(d.rotLock).forEach(function(k){try{localStorage.setItem("wa_rotlock_"+SK+"_"+k,d.rotLock[k])}catch(e){}})}setOnboarded(true);if(d.strapLog){setStrapLog(d.strapLog);ps("wa_straplog_"+SK,d.strapLog)}if(d.seasonPresets){setSeasonPresets(d.seasonPresets);ps("wa_seasons_"+SK,d.seasonPresets)}if(d.selfieHistory){setSelfieHistory(d.selfieHistory);ps("wa_selfies_"+SK,d.selfieHistory)};ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
           }},"📥 Import")));
     }
     /* Step 2: Closet */
@@ -1927,8 +1968,8 @@ function App(){
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,strapLog:strapLog,seasonPresets:seasonPresets});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.strapLog){setStrapLog(d.strapLog);ps("wa_straplog_"+SK,d.strapLog)}if(d.seasonPresets){setSeasonPresets(d.seasonPresets);ps("wa_seasons_"+SK,d.seasonPresets)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,strapLog:strapLog,seasonPresets:seasonPresets,selfieHistory:selfieHistory});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.strapLog){setStrapLog(d.strapLog);ps("wa_straplog_"+SK,d.strapLog)}if(d.seasonPresets){setSeasonPresets(d.seasonPresets);ps("wa_seasons_"+SK,d.seasonPresets)}if(d.selfieHistory){setSelfieHistory(d.selfieHistory);ps("wa_selfies_"+SK,d.selfieHistory)}alert("Imported!")}catch(e){alert("Bad file")}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
     /* Floating Save Button */
@@ -1948,7 +1989,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v20"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v21"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -2035,8 +2076,8 @@ function App(){
       /* ═══ FITS ═══ */
       view==="fits"&&!selFit&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
         /* MODE CARDS */
-        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}},
-          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Create",d:"Build & save"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:12}},
+          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Create",d:"Build & save"},{id:"selfie",icon:"📸",l:"Selfie",d:"Rate my fit"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
             var on=mode===m.id;
             return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
               React.createElement("div",{style:{fontSize:20,marginBottom:2}},m.icon),
@@ -2176,6 +2217,124 @@ function App(){
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
               React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8,fontSize:10},onClick:function(){setBuildAiCritique(null)}},"↻ Re-analyze")))
           :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to build your outfit — use layers for sweater + jacket combos")),
+
+        /* SELFIE CHECK */
+        mode==="selfie"&&React.createElement("div",{style:{marginTop:4}},
+          /* History toggle */
+          React.createElement("div",{style:{display:"flex",gap:6,marginBottom:12}},
+            React.createElement("button",{className:"chip "+(selfieHistView?"":"on"),onClick:function(){setSelfieHistView(false)}},"\u{1F4F8} New Check"),
+            React.createElement("button",{className:"chip "+(selfieHistView?"on":""),onClick:function(){setSelfieHistView(true)}},"\u{1F4DA} History ("+selfieHistory.length+")")),
+
+          /* HISTORY VIEW */
+          selfieHistView?React.createElement("div",null,
+            !selfieHistory.length?React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:30}},"No selfie checks yet — snap your first one!"):
+            selfieHistory.slice().reverse().map(function(entry,i){
+              return React.createElement("div",{key:entry.id||i,className:"fu",style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:12,marginBottom:10}},
+                React.createElement("div",{style:{display:"flex",gap:12,marginBottom:10}},
+                  entry.img&&React.createElement("img",{src:entry.img,alt:"",style:{width:80,height:100,objectFit:"cover",borderRadius:10,flexShrink:0}}),
+                  React.createElement("div",{style:{flex:1,minWidth:0}},
+                    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},
+                      React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:700,color:"var(--gold)"}},entry.name||(entry.result&&entry.result.impact?entry.result.impact+"/10":"—")),
+                      React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},new Date(entry.ts).toLocaleDateString())),
+                    entry.watch&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:2}},"⌚ "+entry.watch),
+                    entry.ctx&&React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:4}},entry.ctx),
+                    entry.result&&entry.result.impact&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                      React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:entry.result.impact>=7?"rgba(122,184,122,0.15)":entry.result.impact>=4?"rgba(201,168,76,0.15)":"rgba(200,90,58,0.15)",border:"2px solid "+(entry.result.impact>=7?"var(--good)":entry.result.impact>=4?"var(--gold)":"var(--warn)"),fontSize:12,fontFamily:"var(--f)",fontWeight:700,color:entry.result.impact>=7?"var(--good)":entry.result.impact>=4?"var(--gold)":"var(--warn)"}},entry.result.impact),
+                      React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},entry.result.impact>=8?"Commanding":entry.result.impact>=6?"Solid":entry.result.impact>=4?"Acceptable":"Needs Work")))),
+                entry.result&&entry.result.vision&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.5,color:"var(--text)",marginBottom:6}},entry.result.vision),
+                React.createElement("button",{onClick:function(){var idx=selfieHistory.findIndex(function(h){return h.id===entry.id});if(idx>-1){var nh=selfieHistory.slice();nh.splice(idx,1);setSelfieHistory(nh);ps("wa_selfies_"+SK,nh)}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"🗑 Delete"))}))
+          :
+          /* NEW SELFIE CHECK */
+          React.createElement("div",null,
+            /* Upload area */
+            !selfieImg?React.createElement("div",{style:{border:"2px dashed var(--border)",borderRadius:16,padding:"32px 16px",textAlign:"center",marginBottom:12}},
+              React.createElement("div",{style:{fontSize:48,marginBottom:8}},"📸"),
+              React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--text)",fontWeight:600,marginBottom:4}},"Snap your fit"),
+              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:16}},"Take a selfie or upload a photo — AI will identify everything and score it"),
+              React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center"}},
+                React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"12px 20px",fontSize:12},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.capture="environment";inp.onchange=async function(e){var fl=e.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,800,0.7);setSelfieImg(compressed);setSelfieResult(null);setSelfieWatch(null);setSelfieCtx(ctx);setSelfieName("")};inp.click()}},"📷 Camera"),
+                React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"12px 20px",fontSize:12},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=async function(e){var fl=e.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,800,0.7);setSelfieImg(compressed);setSelfieResult(null);setSelfieWatch(null);setSelfieCtx(ctx);setSelfieName("")};inp.click()}},"📁 Upload")))
+            :
+            /* Photo loaded — show controls + results */
+            React.createElement("div",null,
+              /* Photo preview + clear */
+              React.createElement("div",{style:{position:"relative",marginBottom:12}},
+                React.createElement("img",{src:selfieImg,alt:"",style:{width:"100%",maxHeight:400,objectFit:"contain",borderRadius:14,border:"1px solid var(--border)"}}),
+                React.createElement("button",{onClick:function(){setSelfieImg(null);setSelfieResult(null);setSelfieWatch(null);setSelfieName("")},style:{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:"50%",width:32,height:32,cursor:"pointer",color:"#fff",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}},"✕")),
+
+              /* Context + Watch selection */
+              React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}},
+                React.createElement("span",{className:"lbl",style:{width:"100%"}},"CONTEXT"),
+                CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:(selfieCtx||ctx)===c.id,onClick:function(){setSelfieCtx(c.id)}},c.l)})),
+
+              /* Watch picker */
+              React.createElement("div",{style:{marginBottom:12}},
+                React.createElement("span",{className:"lbl"},"WATCH WORN (optional — AI will also try to spot it)"),
+                React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}},
+                  selfieWatch&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.08)",borderRadius:8,padding:"6px 10px",border:"1px solid rgba(201,168,76,0.3)"}},
+                    React.createElement("span",{style:{fontSize:14}},selfieWatch.i),
+                    React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},selfieWatch.n),
+                    React.createElement("button",{onClick:function(){setSelfieWatch(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:12,cursor:"pointer",padding:"0 4px"}},"✕")),
+                  !selfieWatch&&React.createElement("div",{style:{display:"flex",gap:4,overflowX:"auto",paddingBottom:4},className:"hscroll"},
+                    actW.slice(0,12).map(function(w){return React.createElement("button",{key:w.id,onClick:function(){setSelfieWatch(w)},style:{flex:"0 0 auto",background:"var(--card)",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,minHeight:36}},
+                      React.createElement("span",{style:{fontSize:14}},w.i),
+                      React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},w.n))})))),
+
+              /* Analyze button */
+              React.createElement("button",{className:"btn btn-gold",style:{marginBottom:12,fontSize:14},onClick:async function(){
+                if(!apiKeyRef.current){alert("Add your Anthropic API key in Settings ⚙️ first");return}
+                setSelfieLoading(true);setSelfieResult(null);
+                try{
+                  var b64=selfieImg.split(",")[1];var mime=selfieImg.split(";")[0].split(":")[1]||"image/jpeg";
+                  var wName=selfieWatch?selfieWatch.n+(selfieWatch.t==="replica"?" (replica)":" (genuine)"):null;
+                  var result=await aiSelfieCheck(b64,mime,wName,selfieCtx||ctx,apiKeyRef.current,actW);
+                  setSelfieResult(result||{vision:"AI unavailable. Check your API key in settings.",impact:0});
+                }catch(e){setSelfieResult({vision:"Error: "+String(e),impact:0})}
+                setSelfieLoading(false);
+              },disabled:selfieLoading},selfieLoading?"⏳ Analyzing your fit...":"✨ Rate My Fit"),
+
+              /* Results */
+              selfieResult&&React.createElement("div",{className:"fu",style:{background:"var(--card2)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:14,padding:16}},
+                /* Impact score circle */
+                selfieResult.impact>0&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:14,marginBottom:14}},
+                  React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:selfieResult.impact>=7?"rgba(122,184,122,0.15)":selfieResult.impact>=4?"rgba(201,168,76,0.15)":"rgba(200,90,58,0.15)",border:"3px solid "+(selfieResult.impact>=7?"var(--good)":selfieResult.impact>=4?"var(--gold)":"var(--warn)"),fontSize:22,fontFamily:"var(--f)",fontWeight:700,color:selfieResult.impact>=7?"var(--good)":selfieResult.impact>=4?"var(--gold)":"var(--warn)"}},selfieResult.impact),
+                  React.createElement("div",{style:{flex:1}},
+                    React.createElement("div",{style:{fontSize:16,fontFamily:"var(--f)",fontWeight:700,color:selfieResult.impact>=7?"var(--good)":selfieResult.impact>=4?"var(--gold)":"var(--warn)"}},selfieResult.impact>=8?"Commanding":selfieResult.impact>=6?"Solid":selfieResult.impact>=4?"Acceptable":"Needs Work"),
+                    selfieResult.impact_why&&React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--sub)",marginTop:3}},selfieResult.impact_why))),
+
+                /* Editorial vision */
+                selfieResult.vision&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:14,marginBottom:12,borderLeft:"3px solid var(--gold)"}},
+                  React.createElement("p",{style:{fontSize:13,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.7,color:"var(--text)"}},selfieResult.vision)),
+
+                /* Identified items */
+                selfieResult.identified_items&&selfieResult.identified_items.length>0&&React.createElement("div",{style:{marginBottom:12}},
+                  React.createElement("span",{className:"lbl"},"IDENTIFIED ITEMS"),
+                  React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}},
+                    selfieResult.identified_items.map(function(item,i){
+                      return React.createElement("div",{key:i,style:{background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",display:"flex",alignItems:"center",gap:6}},
+                        React.createElement("div",{style:{width:10,height:10,borderRadius:"50%",background:(CM[item.color]||{}).h||"#888",flexShrink:0}}),
+                        React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.description||item.type))}))),
+
+                /* Watch spotted */
+                (selfieResult.watch_spotted||selfieWatch)&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"8px 10px",marginBottom:12,border:"1px solid rgba(201,168,76,0.15)"}},
+                  React.createElement("span",{style:{fontSize:16}},"⌚"),
+                  React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},selfieResult.watch_spotted||(selfieWatch&&selfieWatch.n)||"")),
+
+                /* Analysis cards */
+                [selfieResult.works&&{l:"✓ What Works",t:selfieResult.works,c:"var(--good)"},selfieResult.risk&&{l:"⚠ Risk",t:selfieResult.risk,c:"var(--warn)"},selfieResult.upgrade&&{l:"⬆ Upgrade",t:selfieResult.upgrade,c:"var(--gold)"},selfieResult.strap_call&&{l:"🔗 Strap",t:selfieResult.strap_call,c:"var(--sub)"},selfieResult.better_watch&&{l:"⌚ Better Pick",t:selfieResult.better_watch,c:"var(--gold)"},selfieResult.fit_check&&{l:"📐 Fit",t:selfieResult.fit_check,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
+                  return React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:6}},
+                    React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:80}},item.l),
+                    React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--text)",lineHeight:1.4}},item.t))}),
+
+                /* Save + Name */
+                React.createElement("div",{style:{marginTop:12,display:"flex",gap:8}},
+                  React.createElement("input",{className:"inp",value:selfieName,onChange:function(e){setSelfieName(e.target.value)},placeholder:"Name this look (optional)",style:{fontSize:11,flex:1}}),
+                  React.createElement("button",{className:"btn btn-gold",style:{width:"auto",padding:"10px 16px",fontSize:11,whiteSpace:"nowrap"},onClick:function(){
+                    var entry={id:Date.now(),ts:Date.now(),img:selfieImg,result:selfieResult,watch:selfieWatch?selfieWatch.n:selfieResult.watch_spotted||null,ctx:selfieCtx||ctx,name:selfieName.trim()||null};
+                    var nh=selfieHistory.concat([entry]);setSelfieHistory(nh);ps("wa_selfies_"+SK,nh);
+                    alert("Saved! Check History tab.");
+                  }},"💾 Save"),
+                  React.createElement("button",{className:"btn btn-ghost",style:{width:"auto",padding:"10px 14px",fontSize:11},onClick:function(){setSelfieResult(null);setSelfieLoading(false)}},"↻ Redo"))))),
 
         /* ROTATION */
         mode==="rotation"&&(function(){
