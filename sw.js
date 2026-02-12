@@ -1,6 +1,6 @@
-const CACHE='wa-v23.3';
-/* Install: skip waiting to activate immediately */
-self.addEventListener('install',e=>{self.skipWaiting()});
+const CACHE='wa-v23.4';
+/* Install: pre-cache critical assets, skip waiting to activate immediately */
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html'])).then(()=>self.skipWaiting()))});
 /* Activate: purge old caches, claim all clients */
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 /* Fetch: network-first for HTML (always get latest app), cache-first for static assets */

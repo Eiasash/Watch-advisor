@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v23.3</title>
+<title>Watch Advisor v23.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -232,7 +232,7 @@ var CXI={};DEFAULT_CX.forEach(function(c){CXI[c.id]=c.icon});
 const CATS={tops:["Shirt","Polo","T-Shirt","Henley","Tank Top","Sweater/Knit","Cardigan","Hoodie","Sweatshirt","Vest/Gilet","Jacket/Blazer","Coat","Overshirt"],bottoms:["Pants/Trousers","Chinos","Jeans","Shorts"],shoes:["Shoes"],accessories:["Hat","Scarf","Belt","Bag","Sunglasses","Accessory"]};
 const ALL_T=[...CATS.tops,...CATS.bottoms,...CATS.shoes,...CATS.accessories];
 const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":CATS.accessories.includes(g)?"accessories":"other";
-const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜"];
+const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜","🌑","🔺","🍇"];
 const STRAP_TYPES=[
 {id:"bracelet",l:"Bracelet",icon:"⛓️",mats:["steel","titanium","gold","rose gold","ceramic"]},
 {id:"leather",l:"Leather",icon:"🔗",mats:["calf leather","alligator","cordovan","suede","shell cordovan","nubuck"]},
@@ -439,7 +439,7 @@ const _OWNER_DEFAULTS=[
   {type:"bracelet",color:"silver",material:"steel"}
 ],mt:"cool",i:"☄️",mc:["grey","silver","charcoal","white","black"],ac:["warm earth"],cx:["flex","date"],sg:"Cool monochrome.",wt:["mid","heavy"],active:true,status:"active",size:40},
 {id:"dd-turq",n:"Day-Date Turq",t:"replica",d:"Turquoise",c:"#2ab8a8",straps:[
-  {type:"bracelet",color:"gold",material:"steel"}
+  {type:"bracelet",color:"rose gold",material:"steel"}
 ],mt:"warm",i:"💠",mc:["white","cream","turquoise","tan","light blue","sand"],ac:["dark formal"],cx:["riviera","flex","date"],sg:"Pure summer.",wt:["light"],active:true,status:"active",size:36},
 {id:"op-grape",n:"Rolex OP Grape",t:"replica",d:"Purple",c:"#6a3d7d",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
@@ -777,31 +777,40 @@ const COLOR_FAMILIES={
   "purples":["purple","plum","lavender","mauve"],
 };
 function getColorFamily(c){for(var fam in COLOR_FAMILIES){if(COLOR_FAMILIES[fam].includes(c))return fam}return null}
+var _compatCache={};
 function compat(c1,c2){
   if(!c1||!c2)return 0.1;
   const a=(c1||"").toLowerCase().trim(),b=(c2||"").toLowerCase().trim();
   if(!a||!b)return 0.1;
-  if(a===b)return 0.6; /* monochrome — intentional pairing */
+  var ck=a<b?a+"|"+b:b+"|"+a;
+  if(_compatCache[ck]!==undefined)return _compatCache[ck];
+  var r;
+  if(a===b){r=0.6} /* monochrome — intentional pairing */
   /* Exact match in compatibility matrix */
-  if((CP[a]||[]).includes(b)||(CP[b]||[]).includes(a))return 1;
+  else if((CP[a]||[]).includes(b)||(CP[b]||[]).includes(a)){r=1}
   /* Substring fallback for compound colors like "light blue" */
-  if((CP[a]||[]).some(x=>b.includes(x)||x.includes(b)))return 0.85;
-  if((CP[b]||[]).some(x=>a.includes(x)||x.includes(a)))return 0.85;
-  /* Color family: same family = decent pairing (tonal dressing) */
-  var famA=getColorFamily(a),famB=getColorFamily(b);
-  if(famA&&famB&&famA===famB)return 0.65;
-  /* Neutral + anything = safe */
-  var neutralFams=["blacks","whites","greys"];
-  if((neutralFams.includes(famA)&&famB)||(neutralFams.includes(famB)&&famA))return 0.55;
-  /* Temperature harmony */
-  const t1=Object.entries(CM).find(([k])=>a.includes(k)),t2=Object.entries(CM).find(([k])=>b.includes(k));
-  if(t1&&t2){
-    var ta=t1[1].t,tb=t2[1].t;
-    if(ta===tb&&ta!=="neutral")return 0.5;
-    if(ta==="neutral"||tb==="neutral")return 0.4;
-    if(ta==="mixed"||tb==="mixed")return 0.45;
+  else if((CP[a]||[]).some(x=>b.includes(x)||x.includes(b))){r=0.85}
+  else if((CP[b]||[]).some(x=>a.includes(x)||x.includes(a))){r=0.85}
+  else{
+    var famA=getColorFamily(a),famB=getColorFamily(b);
+    /* Color family: same family = decent pairing (tonal dressing) */
+    if(famA&&famB&&famA===famB){r=0.65}
+    /* Neutral + anything = safe */
+    else if((["blacks","whites","greys"].includes(famA)&&famB)||(["blacks","whites","greys"].includes(famB)&&famA)){r=0.55}
+    else{
+      /* Temperature harmony */
+      const t1=Object.entries(CM).find(([k])=>a.includes(k)),t2=Object.entries(CM).find(([k])=>b.includes(k));
+      if(t1&&t2){
+        var ta=t1[1].t,tb=t2[1].t;
+        if(ta===tb&&ta!=="neutral"){r=0.5}
+        else if(ta==="neutral"||tb==="neutral"){r=0.4}
+        else if(ta==="mixed"||tb==="mixed"){r=0.45}
+        else{r=0.2}
+      }else{r=0.2}
+    }
   }
-  return 0.2;
+  _compatCache[ck]=r;
+  return r;
 }
 
 function scoreW(w,items,ctx,reps,opts){
@@ -2332,7 +2341,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){alert("Enter username and password first.");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v23.3",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v23.4",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2373,7 +2382,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.3",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v23.4",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -2399,7 +2408,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.3"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v23.4"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -3508,7 +3517,7 @@ function App(){
               var ready=counts.tops>=2&&counts.bottoms>=2&&counts.shoes>=1;
               return{s:s,icon:icons[s],counts:counts,total:total,ready:ready};
             });
-            var curSn=(function(){var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
+            var curSn=getSeason(weather?weather.temp:undefined,loc?loc.lat:undefined);
             return React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},
               data.map(function(d){
                 return React.createElement("div",{key:d.s,style:{background:d.s===curSn?"rgba(201,168,76,0.06)":"var(--bg)",border:"1px solid "+(d.s===curSn?"rgba(201,168,76,0.3)":"var(--border)"),borderRadius:10,padding:"10px 12px"}},
