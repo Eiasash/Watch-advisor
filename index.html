@@ -1764,6 +1764,8 @@ function App(){
   const undoTimerRef=useRef(null);
   const[watchScanLoading,setWatchScanLoading]=useState(false);
   const[watchScanResult,setWatchScanResult]=useState(null);
+  const scanCancelRef=useRef(false);
+  const[scanProg,setScanProg]=useState(null);
   const[selfieHistory,setSelfieHistory]=useState([]);
   const[selfieLoading,setSelfieLoading]=useState(false);
   const[selfieResult,setSelfieResult]=useState(null);
@@ -2018,7 +2020,9 @@ function App(){
   const scanWatch=useCallback(async function(files){
     var arr=Array.isArray(files)?files:files instanceof FileList?Array.from(files):files?[files]:[];
     if(!arr.length)return;
-    setWatchScanLoading(true);setWatchScanResult(null);
+    if(arr.length>10){showToast("Max 10 images at once (selected "+arr.length+")","var(--warn)",3000);arr=arr.slice(0,10)}
+    scanCancelRef.current=false;
+    setWatchScanLoading(true);setWatchScanResult(null);setScanProg(arr.length>1?{c:0,t:arr.length}:null);
     var scannedWatches=[];var errs=[];
     try{
       for(var fi=0;fi<arr.length;fi++){
@@ -2040,7 +2044,8 @@ function App(){
             scannedWatches.push({watch:nw,ai:result});
           }else{errs.push({fi:fi,error:getLastAiError()||"Could not identify watch"})}
         }catch(e){errs.push({fi:fi,error:"Error: "+String((e&&e.message)||e)})}
-        if(fi<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
+        if(arr.length>1)setScanProg({c:fi+1,t:arr.length});
+        if(fi<arr.length-1){if(scanCancelRef.current)break;await new Promise(function(r){setTimeout(r,600)})}
       }
       if(arr.length===1){
         if(scannedWatches.length){setWatchScanResult(scannedWatches[0])}
@@ -2056,7 +2061,7 @@ function App(){
           setWatchScanResult({batch:true,error:msg2,failed:errs});setAiErr(msg2);
         }
       }
-    }finally{setWatchScanLoading(false)}
+    }finally{setWatchScanLoading(false);setScanProg(null)}
   },[ps]);
 
   const checkSelfie=useCallback(async function(file){
@@ -3985,7 +3990,11 @@ function App(){
         /* Watch scan loading */
         watchScanLoading&&React.createElement("div",{style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:12,padding:"16px",marginBottom:12,textAlign:"center"}},
           React.createElement("div",{className:"sp",style:{width:24,height:24,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 8px"}}),
-          React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",color:"var(--gold)"}},"Identifying watch...")),
+          React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",color:"var(--gold)"}},scanProg?"Scanning "+scanProg.c+"/"+scanProg.t+"...":"Identifying watch..."),
+          scanProg&&React.createElement("div",{style:{marginTop:8}},
+            React.createElement("div",{style:{height:4,background:"var(--bg)",borderRadius:2,overflow:"hidden",marginBottom:8}},
+              React.createElement("div",{style:{height:"100%",width:Math.round(scanProg.c/scanProg.t*100)+"%",background:"var(--gold)",borderRadius:2,transition:"width 0.3s"}})),
+            React.createElement("button",{onClick:function(){scanCancelRef.current=true},className:"btn btn-ghost",style:{fontSize:9,padding:"4px 12px"}},"\u2715 Cancel"))),
         /* Watch scan result */
         watchScanResult&&!watchScanLoading&&React.createElement("div",{style:{background:"linear-gradient(135deg,var(--card),var(--card2))",border:"1px solid rgba(201,168,76,0.3)",borderRadius:14,padding:"16px",marginBottom:12}},
           watchScanResult.error?React.createElement("div",null,

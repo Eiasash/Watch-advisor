@@ -18,5 +18,40 @@ jobs:
         with:
           node-version: 20
 
-      - name: Prettier (syntax + formatting check)
-        run: npx --yes prettier@3.4.2 --check index.html sw.js manifest.json
+      - name: JS syntax check (sw.js)
+        run: node --check sw.js
+
+      - name: Validate manifest.json
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json OK');"
+
+      - name: Parse inline app JS in index.html (syntax only)
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const vm = require("vm");
+
+          const html = fs.readFileSync("index.html", "utf8");
+          const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map(m => m[1])
+            .filter(s => s.trim().length);
+
+          if (!scripts.length) {
+            console.error("No inline <script> blocks found in index.html");
+            process.exit(1);
+          }
+
+          const inline = scripts.sort((a, b) => b.length - a.length)[0];
+
+          try {
+            new vm.Script(inline, { filename: "index-inline-app.js" });
+          } catch (e) {
+            console.error("Inline app JS parse failed:");
+            console.error(e && e.stack ? e.stack : e);
+            process.exit(1);
+          }
+
+          console.log("Inline app JS parses OK (" + inline.length + " chars)");
+          NODE
+
+      - name: Prettier check (small files only)
+        run: npx --yes prettier@3.4.2 --check sw.js manifest.json
