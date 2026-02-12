@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v21</title>
+<title>Watch Advisor v22</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -784,8 +784,8 @@ function scoreW(w,items,ctx,reps,opts){
       var _daysAgo=Math.floor((_now2-_last)/(864e5));
       if(_daysAgo<=1){s-=3;bd.fresh=-3}
       else if(_daysAgo<=3){s-=1.5;bd.fresh=-1.5}
-      else if(_daysAgo>=7){s+=1;bd.fresh=1}
       else if(_daysAgo>=14){s+=2;bd.fresh=2}
+      else if(_daysAgo>=7){s+=1;bd.fresh=1}
     }else{s+=1;bd.fresh=1}
   }
   /* ══ UPGRADE: Genuine/replica context bonus ══ */
@@ -1189,6 +1189,21 @@ async function aiWatchID(b64,mime,apiKey){
   }catch(e){_lastAiError="WatchID error: "+String(e.message||e).slice(0,120);return null}
 }
 
+/* ══════ AI SELFIE CHECK ══════ */
+async function aiSelfieCheck(b64,mime,apiKey){
+  _lastAiError="";
+  try{
+    var headers={"Content-Type":"application/json"};
+    if(apiKey){headers["x-api-key"]=apiKey;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true"}
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,
+        messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor analyzing a selfie/photo of a man wearing an outfit. Evaluate the COMPLETE look with the precision of a GQ fashion editor.\n\nAnalyze:\n1. The outfit — every visible garment, color, fit, proportion\n2. The watch (if visible) — identify it if possible, how it complements the outfit\n3. Color harmony — does the palette work together?\n4. Formality coherence — do all pieces belong to the same dress code?\n5. Fit & proportion — are items well-fitted?\n6. Overall impression — what message does this look send?\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
+    if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="Selfie HTTP "+r.status+": "+errTxt.slice(0,120);return null}
+    var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(txt);
+  }catch(e){_lastAiError="Selfie error: "+String(e.message||e).slice(0,120);return null}
+}
+
 /* ══════ COMPONENTS (OUTSIDE App) ══════ */
 const Dot=memo(function DotC(props){
   var color=props.color,size=props.size||10;
@@ -1280,9 +1295,9 @@ const WCard=memo(function WCardC(props){
             w.bd.ctx>0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:"var(--badge-good)",color:"var(--good)",borderRadius:4,padding:"2px 6px"}},"✓ ctx +"+w.bd.ctx),
             w.bd.color!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:w.bd.color>0?"var(--badge-good)":"var(--badge-warn)",color:w.bd.color>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},(w.bd.color>0?"✓":"✗")+" color "+(w.bd.color>0?"+":"")+w.bd.color),
             w.bd.strap!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:w.bd.strap>0?"var(--badge-good)":"var(--badge-warn)",color:w.bd.strap>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},(w.bd.strap>0?"✓":"✗")+" strap "+(w.bd.strap>0?"+":"")+w.bd.strap),
-            w.bd.temp!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:"var(--badge-neutral)",color:"var(--sub)",borderRadius:4,padding:"2px 6px"}},"🌡️"+(w.bd.temp>0?"+":"")+w.bd.temp)),
+            w.bd.temp!==0&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",background:"var(--badge-neutral)",color:"var(--sub)",borderRadius:4,padding:"2px 6px"}},"🌡️"+(w.bd.temp>0?"+":"")+w.bd.temp),
             w.bd.fresh&&w.bd.fresh!==0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",background:w.bd.fresh>0?"var(--badge-good)":"var(--badge-warn)",color:w.bd.fresh>0?"var(--good)":"var(--warn)",borderRadius:4,padding:"2px 6px"}},"🔄"+(w.bd.fresh>0?"+":"")+w.bd.fresh),
-            w.bd.auth&&w.bd.auth>0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",background:"var(--badge-good)",color:"var(--good)",borderRadius:4,padding:"2px 6px"}},"✦ genuine +"+w.bd.auth),
+            w.bd.auth&&w.bd.auth>0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",background:"var(--badge-good)",color:"var(--good)",borderRadius:4,padding:"2px 6px"}},"✦ genuine +"+w.bd.auth)),
           w.wn&&w.wn.map(function(x,i){return React.createElement("p",{key:i,style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",marginTop:3}},x)}))))
   );
 });
@@ -1447,12 +1462,16 @@ function App(){
   const[showSaveToast,setShowSaveToast]=useState(false);
   const[watchScanLoading,setWatchScanLoading]=useState(false);
   const[watchScanResult,setWatchScanResult]=useState(null);
+  const[selfieHistory,setSelfieHistory]=useState([]);
+  const[selfieLoading,setSelfieLoading]=useState(false);
+  const[selfieResult,setSelfieResult]=useState(null);
   const fRef=useRef();const cRef=useRef();const wPhotoRef=useRef();const wCamRef=useRef();
+  const selfieRef=useRef();const selfieRearRef=useRef();const selfieGalRef=useRef();
   const apiKeyRef=useRef("");
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){}}},[]);
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){if(e2.name==="QuotaExceededError")console.warn("Storage quota exceeded for key:",k)}}},[]);
   const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){(async function(){
@@ -1475,6 +1494,7 @@ function App(){
     if(wLoaded||wdLoaded)setOnboarded(true);
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){}
     try{var th=await loadKey("wa_theme");if(th)setTheme(th)}catch(e){}
+    try{var sh=await loadKey("wa_selfie_"+SK);if(sh&&sh.length)setSelfieHistory(sh)}catch(e){}
     // Cleanup old storage keys after successful migration
     var oldKeys=["w_v12","w_v11","w_v9","watches_v8","wd_v12","wd_v11","wd_v9","wd_v8","of_v12","of_v11","of_v9","of_v8","wa_wearlog_v12","wa_wearlog_v11","wa_rotlock_v12","wa_rotlock_v11","w_v13","wd_v13","of_v13","wa_wearlog_v13","wa_rotlock_v13"];
     setTimeout(function(){oldKeys.forEach(function(k){try{localStorage.removeItem(k)}catch(e){}})},3000);
@@ -1546,9 +1566,11 @@ function App(){
     ps("wa_wearlog_"+SK,wearLog);ps("wa_weekctx",weekCtx);
     if(userCx)ps("wa_usercx_"+SK,userCx);
     ps("wa_theme",theme);
+    ps("wa_selfie_"+SK,selfieHistory);
+    ps("wa_rotlock_"+SK,rotLock);
     setShowSaveToast(true);
     setTimeout(function(){setShowSaveToast(false)},2000);
-  },[W,wd,saved,wearLog,weekCtx,userCx,theme,ps]);
+  },[W,wd,saved,wearLog,weekCtx,userCx,theme,selfieHistory,rotLock,ps]);
 
   const openLightbox=useCallback(function(src,itemId){
     if(!src)return;
@@ -1651,6 +1673,33 @@ function App(){
       setAiErr("Watch scan error: "+String(e));
     }
     setWatchScanLoading(false);
+  },[ps]);
+
+  const checkSelfie=useCallback(async function(file){
+    setSelfieLoading(true);setSelfieResult(null);
+    try{
+      var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(file)});
+      var compressed=await compressImage(rawUrl,600,0.6);
+      var thumb=await compressImage(rawUrl,300,0.5);
+      var b64=compressed.split(",")[1];
+      var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current);
+      if(result&&result.impact){
+        var entry={id:Date.now(),ts:Date.now(),thumb:thumb,result:result,impact:result.impact};
+        setSelfieResult(entry);
+        setSelfieHistory(function(p){var n=[entry].concat(p).slice(0,20);ps("wa_selfie_"+SK,n);return n});
+      }else{
+        setSelfieResult({error:getLastAiError()||"Could not analyze photo"});
+        setAiErr(getLastAiError()||"Selfie analysis failed");
+      }
+    }catch(e){
+      setSelfieResult({error:"Error: "+String(e.message||e)});
+      setAiErr("Selfie error: "+String(e));
+    }
+    setSelfieLoading(false);
+  },[ps]);
+
+  const delSelfie=useCallback(function(id){
+    setSelfieHistory(function(p){var n=p.filter(function(e){return e.id!==id});ps("wa_selfie_"+SK,n);return n});
   },[ps]);
 
   const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
@@ -1893,7 +1942,7 @@ function App(){
           React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"12px 14px",fontSize:11},onClick:function(){
             var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){
               var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){
-                try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock){setRotLock(d.rotLock);Object.keys(d.rotLock).forEach(function(k){try{localStorage.setItem("wa_rotlock_"+SK+"_"+k,d.rotLock[k])}catch(e){}})}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
+                try{var d=JSON.parse(r.result);if(d.watches){var mw=d.watches.map(migrateStraps);setW(mw);ps("w_"+SK,mw)}if(d.wardrobe){setWd(d.wardrobe);ps("wd_"+SK,d.wardrobe)}if(d.outfits){setSaved(d.outfits);ps("of_"+SK,d.outfits)}if(d.wearLog){setWearLog(d.wearLog);ps("wa_wearlog_"+SK,d.wearLog)}if(d.weekCtx&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}setOnboarded(true);ps("wa_onboarded",true)}catch(ex){alert("Invalid file")}};r.readAsText(f)};inp.click()
           }},"📥 Import")));
     }
     /* Step 2: Closet */
@@ -2012,8 +2061,8 @@ function App(){
       React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v22",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){alert("Invalid backup file: expected JSON object");return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}alert(imported.length?"Imported: "+imported.join(", "):"No valid data found in file")}catch(e){alert("Invalid file: "+String(e.message||e).slice(0,100))}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);alert("Imported "+parsed.length+" watches from markdown!")}else{alert("No watches found in file.")}}catch(ex){console.error(ex);alert("Parse error: "+ex.message)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
     /* Floating Save Button */
@@ -2033,7 +2082,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){setView(t.id);setSelFit(null)},style:{background:"none",border:"none",borderBottom:view===t.id?"2px solid var(--gold)":"2px solid transparent",color:view===t.id?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v14.5"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v22"))),
 
     React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -2120,8 +2169,8 @@ function App(){
       /* ═══ FITS ═══ */
       view==="fits"&&!selFit&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
         /* MODE CARDS */
-        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}},
-          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Create",d:"Build & save"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:12}},
+          [{id:"auto",icon:"✨",l:"Smart",d:"AI-scored"},{id:"build",icon:"🧩",l:"Create",d:"Build & save"},{id:"selfie",icon:"📸",l:"Selfie",d:"Check look"},{id:"rotation",icon:"📅",l:"Week",d:"7-day plan"}].map(function(m){
             var on=mode===m.id;
             return React.createElement("button",{key:m.id,onClick:function(){setMode(m.id);if(m.id!=="auto"){setLockItem(null);setTopType("all")}},style:{background:on?"rgba(201,168,76,0.1)":"var(--card)",border:"1px solid "+(on?"rgba(201,168,76,0.4)":"var(--border)"),borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .15s"}},
               React.createElement("div",{style:{fontSize:20,marginBottom:2}},m.icon),
@@ -2129,7 +2178,7 @@ function App(){
               React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:on?"var(--gold)":"var(--dim)",opacity:0.7}},m.d))})),
 
         /* DAY SELECTOR for Auto/Build */
-        mode!=="rotation"&&forecast.length>0&&React.createElement("div",{style:{marginBottom:10}},
+        mode!=="rotation"&&mode!=="selfie"&&forecast.length>0&&React.createElement("div",{style:{marginBottom:10}},
           React.createElement("div",{style:{display:"flex",gap:4,overflowX:"auto",paddingBottom:4},className:"hscroll"},
             forecast.map(function(fc,i){
               var d=new Date(fc.date+"T12:00:00");var dn=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
@@ -2142,7 +2191,7 @@ function App(){
                 fc.wind>=25&&React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)"}},"💨"+fc.wind))}))),
 
         /* CONTEXT + CONTROLS ROW */
-        mode!=="rotation"&&React.createElement("div",{style:{marginBottom:10}},
+        mode!=="rotation"&&mode!=="selfie"&&React.createElement("div",{style:{marginBottom:10}},
           React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}},
             planDay>0&&effectiveCtx!==ctx&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--gold)",alignSelf:"center",marginRight:4}},"📅 "+(activeCxIcons[effectiveCtx]||CXI[effectiveCtx]||"")+effectiveCtx),
             CTXS.map(function(c){return React.createElement(Pill,{key:c.id,on:ctx===c.id,onClick:function(){setCtx(c.id);if(planDay>0)setPlanDay(0)}},c.l)}),
@@ -2255,12 +2304,94 @@ function App(){
                 React.createElement("div",{style:{flex:1}},
                   React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:600,color:buildAiCritique.impact>=7?"var(--good)":buildAiCritique.impact>=4?"var(--gold)":"var(--warn)"}},buildAiCritique.impact>=8?"Commanding":buildAiCritique.impact>=6?"Solid":buildAiCritique.impact>=4?"Acceptable":"Needs Work"),
                   buildAiCritique.impact_why&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginTop:2}},buildAiCritique.impact_why))),
-              [buildAiCritique.works&&{l:"✓ What Works",t:buildAiCritique.works,c:"var(--good)"},buildAiCritique.risk&&{l:"⚠ Risk",t:buildAiCritique.risk,c:"var(--warn)"},buildAiCritique.upgrade&&{l:"⬆ Upgrade",t:buildAiCritique.upgrade,c:"var(--gold)"},buildAiCritique.strap_call&&{l:"🔗 Strap",t:buildAiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
+              [buildAiCritique.color_story&&{l:"🎨 Colors",t:buildAiCritique.color_story,c:"#9a8abc"},buildAiCritique.works&&{l:"✓ What Works",t:buildAiCritique.works,c:"var(--good)"},buildAiCritique.risk&&{l:"⚠ Risk",t:buildAiCritique.risk,c:"var(--warn)"},buildAiCritique.upgrade&&{l:"⬆ Upgrade",t:buildAiCritique.upgrade,c:"var(--gold)"},buildAiCritique.strap_call&&{l:"🔗 Strap",t:buildAiCritique.strap_call,c:"var(--sub)"}].filter(Boolean).map(function(item,i){
                 return React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:4}},
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:item.c,fontWeight:600,minWidth:70}},item.l),
                   React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--text)"}},item.t))}),
               React.createElement("button",{className:"btn btn-ghost",style:{marginTop:8,fontSize:10},onClick:function(){setBuildAiCritique(null)}},"↻ Re-analyze")))
           :!buildSlot&&React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"center",padding:20}},"Tap the slots above to build your outfit — use layers for sweater + jacket combos")),
+
+        /* SELFIE CHECK */
+        mode==="selfie"&&React.createElement("div",null,
+          React.createElement("div",{style:{background:"linear-gradient(135deg,var(--card),var(--card2))",border:"1px solid rgba(201,168,76,0.2)",borderRadius:14,padding:"20px",marginBottom:16,textAlign:"center"}},
+            React.createElement("div",{style:{fontSize:32,marginBottom:8}},"📸"),
+            React.createElement("div",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600,marginBottom:4}},"Selfie Check"),
+            React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:16}},"Take a selfie or upload a photo to get an AI style analysis with impact score"),
+            React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}},
+              React.createElement("button",{onClick:function(){selfieRef.current&&selfieRef.current.click()},className:"btn btn-gold",style:{padding:"12px 20px",fontSize:12}},"🤳 Selfie"),
+              React.createElement("button",{onClick:function(){selfieRearRef.current&&selfieRearRef.current.click()},className:"btn btn-ghost",style:{padding:"12px 20px",fontSize:12}},"📷 Camera"),
+              React.createElement("button",{onClick:function(){selfieGalRef.current&&selfieGalRef.current.click()},className:"btn btn-ghost",style:{padding:"12px 20px",fontSize:12}},"🖼️ Gallery")),
+            React.createElement("input",{ref:selfieRef,type:"file",accept:"image/*",capture:"user",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){checkSelfie(e.target.files[0]);e.target.value=""}}}),
+            React.createElement("input",{ref:selfieRearRef,type:"file",accept:"image/*",capture:"environment",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){checkSelfie(e.target.files[0]);e.target.value=""}}}),
+            React.createElement("input",{ref:selfieGalRef,type:"file",accept:"image/*",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){checkSelfie(e.target.files[0]);e.target.value=""}}})),
+          /* Loading */
+          selfieLoading&&React.createElement("div",{style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:12,padding:"20px",marginBottom:12,textAlign:"center"}},
+            React.createElement("div",{className:"sp",style:{width:28,height:28,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",margin:"0 auto 10px"}}),
+            React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--gold)"}},"Analyzing your look...")),
+          /* Result */
+          selfieResult&&!selfieLoading&&React.createElement("div",{style:{background:"linear-gradient(135deg,var(--card),var(--card2))",border:"1px solid rgba(201,168,76,0.3)",borderRadius:14,padding:"16px",marginBottom:16}},
+            selfieResult.error?React.createElement("div",null,
+              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                React.createElement("span",{style:{fontSize:18}},"⚠️"),
+                React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--warn)"}},selfieResult.error)),
+              React.createElement("button",{onClick:function(){setSelfieResult(null)},className:"btn btn-ghost",style:{marginTop:8,fontSize:10}},"Dismiss"))
+            :React.createElement("div",null,
+              /* Impact score */
+              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:14,marginBottom:14}},
+                selfieResult.thumb&&React.createElement("img",{src:selfieResult.thumb,alt:"",style:{width:70,height:70,objectFit:"cover",borderRadius:12,border:"2px solid var(--gold)"}}),
+                React.createElement("div",{style:{flex:1}},
+                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
+                    React.createElement("div",{style:{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"3px solid "+(selfieResult.result.impact>=8?"var(--good)":selfieResult.result.impact>=5?"var(--gold)":"var(--warn)"),fontSize:18,fontFamily:"var(--f)",fontWeight:700,color:selfieResult.result.impact>=8?"var(--good)":selfieResult.result.impact>=5?"var(--gold)":"var(--warn)"}},selfieResult.result.impact+"/10"),
+                    React.createElement("div",null,
+                      React.createElement("div",{style:{fontSize:14,fontWeight:600,color:"var(--gold)"}},"Impact Score"),
+                      selfieResult.result.impact_why&&React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.impact_why))))),
+              /* Vision */
+              selfieResult.result.vision&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",marginBottom:10,border:"1px solid var(--border)"}},
+                React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,letterSpacing:"0.1em",marginBottom:4}},"EDITORIAL"),
+                React.createElement("p",{style:{fontSize:11,fontFamily:"var(--sf)",fontStyle:"italic",lineHeight:1.6,color:"var(--text)"}},selfieResult.result.vision)),
+              /* Color story */
+              selfieResult.result.color_story&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"10px 12px",marginBottom:8,border:"1px solid var(--border)"}},
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"🎨 COLORS "),
+                React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.color_story)),
+              /* Works / Risk / Upgrade */
+              React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}},
+                selfieResult.result.works&&React.createElement("div",{style:{flex:1,minWidth:140,background:"rgba(122,184,122,0.06)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(122,184,122,0.15)"}},
+                  React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--good)",fontWeight:600,marginBottom:2}},"✓ WORKS"),
+                  React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.works)),
+                selfieResult.result.risk&&React.createElement("div",{style:{flex:1,minWidth:140,background:"rgba(200,90,58,0.06)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(200,90,58,0.15)"}},
+                  React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--warn)",fontWeight:600,marginBottom:2}},"⚠️ RISK"),
+                  React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.risk))),
+              selfieResult.result.upgrade&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"8px 10px",marginBottom:10,border:"1px solid rgba(201,168,76,0.15)"}},
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"⬆ UPGRADE "),
+                React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.upgrade)),
+              /* Watch detection */
+              selfieResult.result.watch_details&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:10,border:"1px solid var(--border)"}},
+                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                  React.createElement("span",{style:{fontSize:14}},"⌚"),
+                  React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.watch_details),
+                  selfieResult.result.watch_confidence&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:selfieResult.result.watch_confidence>=7?"var(--good)":selfieResult.result.watch_confidence>=4?"var(--gold)":"var(--dim)",background:"var(--card)",borderRadius:4,padding:"1px 5px",border:"1px solid var(--border)"}},selfieResult.result.watch_confidence+"/10"))),
+              /* Fit assessment */
+              selfieResult.result.fit_assessment&&React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:10,border:"1px solid var(--border)"}},
+                React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600}},"📐 FIT "),
+                React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},selfieResult.result.fit_assessment)),
+              React.createElement("button",{onClick:function(){setSelfieResult(null)},className:"btn btn-ghost",style:{width:"100%",fontSize:10,marginTop:4}},"✕ Close"))),
+          /* History */
+          selfieHistory.length>0&&React.createElement("div",{style:{marginTop:8}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:10}},
+              React.createElement("span",{style:{fontSize:14}},"📋"),
+              React.createElement("span",{style:{fontSize:13,fontFamily:"var(--f)",fontWeight:600}},"History"),
+              React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},selfieHistory.length+" check"+(selfieHistory.length>1?"s":""))),
+            selfieHistory.map(function(entry){
+              return React.createElement("div",{key:entry.id,style:{display:"flex",gap:10,alignItems:"center",background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px",marginBottom:6}},
+                entry.thumb&&React.createElement("img",{src:entry.thumb,alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:8,flexShrink:0}}),
+                React.createElement("div",{style:{flex:1,minWidth:0}},
+                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                    React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(entry.impact>=8?"var(--good)":entry.impact>=5?"var(--gold)":"var(--warn)"),fontSize:11,fontFamily:"var(--f)",fontWeight:700,color:entry.impact>=8?"var(--good)":entry.impact>=5?"var(--gold)":"var(--warn)"}},entry.impact),
+                    React.createElement("div",{style:{flex:1}},
+                      React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},entry.result&&entry.result.impact_why?entry.result.impact_why.slice(0,60):"Style check"),
+                      React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},new Date(entry.ts).toLocaleDateString()+" "+new Date(entry.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}))))),
+                React.createElement("button",{onClick:function(){setSelfieResult(entry)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"View"),
+                React.createElement("button",{onClick:function(){delSelfie(entry.id)},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"✕"))}))),
 
         /* ROTATION */
         mode==="rotation"&&(function(){
@@ -3211,7 +3342,7 @@ function App(){
                 !IS_SHARED&&w.t==="replica"&&React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#6a5a50",border:"1px solid var(--rep-border)",borderRadius:3,padding:"1px 5px"}},"REP"),
                 React.createElement("span",{style:{width:8,height:8,borderRadius:"50%",background:w.c}}),
                 React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:st?st.c:"var(--dim)"}},st?st.l:"")),
-              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+" · "+(w.straps&&w.straps.length?w.straps.map(function(s){var td=STRAP_TYPES.find(function(t){return t.id===s.type});return(td?td.icon:"")+s.type+(s.type!=="bracelet"&&s.color?" "+s.color:"")}).join(", "):w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt),
+              React.createElement("div",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",marginBottom:4}},w.d+(w.size?" · "+w.size:"")+(w.ref?" · Ref "+w.ref:"")+" · "+(w.straps&&w.straps.length?w.straps.map(function(s){var td=STRAP_TYPES.find(function(t){return t.id===s.type});return(td?td.icon:"")+s.type+(s.type!=="bracelet"&&s.color?" "+s.color:"")}).join(", "):w.br?"Bracelet":"Strap"+(w.sc&&w.sc.length?": "+w.sc.join(", "):""))+" · "+w.mt+(w.movement?" · "+w.movement:"")),
               React.createElement("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},(w.cx||[]).map(function(c){return React.createElement("span",{key:c,style:{fontSize:8,fontFamily:"var(--f)",background:"var(--bg)",borderRadius:8,padding:"2px 6px",color:"var(--dim)"}},(CXI[c]||"")+c)}))),
             React.createElement("button",{onClick:function(e){e.stopPropagation();toggleW(w.id)},style:{width:44,height:26,borderRadius:13,background:w.active?"var(--gold)":"var(--card2)",border:"none",cursor:"pointer",position:"relative",flexShrink:0,minHeight:26}},
               React.createElement("div",{style:{width:20,height:20,borderRadius:"50%",background:w.active?"var(--bg)":"var(--dim)",position:"absolute",top:3,left:w.active?21:3,transition:"left .2s"}}))))}),
