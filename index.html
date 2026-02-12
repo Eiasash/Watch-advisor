@@ -1018,8 +1018,15 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
   /* Layer-to-layer color harmony */
   for(var li=0;li<tops.length-1;li++){fs+=compat(tops[li].color,tops[li+1].color)*1.5}
-  /* Jeans daily preference bonus */
-  if(bot&&bot.garmentType==="Jeans")fs+=0.8;
+  /* Jeans-first preference: jeans are the default bottom unless formality demands otherwise */
+  if(bot){
+    var _cx=Array.isArray(ctx)?ctx[0]:ctx;
+    var _formalCx=_cx==="formal"||_cx==="event"||_cx==="office";
+    var _semiCx=_cx==="clinic"||_cx==="smart-casual"||_cx==="date";
+    if(bot.garmentType==="Jeans"){fs+=_formalCx?0:_semiCx?1.2:2.0}
+    else if(bot.garmentType==="Chinos"){fs+=_formalCx?1.0:_semiCx?0:-0.8}
+    else if(bot.garmentType==="Pants/Trousers"){fs+=_formalCx?1.5:_semiCx?0.3:-1.2}
+  }
   /* Pattern bonus — check outermost top vs bottom */
   if(outerTop&&bot){
     var tp=(outerTop.pattern||"solid"),bp=(bot.pattern||"solid");
