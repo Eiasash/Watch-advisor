@@ -1,4 +1,4 @@
-const CACHE='wa-v24.0';
+const CACHE='wa-v24.1';
 /* Install: pre-cache critical assets, skip waiting to activate immediately */
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html'])).then(()=>self.skipWaiting()))});
 /* Activate: purge old caches, claim all clients */
