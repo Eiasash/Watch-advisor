@@ -113,6 +113,45 @@ async function decryptData(packed,password){
   var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,ct);
   return new TextDecoder().decode(pt);
 }
+/* ══════ API KEY ENCRYPTION ══════ */
+/* Encrypts the API key at rest using a random device secret.
+   Not military-grade, but prevents plaintext key in localStorage/storage. */
+function _getDeviceSecret(){
+  try{var s=localStorage.getItem("wa_dsec");if(s&&s.length>=32)return s;
+  var arr=new Uint8Array(32);crypto.getRandomValues(arr);
+  s=Array.from(arr,function(b){return b.toString(16).padStart(2,"0")}).join("");
+  localStorage.setItem("wa_dsec",s);return s}catch(e){return"wa_fallback_key_00000000000000000"}
+}
+function encryptApiKey(key){
+  if(!key)return"";
+  try{var secret=_getDeviceSecret();var out=[];
+  for(var i=0;i<key.length;i++){out.push(key.charCodeAt(i)^secret.charCodeAt(i%secret.length))}
+  return"ENC:"+btoa(String.fromCharCode.apply(null,out))}catch(e){return key}
+}
+function decryptApiKey(stored){
+  if(!stored)return"";
+  if(!stored.startsWith("ENC:"))return stored; /* legacy plaintext — will be re-encrypted on next save */
+  try{var secret=_getDeviceSecret();var raw=atob(stored.slice(4));var out=[];
+  for(var i=0;i<raw.length;i++){out.push(String.fromCharCode(raw.charCodeAt(i)^secret.charCodeAt(i%secret.length)))}
+  return out.join("")}catch(e){return""}
+}
+/* ══════ HEMISPHERE-AWARE SEASON ══════ */
+/* Temperature-first, month fallback respects latitude for hemisphere */
+function getSeason(temp,lat){
+  if(temp!==undefined&&temp!==null){
+    if(temp>=28)return"summer";if(temp>=20)return"spring";if(temp>=12)return"fall";return"winter";
+  }
+  var m=new Date().getMonth();
+  /* Northern hemisphere (default): Mar-May spring, Jun-Aug summer, Sep-Nov fall, Dec-Feb winter */
+  var nSeason;
+  if(m>=2&&m<=4)nSeason="spring";else if(m>=5&&m<=7)nSeason="summer";else if(m>=8&&m<=10)nSeason="fall";else nSeason="winter";
+  /* Southern hemisphere: flip seasons */
+  if(lat!==undefined&&lat<0){
+    var flip={"spring":"fall","summer":"winter","fall":"spring","winter":"summer"};
+    return flip[nSeason]||nSeason;
+  }
+  return nSeason;
+}
 const SK="v14"; /* storage key suffix — change to reset data */
 
 /* ══════ DATA ══════ */
@@ -929,13 +968,8 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   if(tops.length>=2)fs+=0.5;
   if(tops.length>=3)fs+=0.5;
   /* Season penalty for off-season items */
-  /* Season — temperature-based when weather available, month-based fallback */
-  var _csn=(function(){
-    if(wxOpts&&wxOpts.temp!==undefined){
-      var t=wxOpts.temp;
-      if(t>=28)return"summer";if(t>=20)return"spring";if(t>=12)return"fall";return"winter";
-    }
-    var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
+  /* Season — temperature-based when weather available, hemisphere-aware month fallback */
+  var _csn=getSeason(wxOpts&&wxOpts.temp!==undefined?wxOpts.temp:undefined,wxOpts&&wxOpts.lat);
   items.forEach(function(it){var s=it.seasons;if(s&&s.length>0&&s.length<4&&!s.includes(_csn))fs-=1});
   /* Freshness penalty — discourage recently-worn garments for variety */
   var _now=Date.now();
@@ -1012,7 +1046,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
   count=count||10;opts=opts||{};
   var wxOpts=opts.wx||null;
   const rules=CXR[Array.isArray(ctx)?ctx[0]:ctx]||CXR["smart-casual"];
-  var curSeason=(function(){if(opts.temp!==undefined){var t=opts.temp;if(t>=28)return"summer";if(t>=20)return"spring";if(t>=12)return"fall";return"winter"}var m=new Date().getMonth();if(m>=2&&m<=4)return"spring";if(m>=5&&m<=7)return"summer";if(m>=8&&m<=10)return"fall";return"winter"})();
+  var curSeason=getSeason(opts.temp,opts.lat);
   var seasonFilter=function(i){var s=i.seasons;if(!s||!s.length||s.length>=4)return true;return s.includes(curSeason)};
   const valid=wardrobe.filter(function(i){return i.color&&!i.needsEdit});
   var tops=valid.filter(function(i){return catOf(i.garmentType)==="tops"&&!(rules.no||[]).includes(i.garmentType)&&seasonFilter(i)});
@@ -1350,7 +1384,7 @@ function Modal(props){
       React.createElement("div",{className:"modal-handle"}),props.children));
 }
 
-function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock){
+function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock,lat){
   var DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   var today=new Date().getDay();
   var plan=[];var used={};var lastId=null;
@@ -1406,9 +1440,9 @@ function genWeekRotation(watches,forecast,weekCtx,wardrobe,reps,wearLog,rotLock)
     if(pick){used[pick.id]=true;lastId=pick.id}
     /* Generate top outfit for this day's watch+context+weather */
     var dayFit=null;var altFits=[];
-    var dayWxOpts=fc?{rain:fc.cond&&fc.cond.rain,wind:fc.wind||0,uv:fc.uv||0,rainPct:fc.rainPct||0}:null;
+    var dayWxOpts=fc?{rain:fc.cond&&fc.cond.rain,wind:fc.wind||0,uv:fc.uv||0,rainPct:fc.rainPct||0,lat:lat}:null;
     if(pick&&wardrobe&&wardrobe.length>=2){
-      var dayFits=genFits(wardrobe,[pick],cx,true,dayWt,4,{wx:dayWxOpts,temp:fc?fc.feelsAvg:18,wearLog:wearLog});
+      var dayFits=genFits(wardrobe,[pick],cx,true,dayWt,4,{wx:dayWxOpts,temp:fc?fc.feelsAvg:18,wearLog:wearLog,lat:lat});
       if(dayFits.length)dayFit=dayFits[0];
       altFits=dayFits.slice(1,4);
     }
@@ -1521,6 +1555,8 @@ function App(){
   const[lightboxSrc,setLightboxSrc]=useState(null);
   const[lightboxItems,setLightboxItems]=useState([]);
   const[showSaveToast,setShowSaveToast]=useState(false);
+  const[undoDelete,setUndoDelete]=useState(null); /* {outfit, timer} — holds recently deleted outfit for undo */
+  const undoTimerRef=useRef(null);
   const[watchScanLoading,setWatchScanLoading]=useState(false);
   const[watchScanResult,setWatchScanResult]=useState(null);
   const[selfieHistory,setSelfieHistory]=useState([]);
@@ -1546,7 +1582,7 @@ function App(){
     if(!wdLoaded){for(var vk2 of["wd_v12","wd_v11","wd_v9","wd_v8"]){try{var pm2=await loadKey(vk2);if(pm2&&pm2.length){var mg=pm2.map(function(g){return Object.assign({material:null,seasons:[],positionHint:null,lastWorn:null},g)});setWd(mg);ps("wd_"+SK,mg);wdLoaded=true;break}}catch(e){}}}
     if(!ofLoaded){for(var vk3 of["of_v12","of_v11","of_v9","of_v8"]){try{var pm3=await loadKey(vk3);if(pm3&&pm3.length){setSaved(pm3);ps("of_"+SK,pm3);ofLoaded=true;break}}catch(e){}}}
     // Load API key
-    try{var ak=await loadKey("wa_apikey");if(ak){setApiKey(ak);apiKeyRef.current=ak}}catch(e){}
+    try{var ak=await loadKey("wa_apikey");if(ak){var dk=decryptApiKey(ak);setApiKey(dk);apiKeyRef.current=dk;/* Auto-upgrade plaintext key to encrypted */if(!String(ak).startsWith("ENC:")){ps("wa_apikey",encryptApiKey(dk))}}}catch(e){}
     try{var wc=await loadKey("wa_weekctx");if(wc&&wc.length===7)setWeekCtx(wc)}catch(e){}
     try{var ucx=await loadKey("wa_usercx_"+SK);if(ucx&&ucx.length)setUserCx(ucx)}catch(e){}
     try{var wl=await loadKey("wa_wearlog_"+SK);if(wl&&wl.length)setWearLog(wl);else{for(var wlk of["wa_wearlog_v12","wa_wearlog_v11"]){try{var wlm=await loadKey(wlk);if(wlm&&wlm.length){setWearLog(wlm);ps("wa_wearlog_"+SK,wlm);break}}catch(e){}}}}catch(e){}
@@ -1569,10 +1605,10 @@ function App(){
   const ww=tier?tier.weight:"mid";
   const planTemp=useMemo(function(){if(planDay===0&&weather)return{temp:weather.temp,feels:weather.feels};if(forecast[planDay])return{temp:Math.round((forecast[planDay].high+forecast[planDay].low)/2),feels:forecast[planDay].feelsAvg};return weather?{temp:weather.temp,feels:weather.feels}:null},[weather,forecast,planDay]);
   const planWx=useMemo(function(){
-    if(planDay===0&&weather)return{rain:weather.cond&&weather.cond.rain,wind:weather.wind,uv:0,cond:weather.cond||null,rainPct:0};
-    var fc=forecast[planDay];if(fc)return{rain:fc.cond&&fc.cond.rain,wind:fc.wind,uv:fc.uv,cond:fc.cond||null,rainPct:fc.rainPct||0};
+    if(planDay===0&&weather)return{rain:weather.cond&&weather.cond.rain,wind:weather.wind,uv:0,cond:weather.cond||null,rainPct:0,lat:loc.lat};
+    var fc=forecast[planDay];if(fc)return{rain:fc.cond&&fc.cond.rain,wind:fc.wind,uv:fc.uv,cond:fc.cond||null,rainPct:fc.rainPct||0,lat:loc.lat};
     return null;
-  },[weather,forecast,planDay]);
+  },[weather,forecast,planDay,loc]);
   const effectiveCtx=useMemo(function(){
     if(planDay>0){var dayIdx=(new Date().getDay()+planDay)%7;var wc=weekCtx[dayIdx];return wc?[wc]:ctx}
     return ctx;
@@ -1584,7 +1620,7 @@ function App(){
   const activeCxIcons=useMemo(function(){var m={};activeCx.forEach(function(c){m[c.id]=c.icon});return m},[activeCx]);
   const actW=useMemo(function(){return W.filter(function(w){return w.active&&w.status!=="sold"&&w.status!=="service"&&w.status!=="pending-trade"&&w.status!=="incoming"})},[W]);
   const byCat=useMemo(function(){return{tops:wd.filter(function(i){return catOf(i.garmentType)==="tops"}),bottoms:wd.filter(function(i){return catOf(i.garmentType)==="bottoms"}),shoes:wd.filter(function(i){return catOf(i.garmentType)==="shoes"}),accessories:wd.filter(function(i){return catOf(i.garmentType)==="accessories"||catOf(i.garmentType)==="other"})}},[wd]);
-  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp]);
+  const fits=useMemo(function(){return wd.length<2?[]:genFits(wd,actW,effectiveCtx,reps,ww,fitCount,{topType:topType,lockItem:lockItem,shuffle:shuffleKey>0,wx:planWx,temp:planTemp?planTemp.feels:18,wearLog:wearLog,lat:loc.lat})},[wd,actW,effectiveCtx,reps,ww,topType,lockItem,shuffleKey,fitCount,planWx,planTemp,loc]);
   const buildFit=useMemo(function(){var layerItems=buildLayers.map(function(l){return l.item}).filter(Boolean);var items=layerItems.concat([bBot,bShoe,bAcc]).filter(Boolean);return items.length>=2?makeOutfit(items,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18):null},[buildLayers,bBot,bShoe,bAcc,actW,effectiveCtx,reps,planWx,planTemp]);
   const needsFix=useMemo(function(){return wd.filter(function(i){return i.needsEdit||!i.color}).length},[wd]);
 
@@ -1805,7 +1841,23 @@ function App(){
   },[ps]);
 
   const saveFit=useCallback(function(fit){var wxSnap=planTemp&&planWx?{temp:planTemp.temp,cond:planWx.cond,rain:planWx.rain}:null;var o={id:Date.now(),name:(fit.top?fit.top.name||fit.top.color:"?")+" + "+(fit.bot?fit.bot.name||fit.bot.color:"?"),items:fit.items,context:Array.isArray(effectiveCtx)?effectiveCtx.slice():effectiveCtx,watches:fit.watches,fs:fit.fs,ts:Date.now(),weather:wxSnap};setSaved(function(p){var n=p.concat([o]);ps("of_"+SK,n);return n});/* Auto-update lastWorn on garments */var todayISO=new Date().toISOString().slice(0,10);var itemIds=new Set((fit.items||[]).map(function(it){return it.id}));setWd(function(prev){var changed=false;var nw=prev.map(function(g){if(itemIds.has(g.id)){changed=true;return Object.assign({},g,{lastWorn:todayISO})}return g});if(changed)ps("wd_"+SK,nw);return changed?nw:prev})},[effectiveCtx,ps,planTemp,planWx]);
-  const delSaved=useCallback(function(id){setSaved(function(p){var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n})},[ps]);
+  const delSaved=useCallback(function(id){
+    /* Soft delete: remove from UI immediately, but hold the outfit for 5s undo window */
+    var deleted=null;
+    setSaved(function(p){deleted=p.find(function(o){return o.id===id});var n=p.filter(function(o){return o.id!==id});ps("of_"+SK,n);return n});
+    /* Cancel any existing undo timer */
+    if(undoTimerRef.current){clearTimeout(undoTimerRef.current);undoTimerRef.current=null}
+    /* Show undo toast with the deleted outfit */
+    setUndoDelete({outfit:deleted,id:id});
+    undoTimerRef.current=setTimeout(function(){setUndoDelete(null);undoTimerRef.current=null},5000);
+  },[ps]);
+  const undoDeleteFn=useCallback(function(){
+    if(!undoDelete||!undoDelete.outfit)return;
+    if(undoTimerRef.current){clearTimeout(undoTimerRef.current);undoTimerRef.current=null}
+    var restored=undoDelete.outfit;
+    setSaved(function(p){var n=p.concat([restored]);ps("of_"+SK,n);return n});
+    setUndoDelete(null);
+  },[undoDelete,ps]);
 
   const setOutfitWear=useCallback(function(id,dateStr){
     setSaved(function(p){
@@ -2182,7 +2234,7 @@ function App(){
       React.createElement("label",{className:"lbl"},"Anthropic API Key"),
       React.createElement("input",{className:"inp",type:"password",value:apiKey,onChange:function(e){setApiKey(e.target.value);apiKeyRef.current=e.target.value},placeholder:"sk-ant-...",style:{marginBottom:12,fontFamily:"monospace"}}),
       React.createElement("div",{style:{display:"flex",gap:8,marginBottom:16}},
-        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",apiKey);apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
+        React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){ps("wa_apikey",encryptApiKey(apiKey));apiKeyRef.current=apiKey;setShowSettings(false)}},"💾 Save Key"),
         apiKey&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setApiKey("");apiKeyRef.current="";ps("wa_apikey","")}},"Clear")),
       React.createElement("div",{style:{background:"var(--bg)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"ℹ️ Get your key at console.anthropic.com → API Keys"),
@@ -2259,6 +2311,11 @@ function App(){
     React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
     /* Save Toast */
     showSaveToast&&React.createElement("div",{className:"fu",style:{position:"fixed",bottom:84,right:16,zIndex:91,background:"rgba(122,184,122,0.95)",color:"#fff",borderRadius:10,padding:"10px 18px",fontFamily:"var(--f)",fontSize:12,fontWeight:600,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}},"✓ All changes saved!"),
+    /* ═══ UNDO DELETE TOAST ═══ */
+    undoDelete&&React.createElement("div",{className:"fu",style:{position:"fixed",bottom:84,left:16,right:16,zIndex:92,background:"rgba(200,90,58,0.95)",color:"#fff",borderRadius:12,padding:"12px 16px",fontFamily:"var(--f)",fontSize:12,fontWeight:500,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",display:"flex",alignItems:"center",gap:10}},
+      React.createElement("span",{style:{flex:1}},"🗑️ Outfit deleted"),
+      React.createElement("button",{onClick:undoDeleteFn,style:{background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:8,padding:"6px 16px",cursor:"pointer",color:"#fff",fontFamily:"var(--f)",fontSize:12,fontWeight:700,minHeight:30}},"↩ Undo"),
+      React.createElement("button",{onClick:function(){if(undoTimerRef.current){clearTimeout(undoTimerRef.current);undoTimerRef.current=null}setUndoDelete(null)},style:{background:"none",border:"none",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",padding:"4px"}},"✕")),
 
     /* HEADER */
     React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
@@ -2621,7 +2678,7 @@ function App(){
 
         /* ROTATION */
         mode==="rotation"&&(function(){
-          var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock);
+          var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock,loc.lat);
           /* Apply alt swaps */
           Object.keys(altSwap).forEach(function(k){
             var di=parseInt(k),ai=altSwap[k];
@@ -2971,7 +3028,7 @@ function App(){
             React.createElement("span",{style:{fontSize:16,fontFamily:"var(--sf)",fontWeight:600,color:"var(--gold)"}},"Today's Pick")),
           !dailyPick?React.createElement("button",{className:"btn btn-gold",onClick:function(){
             var cx0=weekCtx[new Date().getDay()]||"smart-casual";
-            var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock);
+            var rotation=genWeekRotation(actW,forecast,weekCtx,wd,reps,wearLog,rotLock,loc.lat);
             /* Apply alt swaps for today */
             if(altSwap[0]!=null&&rotation[0]&&rotation[0].altOutfits&&rotation[0].altOutfits[altSwap[0]]){
               var orig0=rotation[0].outfit;var origFs0=rotation[0].fs||rotation[0].altOutfits[altSwap[0]].fs;
