@@ -1,7 +1,8 @@
 /* ══════ engine.js — Scoring Engine, Outfit Generation ══════ */
 import {
   CM, CP, COLOR_FAMILIES, STRAP_CTX, STRAP_TYPES, CXR,
-  CATS, catOf, layerOf, getSeason, getWT, migrateStraps
+  CATS, catOf, layerOf, getSeason, getWT, migrateStraps,
+  WATCH_META
 } from './data.js';
 
 function getColorFamily(c){for(var fam in COLOR_FAMILIES){if(COLOR_FAMILIES[fam].includes(c))return fam}return null}
@@ -43,6 +44,20 @@ function compat(c1,c2){
   return r;
 }
 
+/* ── Parse dial color string into array of CM-recognized colors ── */
+function parseDialColors(d){
+  if(!d)return[];
+  var dl=d.toLowerCase().trim();
+  if(CM[dl])return[dl];
+  var parts=dl.split('/').map(function(s){return s.trim()}).filter(Boolean);
+  if(parts.length>1){var found=parts.filter(function(p){return!!CM[p]});if(found.length)return found}
+  parts=dl.split('-').map(function(s){return s.trim()}).filter(Boolean);
+  if(parts.length>1){var compound=parts.join(' ');if(CM[compound])return[compound];var found2=parts.filter(function(p){return!!CM[p]});if(found2.length)return found2}
+  var keys=Object.keys(CM);var match=keys.find(function(k){return dl.includes(k)||k.includes(dl)});
+  if(match)return[match];
+  return[];
+}
+
 function scoreW(w,items,ctx,reps,opts){
   if(!w.active||w.status==="sold"||w.status==="service"||w.status==="pending-trade"||w.status==="incoming")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
@@ -76,21 +91,24 @@ function scoreW(w,items,ctx,reps,opts){
   s+=_bestCxScore;
   bd.ctx=_bestCxScore;
 
-  for(const c of ic){
-    if(!c)continue;
-    let matched=false;
-    for(const m of(w.mc||[])){
-      if(m==="anything"||c.includes(m)||m.includes(c)){
-        s+=2;bd.color+=2;matched=true;break
-      }
-    }
-    if(!matched)
-      for(const a of(w.ac||[])){
-        if(c.includes(a)||a.includes(c)){
-          s-=2;bd.color-=2;break
-        }
-      }
+  /* ── Dial color compat scoring (replaces binary mc/ac matching) ── */
+  var dc=parseDialColors(w.d);
+  var _wMeta=WATCH_META[w.id];
+  var _dialNeutral=(_wMeta&&_wMeta.dialNeutral)||false;
+  if(!dc.length&&!_dialNeutral){
+    var _dl=(w.d||"").toLowerCase();
+    _dialNeutral=["blacks","whites","greys"].some(function(f){return(COLOR_FAMILIES[f]||[]).some(function(c2){return _dl.includes(c2)})});
   }
+  var bestCompat=0;
+  if(dc.length&&ic.length){
+    for(var _di=0;_di<dc.length;_di++){for(var _ci=0;_ci<ic.length;_ci++){var _cv=compat(dc[_di],ic[_ci]);if(_cv>bestCompat)bestCompat=_cv}}
+  }
+  var dialBonus=bestCompat>=0.8?1.5:bestCompat>=0.6?0.9:_dialNeutral?0.5:0;
+  if(w.ac&&w.ac.length){
+    var _hasClash=ic.some(function(c2){return w.ac.some(function(a){var al=a.toLowerCase();return c2.includes(al)||al.includes(c2)})});
+    if(_hasClash)dialBonus=Math.max(dialBonus-0.5,0);
+  }
+  s+=dialBonus;bd.color=dialBonus;
 
   const temps=ic.map(c=>{
     const e=Object.entries(CM).find(([k])=>c.includes(k));
@@ -103,22 +121,43 @@ function scoreW(w,items,ctx,reps,opts){
   if(w.mt==="cool"&&co>=wm){s+=1;bd.temp=1}
   if(w.mt==="warm"&&co>wm+1){s-=1;bd.temp=-1}
 
-  if(!w.br&&sc&&w.straps&&w.straps.length){
-    var _sB2=sc.includes("black");
-    var _sBr2=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
-
-    var _anyMatch=w.straps.some(function(st){
-      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato")return true;
-      var stc=(st.color||"").toLowerCase();
-      if(_sB2&&(stc.includes("black")||stc.includes("navy")))return true;
-      if(_sBr2&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")||stc.includes("green")||stc.includes("cognac")))return true;
-      return false;
+  /* ── Strap-shoe soft scoring (replaces hard -5 cliff) ── */
+  if(sc&&w.straps&&w.straps.length){
+    var _sBlack=sc.includes("black"),_sBrown=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac"),_sWhite=sc.includes("white");
+    var _bestStrapPts=-Infinity;
+    w.straps.forEach(function(st){
+      var stc=(st.color||"").toLowerCase();var pts=0;
+      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"){pts=0.2}
+      else{
+        var _brSt=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy");
+        var _blSt=stc.includes("black")||stc.includes("navy");
+        if(_brSt&&_sBrown)pts=1.2;else if(_brSt&&_sWhite)pts=0.3;else if(_brSt&&_sBlack)pts=-0.6;
+        else if(_blSt&&_sBlack)pts=1.0;else if(_blSt&&_sWhite)pts=0.2;else if(_blSt&&_sBrown)pts=-0.6;
+      }
+      if(pts>_bestStrapPts)_bestStrapPts=pts;
     });
-
-    if(!_anyMatch){s-=5;bd.strap-=5}
+    if(_bestStrapPts>-Infinity){s+=_bestStrapPts;bd.strap+=_bestStrapPts}
   }
 
-  if(w.br){s+=1;bd.br=1}
+  /* ── Rain logic ── */
+  var _rain=_o.rain;
+  if(_rain){
+    if(w.straps&&w.straps.length){
+      var _hasBrOrRubber=w.straps.some(function(st){return st.type==="bracelet"||st.type==="rubber"});
+      var _onlyLeather=w.straps.every(function(st){return st.type==="leather"});
+      if(_hasBrOrRubber){s+=1.5;bd.strap+=1.5}
+      else if(_onlyLeather){s-=1.0;bd.strap-=1.0}
+    }else{
+      if(w.br){s+=1.5;bd.strap+=1.5}else{s-=1.0;bd.strap-=1.0}
+    }
+  }
+
+  /* ── Versatility bonuses (capped at 2.2) ── */
+  if(_wMeta){
+    var vb=0;
+    if(_wMeta.twoTone)vb+=0.6;if(_wMeta.steel)vb+=0.4;if(_wMeta.dialNeutral)vb+=0.5;if(_wMeta.isNeutralAnchor)vb+=0.7;
+    vb=Math.min(vb,2.2);s+=vb;bd.br=vb;
+  }
 
   var _prefU=opts&&opts.preferUnworn;
   if(wearLog&&wearLog.length){
@@ -136,6 +175,8 @@ function scoreW(w,items,ctx,reps,opts){
     }else{s+=(_prefU?2:1);bd.fresh=(_prefU?2:1)}
   }
 
+  /* ── Guardrail: clamp score to [-6, +6] ── */
+  s=Math.max(-6,Math.min(6,s));
   return{total:s,...bd};
 }
 
@@ -167,11 +208,15 @@ function strapRec(w,items,ctx,wxOpts){
       var pts=ctxMap[st.type]||0;
       var stc=st.color?st.color.toLowerCase():"";
 
-      if(st.type!=="bracelet"&&sc){
-        if(sc.includes("black")&&(stc.includes("black")||stc.includes("navy")))pts+=3;
-        if((sc.includes("brown")||sc.includes("tan")||sc.includes("cognac"))&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")))pts+=3;
-        if(sc.includes("black")&&(stc.includes("brown")||stc.includes("tan")))pts-=2;
-        if((sc.includes("brown")||sc.includes("tan"))&&stc.includes("black"))pts-=2;
+      if(sc){
+        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"){pts+=0.2}
+        else{
+          var _brS=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy")||stc.includes("teal");
+          var _blS=stc.includes("black")||stc.includes("navy");
+          var _sBl=sc.includes("black"),_sBr=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac"),_sWh=sc.includes("white");
+          if(_brS&&_sBr)pts+=2.4;else if(_brS&&_sWh)pts+=0.6;else if(_brS&&_sBl)pts-=1.2;
+          else if(_blS&&_sBl)pts+=2.0;else if(_blS&&_sWh)pts+=0.4;else if(_blS&&_sBr)pts-=1.2;
+        }
       }
 
       if(sm.includes("leather")&&(st.material||"").toLowerCase().match(/leather|alligator|cordovan|nubuck/))pts+=1;
@@ -337,7 +382,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
     });
   }
   const wr=watches.map(w=>{
-    var sc=scoreW(w,items,ctx,reps,{wearLog:_wl,preferUnworn:_prefUnworn});
+    var sc=scoreW(w,items,ctx,reps,{wearLog:_wl,preferUnworn:_prefUnworn,rain:isRainy});
     return{
       ...w,
       score:sc.total,
