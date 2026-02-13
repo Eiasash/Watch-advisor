@@ -402,6 +402,34 @@ const CXR={
 };
 
 
+/* ══════ WATCH_META — versatility traits per watch ══════ */
+const WATCH_META={
+"snowflake":  {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"rikka":      {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"sbgw267":    {twoTone:false,steel:false,dialNeutral:true, isNeutralAnchor:false},
+"laureato":   {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"reverso":    {twoTone:false,steel:false,dialNeutral:false,isNeutralAnchor:false},
+"santos-lg":  {twoTone:true, steel:true, dialNeutral:true, isNeutralAnchor:true},
+"santos-oct": {twoTone:true, steel:false,dialNeutral:true, isNeutralAnchor:false},
+"bb41":       {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"monaco":     {twoTone:false,steel:false,dialNeutral:true, isNeutralAnchor:false},
+"gmt":        {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"alpine-8hf": {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"hanhart":    {twoTone:false,steel:false,dialNeutral:false,isNeutralAnchor:false},
+"laco":       {twoTone:false,steel:false,dialNeutral:true, isNeutralAnchor:false},
+"speedy":     {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"iwc-perp":   {twoTone:false,steel:false,dialNeutral:false,isNeutralAnchor:false},
+"iwc-ing":    {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"vc-perp":    {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"santos-rep": {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:true},
+"alpine-red": {twoTone:true, steel:false,dialNeutral:false,isNeutralAnchor:false},
+"ap-roc":     {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"gmt-met":    {twoTone:false,steel:true, dialNeutral:true, isNeutralAnchor:false},
+"dd-turq":    {twoTone:true, steel:false,dialNeutral:false,isNeutralAnchor:false},
+"op-grape":   {twoTone:false,steel:true, dialNeutral:false,isNeutralAnchor:false},
+"breguet":    {twoTone:false,steel:false,dialNeutral:true, isNeutralAnchor:false},
+};
+
 export {
   IS_SHARED, SK, getSeason,
   CM, AC, CG, PATTERNS, MATERIALS,
@@ -413,5 +441,6 @@ export {
   autoMatchColors,
   _OWNER_DEFAULTS, migrateStraps, DEFAULTS,
   _OWNER_WARDROBE, WD_DEFAULTS,
-  CP, COLOR_FAMILIES, CXR
+  CP, COLOR_FAMILIES, CXR,
+  WATCH_META
 };
