@@ -1,10 +1,15 @@
-const CACHE = "wa-v24.14";
+const CACHE = "wa-v25.1";
+const MODULES = [
+  "./", "./index.html",
+  "./app.js", "./data.js", "./engine.js",
+  "./utils.js", "./ai.js", "./photos.js", "./crypto.js"
+];
 /* Install: cache critical assets, activate immediately */
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches
       .open(CACHE)
-      .then((c) => c.addAll(["./", "./index.html"]))
+      .then((c) => c.addAll(MODULES))
       .then(() => self.skipWaiting()),
   );
 });
@@ -26,17 +31,18 @@ self.addEventListener("message", (e) => {
   }
 });
 /* Fetch strategy:
-   HTML navigations → network-first (always get latest, fall back to cache)
+   HTML + JS modules → network-first (always get latest, fall back to cache)
    Other → cache-first with network fallback */
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  const isNav =
+  const isAppCode =
     e.request.mode === "navigate" ||
     url.pathname.endsWith(".html") ||
+    url.pathname.endsWith(".js") ||
     url.pathname.endsWith("/");
-  if (isNav) {
-    /* NETWORK-FIRST: always try to get fresh HTML */
+  if (isAppCode) {
+    /* NETWORK-FIRST: always try to get fresh app code */
     e.respondWith(
       fetch(e.request)
         .then((res) => {
@@ -49,7 +55,7 @@ self.addEventListener("fetch", (e) => {
         .catch(() => caches.match(e.request)),
     );
   } else {
-    /* Cache-first for static assets */
+    /* Cache-first for static assets (fonts, images) */
     e.respondWith(
       caches.match(e.request).then(
         (r) =>
