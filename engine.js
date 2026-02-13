@@ -92,7 +92,25 @@ function scoreW(w,items,ctx,reps,opts){
   bd.ctx=_bestCxScore;
 
   /* ── Dial color compat scoring (replaces binary mc/ac matching) ── */
-  var dc=parseDialColors(w.d);
+/* ── Dial color source fallback ──
+   1) WATCH_META[w.id].dc
+   2) w.dc
+   3) parseDialColors(w.d)
+   4) w.mc.slice(0,3)
+*/
+var dc=[];
+var _wMeta=WATCH_META[w.id]||null;
+
+if(_wMeta&&Array.isArray(_wMeta.dc)&&_wMeta.dc.length){
+  dc=_wMeta.dc.map(x=>(x||"").toLowerCase().trim()).filter(Boolean);
+}else if(Array.isArray(w.dc)&&w.dc.length){
+  dc=w.dc.map(x=>(x||"").toLowerCase().trim()).filter(Boolean);
+}else{
+  dc=parseDialColors(w.d);
+  if(!dc.length&&w.mc&&w.mc.length){
+    dc=w.mc.slice(0,3).map(x=>(x||"").toLowerCase().trim()).filter(Boolean);
+  }
+}
   var _wMeta=WATCH_META[w.id];
   var _dialNeutral=(_wMeta&&_wMeta.dialNeutral)||false;
   if(!dc.length&&!_dialNeutral){
