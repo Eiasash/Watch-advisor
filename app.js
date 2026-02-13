@@ -156,6 +156,64 @@ const WCard=memo(function WCardC(props){
 });
 
 /* ══════ MODAL WRAPPER ══════ */
+/* ═══ OUTFIT SHARE CANVAS ═══ */
+async function shareOutfitCanvas(fit,CM,ph,photoAsDataUrl){
+  var W=720,H=1280,c=document.createElement("canvas");c.width=W;c.height=H;var x=c.getContext("2d");
+  /* Background */
+  var bg=x.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#0e0d0b");bg.addColorStop(0.4,"#151412");bg.addColorStop(1,"#0a0908");x.fillStyle=bg;x.fillRect(0,0,W,H);
+  /* Gold accent */
+  var gold=x.createLinearGradient(60,0,W-60,0);gold.addColorStop(0,"rgba(201,168,76,0)");gold.addColorStop(0.5,"rgba(201,168,76,0.6)");gold.addColorStop(1,"rgba(201,168,76,0)");x.fillStyle=gold;x.fillRect(60,50,W-120,2);
+  function loadImg(src){return new Promise(function(ok){if(!src)return ok(null);var img=new Image();img.crossOrigin="anonymous";img.onload=function(){ok(img)};img.onerror=function(){ok(null)};img.src=src})}
+  async function resolvePhoto(u){if(!u)return null;if(u.startsWith("idb:")){var d=await photoAsDataUrl(u);return d||null}return ph?(ph(u)||u):u}
+  function rr(rx,ry,rw,rh,r){x.beginPath();x.moveTo(rx+r,ry);x.lineTo(rx+rw-r,ry);x.quadraticCurveTo(rx+rw,ry,rx+rw,ry+r);x.lineTo(rx+rw,ry+rh-r);x.quadraticCurveTo(rx+rw,ry+rh,rx+rw-r,ry+rh);x.lineTo(rx+r,ry+rh);x.quadraticCurveTo(rx,ry+rh,rx,ry+rh-r);x.lineTo(rx,ry+r);x.quadraticCurveTo(rx,ry,rx+r,ry);x.closePath()}
+  function frr(rx,ry,rw,rh,r,f){rr(rx,ry,rw,rh,r);x.fillStyle=f;x.fill()}
+  /* Title */
+  var dw=fit.watches&&fit.watches[0];
+  x.font="600 36px -apple-system,sans-serif";x.fillStyle="#c9a84c";x.textAlign="center";x.fillText("Today's Fit",W/2,100);
+  x.font="400 18px -apple-system,sans-serif";x.fillStyle="#8a8070";
+  x.fillText(new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"}),W/2,130);
+  /* Score arc */
+  var sc=fit.fs||0,sX=W/2,sY=200,sR=40;
+  x.beginPath();x.arc(sX,sY,sR,0,Math.PI*2);x.fillStyle="rgba(201,168,76,0.08)";x.fill();
+  x.beginPath();x.arc(sX,sY,sR,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(sc/10,1));
+  x.strokeStyle=sc>=7?"#7ab87a":sc>=4?"#c9a84c":"#c85a3a";x.lineWidth=4;x.lineCap="round";x.stroke();
+  x.font="700 28px -apple-system,sans-serif";x.fillStyle="#fff";x.textAlign="center";x.fillText(sc.toFixed(1),sX,sY+10);
+  /* Watch */
+  if(dw){
+    frr(40,270,W-80,100,16,"rgba(201,168,76,0.06)");x.strokeStyle="rgba(201,168,76,0.2)";rr(40,270,W-80,100,16);x.lineWidth=1;x.stroke();
+    x.beginPath();x.arc(100,320,28,0,Math.PI*2);x.fillStyle=(dw.c||"#c9a84c")+"30";x.fill();
+    x.font="28px sans-serif";x.textAlign="center";x.fillText(dw.i||"⌚",100,330);
+    x.textAlign="left";x.font="600 22px -apple-system,sans-serif";x.fillStyle="#c9a84c";x.fillText(dw.n||"Watch",150,310);
+    x.font="400 14px -apple-system,sans-serif";x.fillStyle="#8a8070";x.fillText((dw.d||"")+(dw.ref?" · Ref "+dw.ref:"")+(dw.size?" · "+dw.size+"mm":""),150,335);
+    if(dw.sr&&dw.sr.text){x.font="400 13px -apple-system,sans-serif";x.fillStyle="#6a6050";x.fillText(dw.sr.text,150,355)}
+  }
+  /* Garments */
+  var its=[{l:"TOP",it:fit.top},{l:"BOTTOM",it:fit.bot},{l:"SHOES",it:fit.shoe}].filter(function(e){return e.it});
+  var cY=400,cH=200,cG=16;
+  for(var gi=0;gi<its.length;gi++){
+    var e=its[gi],py=cY+gi*(cH+cG);
+    frr(40,py,W-80,cH,16,"#1a1816");x.strokeStyle="rgba(255,255,255,0.06)";rr(40,py,W-80,cH,16);x.lineWidth=1;x.stroke();
+    var imgSrc=await resolvePhoto(e.it.photoUrl),lImg=imgSrc?await loadImg(imgSrc):null;
+    if(lImg){x.save();rr(48,py+8,cH-16,cH-16,12);x.clip();var asp=lImg.width/lImg.height,dW=cH-16,dH=cH-16;if(asp>1)dW=dH*asp;else dH=dW/asp;x.drawImage(lImg,48+(cH-16-dW)/2,py+8+(cH-16-dH)/2,dW,dH);x.restore()}
+    else{frr(48,py+8,cH-16,cH-16,12,(CM[e.it.color]||{}).h||"#3a3a3a")}
+    var tx=48+cH+10;x.textAlign="left";
+    x.font="600 11px -apple-system,sans-serif";x.fillStyle="rgba(201,168,76,0.5)";x.fillText(e.l,tx,py+30);
+    x.font="600 20px -apple-system,sans-serif";x.fillStyle="#fff";x.fillText(e.it.name||(e.it.color+" "+e.it.garmentType),tx,py+60);
+    x.font="400 15px -apple-system,sans-serif";x.fillStyle="#8a8070";x.fillText((e.it.color||"").charAt(0).toUpperCase()+(e.it.color||"").slice(1),tx,py+85);
+    if(e.it.pattern&&e.it.pattern!=="solid")x.fillText(e.it.pattern,tx,py+108);
+    if(e.it.material){x.font="400 13px -apple-system,sans-serif";x.fillStyle="#6a6050";x.fillText(e.it.material,tx,py+130)}
+    var dH2=(CM[e.it.color]||{}).h||"#5a5a5a";x.beginPath();x.arc(tx+6,py+160,8,0,Math.PI*2);x.fillStyle=dH2;x.fill();
+  }
+  /* Context + branding */
+  var fY=cY+its.length*(cH+cG)+30;
+  if(fit.context){x.font="500 14px -apple-system,sans-serif";x.textAlign="center";x.fillStyle="rgba(201,168,76,0.5)";x.fillText(Array.isArray(fit.context)?fit.context.join(" · "):fit.context,W/2,fY)}
+  if(fit.warns&&fit.warns.length){x.font="400 13px -apple-system,sans-serif";x.fillStyle="#c85a3a";x.textAlign="center";fit.warns.slice(0,2).forEach(function(w,i){x.fillText("⚠️ "+w,W/2,fY+26+i*22)})}
+  x.fillStyle=gold;x.fillRect(60,H-80,W-120,2);
+  x.font="600 16px -apple-system,sans-serif";x.fillStyle="rgba(201,168,76,0.3)";x.textAlign="center";x.fillText("Watch Advisor",W/2,H-45);
+  x.font="400 11px -apple-system,sans-serif";x.fillStyle="rgba(255,255,255,0.15)";x.fillText("eiasash.github.io/Watch-advisor",W/2,H-25);
+  return new Promise(function(ok){c.toBlob(function(b){ok(b)},"image/png")})
+}
+
 function Modal(props){
   useEffect(function(){document.body.classList.add("modal-open");return function(){document.body.classList.remove("modal-open")}},[]);
   return React.createElement("div",{className:"modal-backdrop",role:"dialog","aria-modal":true,onClick:function(e){if(e.target===e.currentTarget)props.onClose()}},
@@ -2029,7 +2087,13 @@ function App(){
         React.createElement("button",{className:"btn btn-gold",onClick:function(){
           /* If user selected a watch, reorder watches so selected is first */
           if(fitWatch){var reordered=[fitWatch].concat((selFit.allW||selFit.watches).filter(function(w){return w.id!==fitWatch.id}));var updFit=Object.assign({},selFit,{watches:reordered.slice(0,3)});saveFit(updFit)}else{saveFit(selFit)}
-        }},"💾 Save Outfit")),
+        }},"💾 Save Outfit"),
+        React.createElement("button",{className:"btn",style:{marginTop:8,background:"rgba(122,184,216,0.1)",border:"1px solid rgba(122,184,216,0.3)",color:"#7ab8d8"},onClick:async function(){
+          try{showToast("Generating image…","var(--gold)",2000);var dw=fitWatch||(selFit.watches&&selFit.watches[0])||null;var shareFit=Object.assign({},selFit,{watches:dw?[dw]:selFit.watches||[],context:Array.isArray(effectiveCtx)?effectiveCtx.join(" · "):effectiveCtx});var blob=await shareOutfitCanvas(shareFit,CM,ph,photoAsDataUrl);
+          if(navigator.canShare&&navigator.canShare({files:[new File([blob],"outfit.png",{type:"image/png"})]})){await navigator.share({files:[new File([blob],"outfit.png",{type:"image/png"})],title:"Today's Fit",text:"Check out my outfit!"}).catch(function(){})}
+          else{var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="outfit-"+Date.now()+".png";a.click();URL.revokeObjectURL(url);showToast("Image saved!","var(--good)",2000)}
+          }catch(e){console.warn("[WA] Share error",e);showToast("Share failed: "+e.message,"var(--warn)",3000)}
+        }},"📸 Share as Image")),
 
       /* ═══ INSIGHTS ═══ */
       view==="insights"&&React.createElement("div",{key:"tab-insights",className:"tab-content",style:{paddingTop:16,paddingBottom:40}},
@@ -2113,7 +2177,15 @@ function App(){
             React.createElement("div",{style:{display:"flex",gap:8}},
               !todayWorn&&React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){logWear(dailyPick.watch.id,todayStr)}},"✓ Wearing This"),
               todayWorn&&React.createElement("span",{style:{flex:1,textAlign:"center",fontSize:12,fontFamily:"var(--f)",color:"var(--good)",padding:14}},"✓ Logged"),
-              React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setDailyPick(null);setAiCritique(null);setPieceSwap(function(p){var n=Object.assign({},p);delete n["t-top"];delete n["t-bot"];delete n["t-shoe"];return n});setPiecePicker(null)}},"↻")))),
+              React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){setDailyPick(null);setAiCritique(null);setPieceSwap(function(p){var n=Object.assign({},p);delete n["t-top"];delete n["t-bot"];delete n["t-shoe"];return n});setPiecePicker(null)}},"↻"),
+              React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px",color:"#7ab8d8"},onClick:async function(){
+                try{showToast("Generating…","var(--gold)",2000);var topItem=getEP("t","top",dailyPick.outfit.top),botItem=getEP("t","bot",dailyPick.outfit.bot),shoeItem=getEP("t","shoe",dailyPick.outfit.shoe);
+                var shareFit={top:topItem,bot:botItem,shoe:shoeItem,watches:[dailyPick.watch],context:dailyPick.context,fs:dailyPick.outfit.fs||0};
+                var blob=await shareOutfitCanvas(shareFit,CM,ph,photoAsDataUrl);
+                if(navigator.canShare&&navigator.canShare({files:[new File([blob],"outfit.png",{type:"image/png"})]})){await navigator.share({files:[new File([blob],"outfit.png",{type:"image/png"})],title:"Today's Fit"}).catch(function(){})}
+                else{var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="fit-"+Date.now()+".png";a.click();URL.revokeObjectURL(url);showToast("Image saved!","var(--good)",2000)}
+                }catch(e){console.warn("[WA]",e);showToast("Share error","var(--warn)",3000)}
+              }},"📸")))),
 
         /* ── AI OUTFIT CRITIQUE ── */
         React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:16}},
