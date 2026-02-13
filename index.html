@@ -12,10 +12,10 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#07060a;--card:#0d0c14;--card2:#12101a;--card3:#14121e;--border:#1c1828;--gold:#c9a84c;--text:#e0dcd4;--sub:#7a7484;--dim:#4a4458;--warn:#c85a3a;--good:#7ab87a;--badge-good:#0a1a0a;--badge-warn:#1a0a0a;--badge-neutral:#0a0a1a;--del-text:#6a3a3a;--del-border:#2a1a1a;--rep-border:#2a2520;--f:'DM Sans',sans-serif;--sf:'Cormorant Garamond',Georgia,serif}
-html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;-webkit-overflow-scrolling:touch}
-body.modal-open{overflow:hidden;touch-action:none}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;-webkit-font-smoothing:antialiased;-webkit-overflow-scrolling:touch}
+body.modal-open{overflow:hidden}
 /* Safety: ensure modal class gets cleaned up */
-body:not(.modal-open){position:static!important;touch-action:auto!important}
+body:not(.modal-open){position:static}
 input,select,button,textarea{font-family:var(--f);outline:none}
 input[type="file"]{display:none}
 input,select,textarea{font-size:16px!important}
@@ -28,7 +28,7 @@ input,select,textarea{font-size:16px!important}
 .fu{animation:fadeUp .35s cubic-bezier(.22,.68,0,1) both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}.hscroll::-webkit-scrollbar{display:none}
-.chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:12px;font-size:11px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);white-space:nowrap;transition:background .15s,border-color .15s,color .15s;min-height:32px;touch-action:manipulation;user-select:none}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:12px;font-size:11px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);white-space:nowrap;transition:background .15s,border-color .15s,color .15s;min-height:32px;user-select:none}
 .chip.on{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:var(--gold)}
 .chip:active{transform:scale(0.95)}
 .inp{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%}
@@ -38,10 +38,10 @@ input,select,textarea{font-size:16px!important}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;flex-direction:column;justify-content:flex-end;animation:fadeIn .15s ease-out;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
 .modal-body{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp .3s cubic-bezier(.22,.68,0,1)}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 14px}
-.swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s,box-shadow .15s;flex-shrink:0;touch-action:manipulation}
+.swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s,box-shadow .15s;flex-shrink:0}
 .swatch:active{transform:scale(0.9)}
 .swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
-.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;touch-action:manipulation;user-select:none;transition:transform .15s cubic-bezier(.22,.68,0,1),box-shadow .2s ease}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;user-select:none;transition:transform .15s cubic-bezier(.22,.68,0,1),box-shadow .2s ease}
 .btn:active{transform:scale(0.97)}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
 .btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
@@ -50,9 +50,9 @@ input,select,textarea{font-size:16px!important}
 .outfit-slot.active{border-color:var(--gold);background:var(--card)}
 .score-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
 .score-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.22,.68,0,1)}
-.card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform .2s cubic-bezier(.22,.68,0,1);touch-action:pan-y;contain:layout style}
+.card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform .2s cubic-bezier(.22,.68,0,1)}
 .card-lift:active{box-shadow:0 1px 4px rgba(0,0,0,0.2)}
-.gcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.22,.68,0,1);touch-action:pan-y;contain:layout style paint}
+.gcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.22,.68,0,1)}
 .gcard:active{transform:scale(0.97)}
 .gcard-overlay{position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(transparent,rgba(0,0,0,0.7));pointer-events:none}
 img{image-rendering:auto;-webkit-image-rendering:auto}
@@ -1549,7 +1549,7 @@ const WCard=memo(function WCardC(props){
 
 /* ══════ MODAL WRAPPER ══════ */
 function Modal(props){
-  useEffect(function(){var sy=window.scrollY;document.body.classList.add("modal-open");document.body.style.top="-"+sy+"px";return function(){document.body.classList.remove("modal-open");document.body.style.top="";window.scrollTo(0,sy)}},[]);
+  useEffect(function(){document.body.classList.add("modal-open");return function(){document.body.classList.remove("modal-open")}},[]);
   return React.createElement("div",{className:"modal-backdrop",onClick:function(e){if(e.target===e.currentTarget)props.onClose()}},
     React.createElement("div",{className:"modal-body"},
       React.createElement("div",{className:"modal-handle"}),props.children));
@@ -1781,25 +1781,33 @@ function App(){
   const[gridLimit,setGridLimit]=useState(24);
   const reScanRef=useRef();
   const touchRef=useRef({sx:0,sy:0,swiping:false});
+  const mainRef=useRef(null);
   var TABS=["wardrobe","fits","insights","watches","saved"];
-  var handleSwipeStart=useCallback(function(e){
-    if(e.touches.length!==1)return;
-    touchRef.current={sx:e.touches[0].clientX,sy:e.touches[0].clientY,scrollY:window.scrollY,swiping:true};
-  },[]);
-  var handleSwipeEnd=useCallback(function(e){
-    if(!touchRef.current.swiping)return;
-    var t=e.changedTouches[0];var dx=t.clientX-touchRef.current.sx;var dy=t.clientY-touchRef.current.sy;
-    touchRef.current.swiping=false;
-    if(Math.abs(window.scrollY-(touchRef.current.scrollY||0))>15)return;/* was scrolling, not swiping */
-    if(Math.abs(dx)<120||Math.abs(dy)>Math.abs(dx)*0.25)return;/* must be very horizontal, tight angle */
-    var ci=TABS.indexOf(view);if(ci<0)return;
-    if(dx<-100&&ci<TABS.length-1)navTo(TABS[ci+1],null);
-    else if(dx>100&&ci>0)navTo(TABS[ci-1],null);
-  },[view,navTo]);
+  /* Passive swipe listeners — cannot block scroll */
+  useEffect(function(){
+    var el=mainRef.current;if(!el)return;
+    function onStart(e){
+      if(e.touches.length!==1)return;
+      touchRef.current={sx:e.touches[0].clientX,sy:e.touches[0].clientY,scrollY:window.scrollY,swiping:true};
+    }
+    function onEnd(e){
+      if(!touchRef.current.swiping)return;
+      var t=e.changedTouches[0];var dx=t.clientX-touchRef.current.sx;var dy=t.clientY-touchRef.current.sy;
+      touchRef.current.swiping=false;
+      if(Math.abs(window.scrollY-(touchRef.current.scrollY||0))>15)return;
+      if(Math.abs(dx)<120||Math.abs(dy)>Math.abs(dx)*0.25)return;
+      var ci=TABS.indexOf(view);if(ci<0)return;
+      if(dx<-100&&ci<TABS.length-1)navTo(TABS[ci+1],null);
+      else if(dx>100&&ci>0)navTo(TABS[ci-1],null);
+    }
+    el.addEventListener("touchstart",onStart,{passive:true});
+    el.addEventListener("touchend",onEnd,{passive:true});
+    return function(){el.removeEventListener("touchstart",onStart);el.removeEventListener("touchend",onEnd)};
+  });
   useEffect(function(){
     /* Safety: remove modal-open if no modal is actually showing */
     var anyModal=showSettings||editG||lightboxSrc||showQuickWear||confirmDlg;
-    if(!anyModal&&document.body.classList.contains("modal-open")){document.body.classList.remove("modal-open")}
+    if(!anyModal&&document.body.classList.contains("modal-open")){document.body.classList.remove("modal-open");document.body.style.top=""}
   });
   const[aiCoach,setAiCoach]=useState(null);
   const[aiCoachLoading,setAiCoachLoading]=useState(false);
@@ -2605,7 +2613,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){showToast("Enter username and password first","var(--warn)");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v24.8",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v24.9",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2646,13 +2654,13 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v24.8",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v24.9",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){showToast("Invalid backup file: expected JSON object","var(--warn)",3000);return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}showToast(imported.length?"✅ Imported: "+imported.join(", "):"No valid data found in file",imported.length?"var(--good)":"var(--warn)",3500)}catch(e){showToast("Invalid file: "+String(e.message||e).slice(0,100),"var(--warn)",3500)}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);showToast("✅ Imported "+parsed.length+" watches from markdown!","var(--good)",3000)}else{showToast("No watches found in file","var(--warn)",3000)}}catch(ex){console.error(ex);showToast("Parse error: "+ex.message,"var(--warn)",3000)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
     /* Floating Save Button */
     /* Quick Backup Button */
-    React.createElement("button",{onClick:function(){var data=JSON.stringify({version:"v24.8",ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()},style:{position:"fixed",bottom:28,right:76,zIndex:89,width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",touchAction:"manipulation"},title:"Quick backup (JSON)"},"📤"),
+    React.createElement("button",{onClick:function(){var data=JSON.stringify({version:"v24.9",ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()},style:{position:"fixed",bottom:28,right:76,zIndex:89,width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",touchAction:"manipulation"},title:"Quick backup (JSON)"},"📤"),
     React.createElement("button",{onClick:saveAll,style:{position:"fixed",bottom:24,right:20,zIndex:90,width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s",touchAction:"manipulation"},onTouchStart:function(e){e.currentTarget.style.transform="scale(0.9)"},onTouchEnd:function(e){e.currentTarget.style.transform="scale(1)"}},"💾"),
     /* Quick Wear FAB */
     React.createElement("button",{onClick:function(){setShowQuickWear(!showQuickWear)},style:{position:"fixed",bottom:84,right:20,zIndex:90,width:44,height:44,borderRadius:"50%",background:todayWorn?"linear-gradient(135deg,var(--good),#5a9e5a)":"linear-gradient(135deg,#7ab8d8,#5a8eae)",border:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.25)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff",transition:"transform .15s",touchAction:"manipulation"},title:todayWorn?"Change today's watch":"Log today's watch"},todayWorn?"✓":"⌚"),
@@ -2707,9 +2715,9 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,onClick:function(){if(view!==t.id||selFit)navTo(t.id,null)},style:{background:"none",border:"none",borderBottom:view===t.id&&!selFit?"2px solid var(--gold)":"2px solid transparent",color:view===t.id&&!selFit?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v24.8"))),
+        React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",textAlign:"right",marginTop:2,paddingBottom:2}},"v24.9"))),
 
-    React.createElement("div",{style:{maxWidth:860,margin:"0 auto",padding:"0 16px",touchAction:"pan-y"},onTouchStart:handleSwipeStart,onTouchEnd:handleSwipeEnd},
+    React.createElement("div",{ref:mainRef,style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
       /* ═══ WARDROBE ═══ */
       view==="wardrobe"&&React.createElement("div",{style:{paddingTop:16,paddingBottom:40}},
