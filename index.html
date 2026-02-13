@@ -50,9 +50,9 @@ input,select,textarea{font-size:16px!important}
 .outfit-slot.active{border-color:var(--gold);background:var(--card)}
 .score-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
 .score-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.22,.68,0,1)}
-.card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform .2s cubic-bezier(.22,.68,0,1)}
+.card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform .2s cubic-bezier(.22,.68,0,1);content-visibility:auto;contain-intrinsic-size:auto 200px}
 .card-lift:active{box-shadow:0 1px 4px rgba(0,0,0,0.2)}
-.gcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.22,.68,0,1)}
+.gcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.22,.68,0,1);content-visibility:auto;contain-intrinsic-size:auto 180px}
 .gcard:active{transform:scale(0.97)}
 .gcard-overlay{position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(transparent,rgba(0,0,0,0.7));pointer-events:none}
 img{image-rendering:auto;-webkit-image-rendering:auto}
@@ -85,6 +85,18 @@ body.light .outfit-slot.active{background:rgba(184,150,42,0.06)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
 const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
+
+/* ══════ INDEXED DB PHOTO STORE ══════ */
+var _idb=null,_pc={};
+function idbOpen(){if(_idb)return Promise.resolve(_idb);return new Promise(function(ok,no){var r=indexedDB.open("wa-photos",1);r.onupgradeneeded=function(){r.result.createObjectStore("imgs")};r.onsuccess=function(){_idb=r.result;ok(_idb)};r.onerror=function(){no(r.error)}})}
+function idbPut(k,v){return idbOpen().then(function(db){return new Promise(function(ok,no){var t=db.transaction("imgs","readwrite");t.objectStore("imgs").put(v,k);t.oncomplete=function(){ok()};t.onerror=function(){no(t.error)}})})}
+function idbGet(k){return idbOpen().then(function(db){return new Promise(function(ok){var t=db.transaction("imgs","readonly");var r=t.objectStore("imgs").get(k);r.onsuccess=function(){ok(r.result||null)};r.onerror=function(){ok(null)}})})}
+function d2b(d){var p=d.split(","),m=p[0].match(/:(.*?);/)[1],r=atob(p[1]),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return new Blob([a],{type:m})}
+async function savePhoto(k,dataUrl){try{await idbPut(k,d2b(dataUrl));var b=await idbGet(k);if(b){_pc["idb:"+k]=URL.createObjectURL(b)}return "idb:"+k}catch(e){console.warn("[IDB]",e);return dataUrl}}
+function ph(s){if(!s)return null;if(s.startsWith("idb:"))return _pc[s]||null;return s}
+async function preloadPhotos(items){var refs=[];for(var it of items){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))refs.push(it.photoUrl);if(it.straps)for(var s of it.straps)if(s.photoUrl&&s.photoUrl.startsWith("idb:"))refs.push(s.photoUrl)}if(!refs.length)return;try{var db=await idbOpen();var tx=db.transaction("imgs","readonly");var st=tx.objectStore("imgs");await Promise.all(refs.map(function(ref){if(_pc[ref])return;return new Promise(function(ok){var r=st.get(ref.slice(4));r.onsuccess=function(){if(r.result)_pc[ref]=URL.createObjectURL(r.result);ok()};r.onerror=ok})}))}catch(e){console.warn("[IDB] preload:",e)}}
+async function migrateToIDB(items,pfx){var ch=false;for(var it of items){if(it.photoUrl&&it.photoUrl.startsWith("data:")){it.photoUrl=await savePhoto(pfx+"_"+it.id,it.photoUrl);ch=true}if(it.straps)for(var j=0;j<it.straps.length;j++){if(it.straps[j].photoUrl&&it.straps[j].photoUrl.startsWith("data:")){it.straps[j].photoUrl=await savePhoto(pfx+"_"+it.id+"_s"+j,it.straps[j].photoUrl);ch=true}}}return ch}
+async function photoAsDataUrl(ref){if(!ref||!ref.startsWith("idb:"))return ref;try{var b=await idbGet(ref.slice(4));if(!b)return null;return new Promise(function(ok){var r=new FileReader();r.onload=function(){ok(r.result)};r.readAsDataURL(b)})}catch(e){return null}}
 
 /* ══════ CONFIG ══════ */
 /* Set IS_SHARED=true to create a version for friends (empty collection, onboarding) */
@@ -1812,6 +1824,19 @@ function App(){
     var anyModal=showSettings||editG||lightboxSrc||showQuickWear||confirmDlg;
     if(!anyModal&&document.body.classList.contains("modal-open")){document.body.classList.remove("modal-open");document.body.style.top=""}
   });
+  /* Auto-migrate new base64 photos to IDB */
+  useEffect(function(){
+    (async function(){var dirty=false;
+      var wc=W.slice(),wdc=wd.slice();
+      for(var it of wdc){if(it.photoUrl&&it.photoUrl.startsWith("data:")){it.photoUrl=await savePhoto("wd_"+it.id,it.photoUrl);dirty=true}}
+      for(var w of wc){
+        if(w.photoUrl&&w.photoUrl.startsWith("data:")){w.photoUrl=await savePhoto("w_"+w.id,w.photoUrl);dirty=true}
+        if(w.straps)for(var j=0;j<w.straps.length;j++){if(w.straps[j].photoUrl&&w.straps[j].photoUrl.startsWith("data:")){w.straps[j].photoUrl=await savePhoto("w_"+w.id+"_s"+j,w.straps[j].photoUrl);dirty=true}}
+      }
+      if(dirty){setWd(wdc);ps("wd_"+SK,wdc);setW(wc);ps("w_"+SK,wc)}
+    })();
+  },[wd.length,W.length]);
+
   const[aiCoach,setAiCoach]=useState(null);
   const[aiCoachLoading,setAiCoachLoading]=useState(false);
   const[aiOccasion,setAiOccasion]=useState(null);
@@ -1889,6 +1914,16 @@ function App(){
     try{var ob=await loadKey("wa_onboarded");if(ob)setOnboarded(true)}catch(e){console.warn("[WA]",e)}
     try{var th=await loadKey("wa_theme");if(th)setTheme(th)}catch(e){console.warn("[WA]",e)}
     try{var sh=await loadKey("wa_selfie_"+SK);if(sh&&sh.length)setSelfieHistory(sh)}catch(e){console.warn("[WA]",e)}
+    /* ── IDB photo migration + preload ── */
+    try{
+      var _w2=W,_wd2=wd;
+      if(!_w2||!_w2.length){try{_w2=await loadKey("w_"+SK)||[]}catch(e){_w2=[]}}
+      if(!_wd2||!_wd2.length){try{_wd2=await loadKey("wd_"+SK)||[]}catch(e){_wd2=[]}}
+      var wCh=await migrateToIDB(_w2,"w");var wdCh=await migrateToIDB(_wd2,"wd");
+      if(wCh){setW(_w2);ps("w_"+SK,_w2)}
+      if(wdCh){setWd(_wd2);ps("wd_"+SK,_wd2)}
+      await preloadPhotos(_w2.concat(_wd2));
+    }catch(e){console.warn("[IDB]",e)}
     // Cleanup old storage keys after successful migration
     var oldKeys=["w_v12","w_v11","w_v9","watches_v8","wd_v12","wd_v11","wd_v9","wd_v8","of_v12","of_v11","of_v9","of_v8","wa_wearlog_v12","wa_wearlog_v11","wa_rotlock_v12","wa_rotlock_v11","w_v13","wd_v13","of_v13","wa_wearlog_v13","wa_rotlock_v13"];
     setTimeout(function(){oldKeys.forEach(function(k){try{localStorage.removeItem(k)}catch(e){console.warn("[WA]",e)}})},3000);
@@ -2013,7 +2048,7 @@ function App(){
   const openLightbox=useCallback(function(src,itemId){
     if(!src)return;
     setLightboxSrc(src);
-    var items=wd.filter(function(i){return i.photoUrl===src});
+    var items=wd.filter(function(i){return ph(i.photoUrl)===src||i.photoUrl===src});
     setLightboxItems(items.length>1?items:itemId?wd.filter(function(i){return i.id===itemId}):[]);
   },[wd]);
 
@@ -2253,7 +2288,7 @@ function App(){
       })};
       var retry=async function(){
         if(!item.photoUrl)return;setRetrying(true);
-        try{var compressed=await compressImage(item.photoUrl,800,0.7);var b64=compressed.split(",")[1];
+        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);var b64=compressed.split(",")[1];
           var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
           if(aiResult&&aiResult.length){var first=aiResult[0];setF(function(p){return Object.assign({},p,first)})}
           else showToast(getLastAiError()||"AI couldn't identify. Classify manually.","var(--warn)",3500)}catch(e){showToast("Retry error: "+e,"var(--warn)",3000)}
@@ -2261,7 +2296,7 @@ function App(){
       };
       return React.createElement(Modal,{onClose:function(){setEditG(null)}},
         React.createElement("div",{style:{display:"flex",gap:14,marginBottom:16}},
-          f.photoUrl&&React.createElement("img",{src:f.photoUrl,alt:"",decoding:"async",onClick:function(){openLightbox(f.photoUrl,item.id)},style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0,cursor:"zoom-in"}}),
+          f.photoUrl&&React.createElement("img",{src:ph(f.photoUrl),alt:"",decoding:"async",onClick:function(){openLightbox(f.photoUrl,item.id)},style:{width:80,height:80,objectFit:"cover",borderRadius:12,flexShrink:0,cursor:"zoom-in"}}),
           React.createElement("div",{style:{flex:1}},
             React.createElement("label",{className:"lbl"},"Name"),
             React.createElement("input",{className:"inp",value:f.name||"",onChange:function(e){set("name",e.target.value)},placeholder:"e.g. Navy plaid flannel"}))),
@@ -2352,7 +2387,7 @@ function App(){
       return React.createElement(Modal,{onClose:function(){setEditW(null)}},
         React.createElement("div",{style:{display:"flex",gap:12,alignItems:"center",marginBottom:14}},
           React.createElement("div",{onClick:handleWPhoto,style:{width:52,height:52,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",flexShrink:0,border:"2px solid "+(f.photoUrl?"var(--gold)":"var(--border)"),background:f.photoUrl?"none":f.c+"20"}},
-            f.photoUrl?React.createElement("img",{src:f.photoUrl,alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:28}},f.i)),
+            f.photoUrl?React.createElement("img",{src:ph(f.photoUrl),alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:28}},f.i)),
           React.createElement("div",{style:{flex:1}},React.createElement("input",{className:"inp",value:f.n,onChange:function(e){set("n",e.target.value)},style:{fontWeight:600,border:"none",padding:0,background:"transparent"}})),
           f.photoUrl&&React.createElement("button",{onClick:function(){set("photoUrl",null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 8px",cursor:"pointer",color:"var(--dim)",fontSize:9,fontFamily:"var(--f)"}},"\u2715")),
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}},
@@ -2370,7 +2405,7 @@ function App(){
               /* Strap photo: thumbnail + camera/gallery */
               React.createElement("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:3,flexShrink:0}},
                 React.createElement("div",{onClick:function(){if(st.photoUrl)setLightboxSrc(st.photoUrl)},style:{width:36,height:36,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",cursor:st.photoUrl?"pointer":"default",overflow:"hidden",border:"1px solid "+(st.photoUrl?"var(--gold)":"var(--border)"),background:st.photoUrl?"none":"var(--card2)"}},
-                  st.photoUrl?React.createElement("img",{src:st.photoUrl,alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:14,opacity:0.3}},stDef.icon)),
+                  st.photoUrl?React.createElement("img",{src:ph(st.photoUrl),alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:14,opacity:0.3}},stDef.icon)),
                 React.createElement("div",{style:{display:"flex",gap:2}},
                   React.createElement("button",{onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.setAttribute("capture","environment");inp.onchange=async function(ev){var fl=ev.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,400,0.7);var ns=(f.straps||[]).slice();ns[si]=Object.assign({},ns[si],{photoUrl:compressed});set("straps",ns)};inp.click()},style:{background:"none",border:"1px solid var(--border)",borderRadius:4,padding:"1px 4px",cursor:"pointer",fontSize:9,color:"var(--dim)",lineHeight:1,minHeight:18}},"\uD83D\uDCF7"),
                   React.createElement("button",{onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=async function(ev){var fl=ev.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,400,0.7);var ns=(f.straps||[]).slice();ns[si]=Object.assign({},ns[si],{photoUrl:compressed});set("straps",ns)};inp.click()},style:{background:"none",border:"1px solid var(--border)",borderRadius:4,padding:"1px 4px",cursor:"pointer",fontSize:9,color:"var(--dim)",lineHeight:1,minHeight:18}},"\uD83D\uDDBC\uFE0F"))),
@@ -2396,7 +2431,7 @@ function App(){
             React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center",marginBottom:8,padding:"6px 8px",background:"var(--card2)",borderRadius:6,border:"1px solid var(--border)"}},
               React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},"Photo:"),
               nSt.photoUrl?React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,flex:1}},
-                React.createElement("img",{src:nSt.photoUrl,alt:"",style:{width:32,height:32,borderRadius:6,objectFit:"cover",border:"1px solid var(--gold)"}}),
+                React.createElement("img",{src:ph(nSt.photoUrl),alt:"",style:{width:32,height:32,borderRadius:6,objectFit:"cover",border:"1px solid var(--gold)"}}),
                 React.createElement("button",{onClick:function(){setNSt(function(p){return Object.assign({},p,{photoUrl:null})})},style:{background:"none",border:"none",color:"var(--dim)",cursor:"pointer",fontSize:9}},"✕ Remove"))
               :React.createElement("div",{style:{display:"flex",gap:4,flex:1}},
                 React.createElement("button",{onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.setAttribute("capture","environment");inp.onchange=async function(ev){var fl=ev.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,400,0.7);setNSt(function(p){return Object.assign({},p,{photoUrl:compressed})})};inp.click()},style:{background:"none",border:"1px solid rgba(201,168,76,0.3)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,fontWeight:600,minHeight:26}},"\uD83D\uDCF7 Camera"),
@@ -2524,7 +2559,7 @@ function App(){
             React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(group.length,3)+",1fr)",gap:10}},
               group.map(function(item){
                 return React.createElement("div",{key:item.id,style:{background:"var(--card)",borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}},
-                  item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:140,objectFit:"cover",display:"block",cursor:"zoom-in"}}):React.createElement("div",{style:{width:"100%",height:100,background:(CM[item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:30})),
+                  item.photoUrl?React.createElement("img",{src:ph(item.photoUrl),alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:140,objectFit:"cover",display:"block",cursor:"zoom-in"}}):React.createElement("div",{style:{width:"100%",height:100,background:(CM[item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:30})),
                   React.createElement("div",{style:{padding:"8px 10px"}},
                     React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",fontWeight:500,marginBottom:2}},item.name||item.color),
                     React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:2}},item.garmentType+(item.pattern&&item.pattern!=="solid"?" · "+item.pattern:"")+(item.material?" · "+item.material:"")),
@@ -2565,7 +2600,7 @@ function App(){
               group.map(function(w){
                 return React.createElement("div",{key:w.id,style:{background:"var(--card)",borderRadius:10,padding:"12px",border:"1px solid var(--border)"}},
                   React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
-                    React.createElement("div",{style:{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"20",fontSize:18,border:"2px solid "+w.c+"60"}},w.photoUrl?React.createElement("img",{src:w.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}):w.i||"⌚"),
+                    React.createElement("div",{style:{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"20",fontSize:18,border:"2px solid "+w.c+"60"}},w.photoUrl?React.createElement("img",{src:ph(w.photoUrl),alt:"",style:{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}):w.i||"⌚"),
                     React.createElement("div",{style:{flex:1}},
                       React.createElement("div",{style:{fontSize:12,fontWeight:600}},w.n),
                       React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},w.d+" · "+(w.ref||"no ref")+" · "+(w.size?w.size+"mm":"")+" · "+w.t),
@@ -2616,7 +2651,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){showToast("Enter username and password first","var(--warn)");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v24.10",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v24.11",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -2657,7 +2692,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var data=JSON.stringify({version:"v24.10",watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}},"📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v24.11",watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}catch(e){console.error("[Export]",e)}}},"‍📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){showToast("Invalid backup file: expected JSON object","var(--warn)",3000);return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}showToast(imported.length?"✅ Imported: "+imported.join(", "):"No valid data found in file",imported.length?"var(--good)":"var(--warn)",3500)}catch(e){showToast("Invalid file: "+String(e.message||e).slice(0,100),"var(--warn)",3500)}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);showToast("✅ Imported "+parsed.length+" watches from markdown!","var(--good)",3000)}else{showToast("No watches found in file","var(--warn)",3000)}}catch(ex){console.error(ex);showToast("Parse error: "+ex.message,"var(--warn)",3000)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -2666,7 +2701,7 @@ function App(){
     React.createElement("div",{style:{position:"fixed",bottom:20,right:16,zIndex:89,pointerEvents:"none",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}},
     React.createElement("button",{onClick:function(){setShowQuickWear(!showQuickWear)},style:{pointerEvents:"auto",width:44,height:44,borderRadius:"50%",background:todayWorn?"linear-gradient(135deg,var(--good),#5a9e5a)":"linear-gradient(135deg,#7ab8d8,#5a8eae)",border:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.25)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff",transition:"transform .15s"},title:todayWorn?"Change today's watch":"Log today's watch"},todayWorn?"✓":"⌚"),
     React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",pointerEvents:"auto"}},
-      React.createElement("button",{onClick:function(){var data=JSON.stringify({version:"v24.10",ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",touchAction:"manipulation"},title:"Quick backup (JSON)"},"📤"),
+      React.createElement("button",{onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v24.11",ts:Date.now(),watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}catch(e){console.error("[Export]",e)}},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",},title:"Quick backup (JSON)"},"📤"),
     React.createElement("button",{onClick:saveAll,"aria-label":"Save all changes",style:{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s"}},"💾"))),
     /* Quick Wear FAB */
     
@@ -2681,7 +2716,7 @@ function App(){
           W.filter(function(w){return w.active&&w.status!=="pending-trade"&&w.status!=="incoming"&&w.status!=="service"}).map(function(w){
             var isToday=todayWorn&&todayWorn.watchId===w.id;
             return React.createElement("button",{key:w.id,onClick:function(){logWear(w.id,todayStr);setShowQuickWear(false)},style:{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:isToday?"rgba(122,184,122,0.1)":"var(--bg)",border:"1px solid "+(isToday?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:10,cursor:"pointer",textAlign:"left"}},
-              React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"20",fontSize:16,border:"1px solid "+w.c+"40",overflow:"hidden",flexShrink:0}},w.photoUrl?React.createElement("img",{src:w.photoUrl,alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):w.i),
+              React.createElement("div",{style:{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.c+"20",fontSize:16,border:"1px solid "+w.c+"40",overflow:"hidden",flexShrink:0}},w.photoUrl?React.createElement("img",{src:ph(w.photoUrl),alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):w.i),
               React.createElement("div",{style:{flex:1,minWidth:0}},
                 React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",fontWeight:600,color:isToday?"var(--good)":"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},w.n),
                 React.createElement("div",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},w.d+(isToday?" ✓ today":""))),
@@ -2721,7 +2756,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,role:"tab","aria-selected":view===t.id&&!selFit,onClick:function(){if(view!==t.id||selFit)navTo(t.id,null)},style:{background:"none",border:"none",borderBottom:view===t.id&&!selFit?"2px solid var(--gold)":"2px solid transparent",color:view===t.id&&!selFit?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v24.10")))),
+        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v24.11")))),
 
     React.createElement("div",{ref:mainRef,style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -2792,7 +2827,7 @@ function App(){
           React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(105px,1fr))",gap:8}},
             filteredWd.slice(0,gridLimit).map(function(item){
               return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setEditG(item)},style:{background:item.needsEdit||!item.color?"var(--card2)":"var(--card)",border:"1px solid "+(item.needsEdit||!item.color?"rgba(201,168,76,0.3)":"var(--border)")}},
-                item.photoUrl?React.createElement(React.Fragment,null,React.createElement(LazyImg,{src:item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:90,objectFit:"cover",display:"block",cursor:"zoom-in"}}),React.createElement("div",{className:"gcard-overlay"})):React.createElement("div",{style:{width:"100%",height:60,background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"#fff8",textShadow:"0 1px 3px #000"}},item.color)),
+                item.photoUrl?React.createElement(React.Fragment,null,React.createElement(LazyImg,{src:ph(item.photoUrl),alt:"",onClick:function(e){e.stopPropagation();openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:90,objectFit:"cover",display:"block",cursor:"zoom-in"}}),React.createElement("div",{className:"gcard-overlay"})):React.createElement("div",{style:{width:"100%",height:60,background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"#fff8",textShadow:"0 1px 3px #000"}},item.color)),
                 React.createElement("div",{style:{padding:"6px 8px"}},
                   React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
                     item.color&&React.createElement(Dot,{color:item.color,size:6}),
@@ -2806,7 +2841,7 @@ function App(){
                 item.seasons&&item.seasons.length>0&&item.seasons.length<4&&React.createElement("div",{style:{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",borderRadius:3,padding:"1px 3px"}},React.createElement("span",{style:{fontSize:6}},item.seasons.map(function(s){return{spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"}[s]||""}).join(""))))})),
 
           /* Load More pagination */
-          filteredWd.length>gridLimit&&React.createElement("button",{onClick:function(){setGridLimit(function(p){return p+24})},style:{width:"100%",marginTop:10,background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"12px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:44,touchAction:"manipulation"}},"Show more ("+Math.min(24,filteredWd.length-gridLimit)+" of "+(filteredWd.length-gridLimit)+" remaining)"),
+          filteredWd.length>gridLimit&&React.createElement("button",{onClick:function(){setGridLimit(function(p){return p+24})},style:{width:"100%",marginTop:10,background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"12px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:44,}},"Show more ("+Math.min(24,filteredWd.length-gridLimit)+" of "+(filteredWd.length-gridLimit)+" remaining)"),
           React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 14px",marginTop:12}},
             React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--sub)",margin:0}},wdStats.summary),
             wdStats.unused>0&&React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",margin:"4px 0 0"}},"💤 "+wdStats.unused+" item"+(wdStats.unused!==1?"s":"")+" never saved in an outfit"),
@@ -2857,7 +2892,7 @@ function App(){
 
         /* Lock item banner */
         mode==="auto"&&lockItem&&React.createElement("div",{className:"fu",style:{display:"flex",alignItems:"center",gap:8,background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:10,padding:"8px 12px",marginBottom:10}},
-          lockItem.photoUrl&&React.createElement("img",{src:lockItem.photoUrl,alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:6}}),
+          lockItem.photoUrl&&React.createElement("img",{src:ph(lockItem.photoUrl),alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:6}}),
           React.createElement(Dot,{color:lockItem.color,size:8}),
           React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"🔒 Locked: "+( lockItem.name||lockItem.color)+" — showing fits around this piece"),
           React.createElement("button",{onClick:function(){setLockItem(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:9,minHeight:28}},"✕ Unlock")),
@@ -2878,7 +2913,7 @@ function App(){
                 var slotId="layer-"+layer.id;
                 return React.createElement("div",{key:layer.id,className:"outfit-slot "+(layer.item?"filled":"")+" "+(buildSlot===slotId?"active":""),onClick:function(){setBuildSlot(buildSlot===slotId?null:slotId)},style:{position:"relative"}},
                   layer.item?React.createElement(React.Fragment,null,
-                    layer.item.photoUrl?React.createElement("img",{src:layer.item.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:layer.item.color,size:18}),
+                    layer.item.photoUrl?React.createElement("img",{src:ph(layer.item.photoUrl),alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:layer.item.color,size:18}),
                     React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},layer.item.name||layer.item.color),
                     React.createElement("div",{style:{display:"flex",gap:2,justifyContent:"center"}},
                       React.createElement("button",{onClick:function(e){e.stopPropagation();setBuildLayers(function(p){return p.map(function(l){return l.id===layer.id?Object.assign({},l,{item:null}):l})});setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",minHeight:20}},"✕"),
@@ -2894,7 +2929,7 @@ function App(){
             [{slot:"bot",l:"BOTTOM",sub:"Pants / Jeans",val:bBot,set:setBBot},{slot:"shoe",l:"SHOES",sub:"Footwear",val:bShoe,set:setBShoe}].map(function(o){
               return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)}},
                 o.val?React.createElement(React.Fragment,null,
-                  o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
+                  o.val.photoUrl?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
                   React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
                 :React.createElement(React.Fragment,null,
@@ -2906,7 +2941,7 @@ function App(){
             [{slot:"acc",l:"ACCESSORY",sub:"Hat / Scarf / Belt / Bag",val:bAcc,set:setBAcc}].map(function(o){
               return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)},style:{minHeight:48}},
                 o.val?React.createElement(React.Fragment,null,
-                  o.val.photoUrl?React.createElement("img",{src:o.val.photoUrl,alt:"",style:{width:"100%",height:40,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:16}),
+                  o.val.photoUrl?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:40,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:16}),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
                   React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
                 :React.createElement(React.Fragment,null,
@@ -2934,7 +2969,7 @@ function App(){
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+pickLabel),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
                 items.map(function(item){return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setter(item);setBuildSlot(null);setBuildAiCritique(null)},style:{background:"var(--bg)",border:"2px solid transparent",textAlign:"center"}},
-                  item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:60,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{height:40,display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:14})),
+                  item.photoUrl?React.createElement("img",{src:ph(item.photoUrl),alt:"",style:{width:"100%",height:60,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{height:40,display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:14})),
                   React.createElement("div",{style:{padding:"4px 4px 6px"}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",fontWeight:500}},item.name||item.color)))}),
                 !items.length&&React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",gridColumn:"1/-1",padding:10}},"No classified items")));
           })(),
@@ -2966,7 +3001,7 @@ function App(){
             /* Layers summary */
             buildFit.tops&&buildFit.tops.length>1&&React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:6,marginBottom:8,flexWrap:"wrap"}},
               buildFit.tops.map(function(t,ti){var layerLabel=buildLayers[ti]?buildLayers[ti].label:(ti===0?"Base":"L"+(ti+1));return React.createElement("div",{key:ti,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"3px 8px",border:"1px solid var(--border)"}},
-                t.photoUrl?React.createElement("img",{src:t.photoUrl,alt:"",style:{width:16,height:16,objectFit:"cover",borderRadius:3}}):React.createElement(Dot,{color:t.color,size:6}),
+                t.photoUrl?React.createElement("img",{src:ph(t.photoUrl),alt:"",style:{width:16,height:16,objectFit:"cover",borderRadius:3}}):React.createElement(Dot,{color:t.color,size:6}),
                 React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)"}},layerLabel),
                 React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--text)"}},t.name||t.color))})),
             /* AI Critique for custom build */
@@ -3249,7 +3284,7 @@ function App(){
                       var ep=getEP(i,o.slot,o.item);if(!ep)return null;
                       var swapped=pieceSwap[i+"-"+o.slot];
                       return React.createElement("div",{key:o.l,style:{flex:1,background:swapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:8,overflow:"hidden",border:"1px solid "+(swapped?"rgba(201,168,76,0.25)":"var(--border)"),minWidth:0}},
-                        ep.photoUrl?React.createElement("img",{src:ep.photoUrl,alt:"",style:{width:"100%",height:56,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:56,background:(CM[ep.color]||{}).h||"#3a3a3a"}}),
+                        ep.photoUrl?React.createElement("img",{src:ph(ep.photoUrl),alt:"",style:{width:"100%",height:56,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:56,background:(CM[ep.color]||{}).h||"#3a3a3a"}}),
                         React.createElement("div",{style:{padding:"4px 6px",display:"flex",alignItems:"center",gap:3}},
                           React.createElement(Dot,{color:ep.color,size:5}),
                           React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:swapped?"var(--gold)":"var(--sub)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},swapped?"✎ ":"",ep.name||ep.color)))}),
@@ -3288,7 +3323,7 @@ function App(){
                         var pk=i+"-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
                         return React.createElement("div",{key:o.l},
                           React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",marginBottom:isOpen?4:8,background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:8,padding:"6px 8px",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk);setPieceFilter(null)}},
-                            o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:6,flexShrink:0}}):React.createElement("div",{style:{width:44,height:44,borderRadius:6,background:(CM[o.item.color]||{}).h||"#3a3a3a",flexShrink:0}}),
+                            o.item.photoUrl?React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:44,height:44,objectFit:"cover",borderRadius:6,flexShrink:0}}):React.createElement("div",{style:{width:44,height:44,borderRadius:6,background:(CM[o.item.color]||{}).h||"#3a3a3a",flexShrink:0}}),
                             React.createElement("div",{style:{flex:1,minWidth:0}},
                               React.createElement("div",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--dim)",letterSpacing:"0.08em"}},o.l+(isSwapped?" ✎":"")),
                               React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
@@ -3313,7 +3348,7 @@ function App(){
                               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
                             (function(){var _fa=filteredAlts(o.slot,o.item&&o.item.id);return _fa.length===0?[React.createElement("div",{key:"_empty",style:{flexShrink:0,padding:"8px 12px",color:"var(--dim)",fontSize:8,fontFamily:"var(--f)",fontStyle:"italic",whiteSpace:"nowrap"}},"No matches")]:_fa})().map(function(alt){
                               return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
-                                alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                                alt.photoUrl?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
                                 React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))}),
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"6px 8px"}},
                         React.createElement("span",{style:{fontSize:16}},w.i),
@@ -3328,7 +3363,7 @@ function App(){
                         [{item:alt.top},{item:alt.bot},{item:alt.shoe}].map(function(o,oi){
                           if(!o.item)return null;
                           return React.createElement("div",{key:oi,style:{display:"flex",alignItems:"center",gap:3,flex:"1 1 0",minWidth:0}},
-                            o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:18,height:18,objectFit:"cover",borderRadius:3,flexShrink:0}}),
+                            o.item.photoUrl&&React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:18,height:18,objectFit:"cover",borderRadius:3,flexShrink:0}}),
                             React.createElement(Dot,{color:o.item.color,size:4}),
                             React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},o.item.name||o.item.color))}),
                         React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",flexShrink:0}},alt.fs))})),
@@ -3360,7 +3395,7 @@ function App(){
                 [{l:"TOP",item:fit.top},{l:"BTM",item:fit.bot},{l:"SHOE",item:fit.shoe}].map(function(o){
                   if(!o.item)return null;
                   return React.createElement("div",{key:o.l,style:{flex:1,background:"var(--bg)",borderRadius:8,overflow:"hidden",border:"1px solid var(--border)",minWidth:0}},
-                    o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:"100%",height:52,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:36,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
+                    o.item.photoUrl?React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:"100%",height:52,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:36,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
                     React.createElement("div",{style:{padding:"4px 6px"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},React.createElement(Dot,{color:o.item.color,size:5}),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--sub)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},o.item.name||o.item.color))))})),
               React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
                 fit.watches.map(function(w,i){return React.createElement("div",{key:w.id,style:{display:"flex",alignItems:"center",gap:3}},React.createElement("span",{style:{fontSize:12}},w.i),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:i===0?"var(--gold)":"var(--sub)",fontWeight:i===0?600:400}},w.n))})),
@@ -3381,7 +3416,7 @@ function App(){
           var swaps=getSwaps(wd,selFit,o.slot);
           return React.createElement("div",{key:o.slot,style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px",marginBottom:8}},
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-              o.item.photoUrl&&React.createElement("img",{src:o.item.photoUrl,alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"zoom-in"}}),
+              o.item.photoUrl&&React.createElement("img",{src:ph(o.item.photoUrl),alt:"",onClick:function(e){e.stopPropagation();openLightbox(o.item.photoUrl,o.item.id)},style:{width:64,height:64,objectFit:"cover",borderRadius:10,cursor:"zoom-in"}}),
               React.createElement("div",{onClick:function(){setEditG(o.item)},style:{flex:1,cursor:"pointer"}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},o.l),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement(Dot,{color:o.item.color}),React.createElement("span",{style:{fontSize:14,fontWeight:500}},o.item.name||(o.item.color+" "+o.item.garmentType))),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)"}},o.item.garmentType+(o.item.pattern&&o.item.pattern!=="solid"?" · "+o.item.pattern:""))),
               React.createElement("button",{onClick:function(e){e.stopPropagation();setEditG(o.item)},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"✏️ Edit"),
               React.createElement("button",{onClick:function(e){e.stopPropagation();setLockItem(o.item);navBack();setMode("auto")},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,flexShrink:0,minHeight:32}},"🔒 Lock")),
@@ -3393,7 +3428,7 @@ function App(){
                   var newFit=makeOutfit(newItems,actW,effectiveCtx,reps,planWx,planTemp?planTemp.feels:18);
                   setSelFit(newFit);
                 },style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:8,padding:"6px 10px",border:"1px solid var(--border)",flexShrink:0,cursor:"pointer",transition:"all .15s"},className:"card-lift"},
-                  s.photoUrl&&React.createElement("img",{src:s.photoUrl,alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
+                  s.photoUrl&&React.createElement("img",{src:ph(s.photoUrl),alt:"",style:{width:24,height:24,objectFit:"cover",borderRadius:4}}),
                   React.createElement(Dot,{color:s.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},s.name||s.color),
                   React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--gold)"}},s.ss))}))))}),
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"16px 0 10px"}},
@@ -3465,7 +3500,7 @@ function App(){
                   var pk="t-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
                   return React.createElement("div",{key:o.l},
                     React.createElement("div",{style:{background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:10,overflow:"hidden",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk);setPieceFilter(null)}},
-                      o.item.photoUrl?React.createElement("img",{src:o.item.photoUrl,alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
+                      o.item.photoUrl?React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
                       React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
                         React.createElement(Dot,{color:o.item.color,size:6}),
                         React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:isSwapped?"var(--gold)":"var(--text)",fontWeight:500}},o.item.name||o.item.color),
@@ -3487,7 +3522,7 @@ function App(){
                         React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
                       (function(){var _fa=filteredAlts(o.slot,o.item&&o.item.id);return _fa.length===0?[React.createElement("div",{key:"_empty",style:{flexShrink:0,padding:"8px 12px",color:"var(--dim)",fontSize:8,fontFamily:"var(--f)",fontStyle:"italic",whiteSpace:"nowrap"}},"No matches")]:_fa})().map(function(alt){
                         return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
-                          alt.photoUrl?React.createElement("img",{src:alt.photoUrl,alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                          alt.photoUrl?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
                           React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))}))),
             /* Actions */
             React.createElement("div",{style:{display:"flex",gap:8}},
@@ -3543,7 +3578,7 @@ function App(){
               React.createElement("div",{style:{flex:1,display:"flex",gap:4,height:120}},
                 [dailyPick.outfit.top,dailyPick.outfit.bot,dailyPick.outfit.shoe].filter(Boolean).map(function(item,i){
                   return React.createElement("div",{key:i,style:{flex:1,borderRadius:10,overflow:"hidden",position:"relative"}},
-                    item.photoUrl?React.createElement("img",{src:item.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("div",{style:{width:"100%",height:"100%",background:(CM[item.color]||{}).h||"#3a3a3a"}}),
+                    item.photoUrl?React.createElement("img",{src:ph(item.photoUrl),alt:"",style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("div",{style:{width:"100%",height:"100%",background:(CM[item.color]||{}).h||"#3a3a3a"}}),
                     React.createElement("div",{style:{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"4px 6px"}},
                       React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"#fff"}},["TOP","BTM","SHOE"][i])))}))),
             /* Watch row */
@@ -3943,7 +3978,7 @@ function App(){
                 var pct=Math.round(e.d/maxD*100);
                 var col=e.d<=2?"var(--warn)":e.d<=7?"var(--gold)":e.d<=14?"var(--sub)":"var(--good)";
                 return React.createElement("div",{key:e.g.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:4}},
-                  e.g.photoUrl?React.createElement("img",{src:e.g.photoUrl,alt:"",style:{width:18,height:18,objectFit:"cover",borderRadius:3,flexShrink:0}}):React.createElement(Dot,{color:e.g.color,size:8}),
+                  e.g.photoUrl?React.createElement("img",{src:ph(e.g.photoUrl),alt:"",style:{width:18,height:18,objectFit:"cover",borderRadius:3,flexShrink:0}}):React.createElement(Dot,{color:e.g.color,size:8}),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)",minWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},e.g.name||e.g.color),
                   React.createElement("div",{style:{flex:1,height:8,background:"var(--card)",borderRadius:4,overflow:"hidden"}},
                     React.createElement("div",{style:{height:"100%",width:pct+"%",background:col,borderRadius:4,minWidth:2}})),
@@ -4083,7 +4118,7 @@ function App(){
               watchScanResult.ai.confidence&&React.createElement("div",{style:{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+(watchScanResult.ai.confidence>=7?"var(--good)":watchScanResult.ai.confidence>=4?"var(--gold)":"var(--warn)"),fontSize:14,fontFamily:"var(--f)",fontWeight:700,color:watchScanResult.ai.confidence>=7?"var(--good)":watchScanResult.ai.confidence>=4?"var(--gold)":"var(--warn)"}},watchScanResult.ai.confidence)),
             watchScanResult.ai.notes&&React.createElement("p",{style:{fontSize:10,fontFamily:"var(--sf)",fontStyle:"italic",color:"var(--sub)",marginBottom:10,lineHeight:1.5}},watchScanResult.ai.notes),
             React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}},(watchScanResult.ai.suggested_contexts||[]).map(function(cx){return React.createElement("span",{key:cx,className:"chip",style:{fontSize:8,padding:"2px 8px"}},(CXI[cx]||"")+" "+cx)})),
-            watchScanResult.watch&&watchScanResult.watch.photoUrl&&React.createElement("img",{src:watchScanResult.watch.photoUrl,alt:"Scanned watch",style:{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:10,marginBottom:10,border:"1px solid var(--border)"}}),
+            watchScanResult.watch&&watchScanResult.watch.photoUrl&&React.createElement("img",{src:ph(watchScanResult.watch.photoUrl),alt:"Scanned watch",style:{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:10,marginBottom:10,border:"1px solid var(--border)"}}),
             React.createElement("div",{style:{display:"flex",gap:8}},
               React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){
                 var nw=watchScanResult.watch;
@@ -4109,7 +4144,7 @@ function App(){
         filtW.length===0&&React.createElement("div",{style:{textAlign:"center",padding:"40px 16px"}},React.createElement("p",{style:{fontSize:13,fontFamily:"var(--f)",color:"var(--dim)"}},"No watches match filter")),
         filtW.map(function(w){var st=STS.find(function(s){return s.id===w.status});return React.createElement("div",{key:w.id,className:"card-lift",style:{background:w.active?"var(--card)":"var(--bg)",border:"1px solid "+(w.active?"var(--border)":"var(--border)"),borderRadius:12,padding:"14px 16px",opacity:w.active?1:0.5,marginBottom:8}},
           React.createElement("div",{style:{display:"flex",gap:12,alignItems:"flex-start"}},
-            React.createElement("div",{onClick:function(){toggleW(w.id)},style:{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.active?w.c+"20":"var(--card)",fontSize:20,flexShrink:0,cursor:"pointer",border:"2px solid "+(w.active?w.c+"60":"var(--border)"),overflow:"hidden"}},w.photoUrl?React.createElement("img",{src:w.photoUrl,alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):w.i),
+            React.createElement("div",{onClick:function(){toggleW(w.id)},style:{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:w.active?w.c+"20":"var(--card)",fontSize:20,flexShrink:0,cursor:"pointer",border:"2px solid "+(w.active?w.c+"60":"var(--border)"),overflow:"hidden"}},w.photoUrl?React.createElement("img",{src:ph(w.photoUrl),alt:"",decoding:"async",style:{width:"100%",height:"100%",objectFit:"cover"}}):w.i),
             React.createElement("div",{style:{flex:1,minWidth:0,cursor:"pointer"},onClick:function(){setEditW(w)}},
               React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:3}},
                 React.createElement("span",{style:{fontSize:14,fontWeight:600,color:w.active?"var(--text)":"var(--dim)"}},w.n),
@@ -4186,7 +4221,7 @@ function App(){
                       o.wearDate&&React.createElement("button",{onClick:function(){setOutfitWear(o.id,null)},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:6,padding:"4px 10px",cursor:"pointer",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:9}},"✕ Clear date")),
                   /* Weather match badge */
                   weather&&o.weather&&(function(){var ct=weather.temp||18,ot=o.weather.temp||18,diff=Math.abs(ct-ot);var cRain=weather.cond&&weather.cond.rain,oRain=o.weather.cond&&o.weather.cond.rain;var match=diff<=5&&cRain===oRain?"great":diff<=10?"ok":"poor";return React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",padding:"2px 6px",borderRadius:4,color:match==="great"?"var(--good)":match==="ok"?"var(--gold)":"var(--warn)",background:match==="great"?"rgba(122,184,122,0.1)":match==="ok"?"rgba(201,168,76,0.1)":"rgba(200,90,58,0.1)",border:"1px solid "+(match==="great"?"rgba(122,184,122,0.2)":match==="ok"?"rgba(201,168,76,0.2)":"rgba(200,90,58,0.2)")}},match==="great"?"✓ Today match":match==="ok"?"~ Similar wx":"✗ Diff weather")})())))),
-          React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}},(o.items||[]).map(function(item,i){return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid var(--border)"}},item.photoUrl&&React.createElement("img",{src:item.photoUrl,alt:"",decoding:"async",style:{width:20,height:20,objectFit:"cover",borderRadius:3}}),React.createElement(Dot,{color:item.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},item.name||item.color))})),
+          React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}},(o.items||[]).map(function(item,i){return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:4,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:"1px solid var(--border)"}},item.photoUrl&&React.createElement("img",{src:ph(item.photoUrl),alt:"",decoding:"async",style:{width:20,height:20,objectFit:"cover",borderRadius:3}}),React.createElement(Dot,{color:item.color,size:6}),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--sub)"}},item.name||item.color))})),
           React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},(o.watches||[]).slice(0,3).map(function(w,i){return React.createElement("div",{key:w.id||i,style:{display:"flex",alignItems:"center",gap:3,background:"var(--bg)",borderRadius:6,padding:"4px 8px",border:i===0?"1px solid rgba(201,168,76,0.2)":"1px solid var(--border)"}},React.createElement("span",{style:{fontSize:12}},w.i),React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:i===0?"var(--gold)":"var(--sub)"}},w.n))})))})))
   );
 }
