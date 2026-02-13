@@ -186,6 +186,25 @@ function strapRec(w,items,ctx,wxOpts){
       return{strap:st,score:pts};
     }).sort(function(a,b){return b.score-a.score});
 
+    /* ══ STRAP PREFERENCE BIAS (max +0.6, never overrides practical penalties) ══ */
+    if(wxOpts&&wxOpts.strapLogs&&wxOpts.strapLogs.length){
+      var _sLogs=wxOpts.strapLogs;
+      var _sWk=wxOpts.weatherKey||"normal";
+      var _sCx=Array.isArray(ctx)?ctx[0]||"smart-casual":ctx;
+      var _sCutoff=Date.now()-30*864e5;
+      var _sRecent=[];
+      for(var _ri=_sLogs.length-1;_ri>=0&&_sRecent.length<50;_ri--){if(_sLogs[_ri].ts>_sCutoff)_sRecent.push(_sLogs[_ri])}
+      if(_sRecent.length){
+        scored.forEach(function(sc){
+          var _sig=sc.strap.id||(w.id+"|"+sc.strap.type+"|"+(sc.strap.color||"")+"|"+(sc.strap.material||"")+"|"+(sc.strap.notes||""));
+          var _cnt=0;
+          for(var _si=0;_si<_sRecent.length;_si++){if(_sRecent[_si].strapIdOrSig===_sig&&_sRecent[_si].ctx===_sCx&&_sRecent[_si].weatherKey===_sWk)_cnt++}
+          if(_cnt>0){sc.score+=Math.min(0.6,0.2*Math.log(1+_cnt))}
+        });
+        scored.sort(function(a,b){return b.score-a.score});
+      }
+    }
+
     var best=scored[0];
     var stDef=STRAP_TYPES.find(function(t){return t.id===best.strap.type})||STRAP_TYPES[0];
     var label=best.strap.type==="bracelet"
@@ -323,7 +342,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
       ...w,
       score:sc.total,
       bd:sc,
-      sr:strapRec(w,items,ctx,{rain:isRainy}),
+      sr:strapRec(w,items,ctx,{rain:isRainy,strapLogs:extraOpts&&extraOpts.strapLogs||null,weatherKey:extraOpts&&extraOpts.weatherKey||null}),
       wn:getWarns(w,items)
     };
   }).filter(w=>w.score>-1).sort((a,b)=>b.score-a.score);
@@ -391,7 +410,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
       if(shoe&&tc.some(function(t){return t.id===shoe.id}))continue;
       if(shoe&&shoe.id===bot.id)continue;
       var items=tc.concat([bot]).concat(shoe?[shoe]:[]);
-      var r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b2){return b2.garmentType==="Jeans"}),preferUnworn:opts.preferUnworn});
+      var r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b2){return b2.garmentType==="Jeans"}),preferUnworn:opts.preferUnworn,strapLogs:opts.strapLogs||null,weatherKey:opts.weatherKey||null});
       var topIds=tc.map(function(t){return t.id}).join("+");
       combos.push({id:topIds+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.outerTop||tc[0],bot:r.bot,shoe:r.shoe,outerTop:r.outerTop,tops:tc,layers:tc,items:r.items,topType:outerItem.garmentType,wxWarns:r.wxWarns});
     }
