@@ -92,7 +92,8 @@ function scoreW(w,items,ctx,reps,opts){
   bd.ctx=_bestCxScore;
 
   /* ── Dial color compat scoring (replaces binary mc/ac matching) ── */
-  var dc=parseDialColors(w.d);
+  var dc=w.dc&&w.dc.length?w.dc.map(function(x){return x.toLowerCase().trim()}):parseDialColors(w.d);
+  if(!dc.length&&w.mc&&w.mc.length)dc=w.mc.slice(0,3);
   var _wMeta=WATCH_META[w.id];
   var _dialNeutral=(_wMeta&&_wMeta.dialNeutral)||false;
   if(!dc.length&&!_dialNeutral){
@@ -127,7 +128,7 @@ function scoreW(w,items,ctx,reps,opts){
     var _bestStrapPts=-Infinity;
     w.straps.forEach(function(st){
       var stc=(st.color||"").toLowerCase();var pts=0;
-      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"){pts=0.2}
+      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts=0.2}
       else{
         var _brSt=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy");
         var _blSt=stc.includes("black")||stc.includes("navy");
@@ -209,7 +210,7 @@ function strapRec(w,items,ctx,wxOpts){
       var stc=st.color?st.color.toLowerCase():"";
 
       if(sc){
-        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"){pts+=0.2}
+        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts+=0.2}
         else{
           var _brS=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy")||stc.includes("teal");
           var _blS=stc.includes("black")||stc.includes("navy");
@@ -223,9 +224,9 @@ function strapRec(w,items,ctx,wxOpts){
       if(sm.includes("suede")&&(st.material||"").toLowerCase().includes("suede"))pts+=1;
 
       if(_rain){
-        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=4;
-        if(st.type==="leather")pts-=4;
-        if(st.type==="nato"||st.type==="canvas")pts+=1;
+        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=1.5;
+        if(st.type==="leather")pts-=1.0;
+        if(st.type==="nato"||st.type==="canvas")pts+=0.5;
       }
 
       return{strap:st,score:pts};
