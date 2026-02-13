@@ -19,7 +19,7 @@ No build step, no npm, no bundler.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v24.9
+## Current Version: v24.10
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -51,7 +51,7 @@ No build step, no npm, no bundler.
 
 | Version | Changes |
 |---------|---------|
-| **v24.9** | 🔐 Password no longer stored in localStorage (session-only). 📷 Multi-image batch scan (up to 10, gallery multi-select). 🔍 Watch search bar (filter by name/dial/ref/movement). ⌚ Quick wear button on watch cards + days-since counter. 📤 Share outfit via native share sheet. 🔧 CI/CD: syntax check + gitleaks workflows. 25 empty catches → console.warn. |
+| **v24.10** | 🔐 Password no longer stored in localStorage (session-only). 📷 Multi-image batch scan (up to 10, gallery multi-select). 🔍 Watch search bar (filter by name/dial/ref/movement). ⌚ Quick wear button on watch cards + days-since counter. 📤 Share outfit via native share sheet. 🔧 CI/CD: syntax check + gitleaks workflows. 25 empty catches → console.warn. |
 | **v24.4** | 📱 Mobile scroll fix (touch-action: pan-y). 📷 Strap photo camera/gallery on existing + new straps. |
 | **v24.3** | 🍞 Universal toast system (replaces all alert/confirm). In-app confirm dialogs. Memoized stats. |
 | **v23** | 🧱 **Dynamic layers**: unlimited renameable upper-body slots in Build mode (replaces fixed BASE/MID/OUTER). 🛡️ Error boundary: crash → reload button instead of white screen. 🔧 Service worker rewrite: network-first for HTML (fixes stale cache). 📱 Manifest icon fix: split any/maskable purpose. 🏔️→🔺 Alpine Eagle replica emoji deconflict. 🚫 Brown Loafers→Lace-ups in presets. 📊 Wear log retention 90d→365d for seasonal analysis. |

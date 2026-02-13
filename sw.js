@@ -1,4 +1,4 @@
-const CACHE = "wa-v24.9";
+const CACHE = "wa-v24.10";
 /* Install: cache critical assets, activate immediately */
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -19,33 +19,34 @@ self.addEventListener("activate", (e) => {
       .then(() => self.clients.claim()),
   );
 });
+/* Listen for SKIP_WAITING from app's "Update now" button */
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 /* Fetch strategy:
-   HTML → stale-while-revalidate (instant load, background update)
+   HTML navigations → network-first (always get latest, fall back to cache)
    Other → cache-first with network fallback */
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  const isHTML =
+  const isNav =
     e.request.mode === "navigate" ||
     url.pathname.endsWith(".html") ||
-    url.pathname === "/";
-  if (isHTML) {
-    /* STALE-WHILE-REVALIDATE: return cache immediately, update in background */
+    url.pathname.endsWith("/");
+  if (isNav) {
+    /* NETWORK-FIRST: always try to get fresh HTML */
     e.respondWith(
-      caches.open(CACHE).then((cache) => {
-        return cache.match(e.request).then((cached) => {
-          const fetchPromise = fetch(e.request)
-            .then((networkResponse) => {
-              if (networkResponse.status === 200) {
-                cache.put(e.request, networkResponse.clone());
-              }
-              return networkResponse;
-            })
-            .catch(() => cached);
-          /* Return cached response immediately if available, otherwise wait for network */
-          return cached || fetchPromise;
-        });
-      }),
+      fetch(e.request)
+        .then((res) => {
+          if (res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE).then((c) => c.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request)),
     );
   } else {
     /* Cache-first for static assets */
