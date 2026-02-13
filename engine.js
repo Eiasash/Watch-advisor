@@ -14,7 +14,7 @@ function compat(c1,c2){
   var ck=a<b?a+"|"+b:b+"|"+a;
   if(_compatCache[ck]!==undefined)return _compatCache[ck];
   var r;
-  if(a===b){r=0.6} /* monochrome — intentional pairing */
+  if(a===b){r=0.3} /* monochrome — penalize sameness, reward contrast */
   /* Exact match in compatibility matrix */
   else if((CP[a]||[]).includes(b)||(CP[b]||[]).includes(a)){r=1}
   /* Substring fallback for compound colors like "light blue" */
@@ -23,7 +23,7 @@ function compat(c1,c2){
   else{
     var famA=getColorFamily(a),famB=getColorFamily(b);
     /* Color family: same family = decent pairing (tonal dressing) */
-    if(famA&&famB&&famA===famB){r=0.65}
+    if(famA&&famB&&famA===famB){r=0.45}
     /* Neutral + anything = safe */
     else if((["blacks","whites","greys"].includes(famA)&&famB)||(["blacks","whites","greys"].includes(famB)&&famA)){r=0.55}
     else{
@@ -247,6 +247,21 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
   /* Layer-to-layer color harmony */
   for(var li=0;li<tops.length-1;li++){fs+=compat(tops[li].color,tops[li+1].color)*1.5}
+  /* ══ MONOTONE PENALTY: punish all-same-color outfits ══ */
+  if(outerTop&&bot&&shoe){
+    var _tc=(outerTop.color||"").toLowerCase(),_bc=(bot.color||"").toLowerCase(),_sc=(shoe.color||"").toLowerCase();
+    if(_tc===_bc&&_bc===_sc)fs-=3; /* all 3 same = harsh penalty */
+    else if(_tc===_bc||_tc===_sc||_bc===_sc)fs-=1; /* 2 of 3 same = mild penalty */
+  }
+  /* ══ CONTRAST BONUS: reward mixing warm+cool or different families ══ */
+  if(outerTop&&bot){
+    var _fT=getColorFamily((outerTop.color||"").toLowerCase()),_fB=getColorFamily((bot.color||"").toLowerCase());
+    if(_fT&&_fB&&_fT!==_fB){
+      var _neutrals=["blacks","whites","greys"];
+      if(!_neutrals.includes(_fT)&&!_neutrals.includes(_fB))fs+=1.5; /* two distinct chromatic families */
+      else fs+=0.5; /* neutral + chromatic = safe but intentional */
+    }
+  }
   /* Jeans-first preference: jeans are the default bottom unless formality demands otherwise.
      If no jeans exist in the current bottom pool, remove casual penalties on chinos/trousers
      so scores don't get artificially depressed when jeans simply aren't available. */

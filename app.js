@@ -167,6 +167,52 @@ var LazyImg=React.memo(function(props){
   return React.createElement("img",Object.assign({},props,{loading:"lazy",decoding:"async"}));
 });
 
+/* ══════ VIRTUAL GRID — hybrid windowing for CSS Grid ══════ */
+/* Chunks items into pages. Only pages near the viewport are mounted in DOM.
+   Pages that scroll far away are replaced with measured-height spacers.
+   Each page is its own CSS Grid container, preserving auto-fill layout. */
+function VirtualGrid(props){
+  var items=props.items,renderItem=props.renderItem,gridStyle=props.gridStyle,pageSize=props.pageSize||24,deps=props.deps||0;
+  var pages=useMemo(function(){var r=[];for(var i=0;i<items.length;i+=pageSize)r.push(items.slice(i,i+pageSize));return r},[items,pageSize]);
+  var mountedRef=useRef(new Set([0,1]));
+  var _=useState(0),tick=_[0],setTick=_[1];
+  var heightsRef=useRef({});
+  var pageEls=useRef({});
+  var obsRef=useRef(null);
+  /* Create observer once */
+  useEffect(function(){
+    obsRef.current=new IntersectionObserver(function(entries){
+      var visible=[];
+      entries.forEach(function(e){var pi=parseInt(e.target.dataset.vpage);if(!isNaN(pi)&&e.isIntersecting)visible.push(pi)});
+      if(!visible.length)return;
+      var minV=Math.min.apply(null,visible),maxV=Math.max.apply(null,visible);
+      var prev=mountedRef.current,next=new Set(prev),changed=false;
+      /* Mount visible + ±1 buffer */
+      for(var p=Math.max(0,minV-1);p<=Math.min(maxV+1,999);p++){if(!next.has(p)){next.add(p);changed=true}}
+      /* Unmount pages >2 away from any visible */
+      next.forEach(function(p){if(p<minV-2||p>maxV+2){next.delete(p);changed=true}});
+      if(changed){mountedRef.current=next;setTick(function(t){return t+1})}
+    },{rootMargin:"400px 0px"});
+    return function(){if(obsRef.current)obsRef.current.disconnect()};
+  },[]);
+  /* Reset mounted set when items change */
+  useEffect(function(){mountedRef.current=new Set([0,1]);heightsRef.current={};setTick(function(t){return t+1})},[items.length,deps]);
+  /* Ref callback: observe/unobserve page sentinel divs */
+  var refCb=useCallback(function(pi,el){
+    if(pageEls.current[pi]&&obsRef.current)try{obsRef.current.unobserve(pageEls.current[pi])}catch(e){}
+    pageEls.current[pi]=el;
+    if(el&&obsRef.current)obsRef.current.observe(el);
+  },[]);
+  var fallbackH=Math.ceil(pageSize/3)*140;
+  return React.createElement(React.Fragment,null,pages.map(function(pg,pi){
+    var isMounted=mountedRef.current.has(pi);
+    var h=heightsRef.current[pi]||fallbackH;
+    return React.createElement("div",{key:"vp-"+pi,"data-vpage":String(pi),ref:function(el){refCb(pi,el)},style:isMounted?{minHeight:40}:{height:h,minHeight:40}},
+      isMounted?React.createElement("div",{style:gridStyle,ref:function(el){if(el){var oh=el.offsetHeight;if(oh>40)heightsRef.current[pi]=oh}}},pg.map(renderItem)):null
+    );
+  }));
+}
+
 /* ══════ APP ══════ */
 /* ══════ GLOBAL ERROR HANDLERS ══════ */
 window.addEventListener("unhandledrejection",function(e){console.error("Unhandled promise:",e.reason);e.preventDefault()});
@@ -314,7 +360,7 @@ function App(){
   const[showQuickWear,setShowQuickWear]=useState(false);
   const[savedView,setSavedView]=useState("list");
   const[showArchived,setShowArchived]=useState(false);
-  const[gridLimit,setGridLimit]=useState(24);
+  /* gridLimit removed — VirtualGrid handles DOM windowing */
   const[selMode,setSelMode]=useState(false);
   const selIdsRef=useRef(new Set());
   const[selTick,setSelTick]=useState(0);
@@ -322,7 +368,9 @@ function App(){
   var toggleSel=function(id){var s=selIdsRef.current;if(s.has(id))s.delete(id);else s.add(id);setSelTick(function(t){return t+1})};
   var clearSel=function(){selIdsRef.current=new Set();setSelMode(false);setSelTick(0)};
   var batchDelete=function(){var ids=Array.from(selIdsRef.current);if(!ids.length)return;setConfirmDlg({msg:"Delete "+ids.length+" item"+(ids.length>1?"s":"")+"?",danger:true,onOk:function(){ids.forEach(function(id){rmG(id)});clearSel();showToast("\u2705 Deleted "+ids.length+" item"+(ids.length>1?"s":""),"var(--good)");setConfirmDlg(null)}})};
-  const reScanRef=useRef();
+  var batchArchive=function(){var ids=Array.from(selIdsRef.current);if(!ids.length)return;setWd(function(p){var n=p.map(function(i){return ids.includes(i.id)?Object.assign({},i,{archived:!i.archived}):i});ps("wd_"+SK,n);return n});var ct=ids.length;clearSel();showToast("\u2705 Toggled archive on "+ct+" item"+(ct>1?"s":""),"var(--good)")};
+  var batchSetType=function(type){var ids=Array.from(selIdsRef.current);if(!ids.length)return;setWd(function(p){var n=p.map(function(i){if(!ids.includes(i.id))return i;var upd=Object.assign({},i,{garmentType:type,needsEdit:false});upd.name=buildGarmentName(upd.color,upd.material,type);return upd});ps("wd_"+SK,n);return n});var ct=ids.length;clearSel();showToast("\u2705 Set "+ct+" item"+(ct>1?"s":"")+" to "+type,"var(--good)")};
+  const[batchTypeMenu,setBatchTypeMenu]=useState(false);  const reScanRef=useRef();
   const[importDupe,setImportDupe]=useState(null);/* {newItem, match, onKeep, onUseExisting} */
   const touchRef=useRef({sx:0,sy:0,swiping:false});
   const mainRef=useRef(null);
@@ -1097,7 +1145,7 @@ function App(){
     /* Lightbox Modal */
     lightboxSrc&&React.createElement("div",{onClick:function(){setLightboxSrc(null);setLightboxItems([])},style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"fadeIn .15s ease",cursor:"pointer",padding:16}},
       React.createElement("button",{onClick:function(){setLightboxSrc(null);setLightboxItems([])},style:{position:"absolute",top:16,right:16,background:"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"50%",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:18,zIndex:201}},"✕"),
-      React.createElement("img",{src:lightboxSrc,alt:"",style:{maxWidth:"92vw",maxHeight:lightboxItems.length>1?"60vh":"85vh",objectFit:"contain",borderRadius:8,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"},onClick:function(e){e.stopPropagation()}}),
+      React.createElement("img",{src:ph(lightboxSrc)||lightboxSrc,alt:"",style:{maxWidth:"92vw",maxHeight:lightboxItems.length>1?"60vh":"85vh",objectFit:"contain",borderRadius:8,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"},onClick:function(e){e.stopPropagation()}}),
       lightboxItems.length>0&&React.createElement("div",{onClick:function(e){e.stopPropagation()},style:{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:12,maxWidth:"92vw"}},
         lightboxItems.map(function(item){
           return React.createElement("div",{key:item.id,onClick:function(){setLightboxSrc(null);setLightboxItems([]);setEditG(item)},style:{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 14px",border:"1px solid rgba(255,255,255,0.12)",cursor:"pointer",transition:"background .15s"}},
@@ -1179,7 +1227,7 @@ function App(){
             if(!recUser.trim()||!recPass.trim()){showToast("Enter username and password first","var(--warn)");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v25.3",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v25.4",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -1220,7 +1268,7 @@ function App(){
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.3",watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}catch(e){console.error("[Export]",e)}}},"‍📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.4",watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}catch(e){console.error("[Export]",e)}}},"‍📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){showToast("Invalid backup file: expected JSON object","var(--warn)",3000);return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}showToast(imported.length?"✅ Imported: "+imported.join(", "):"No valid data found in file",imported.length?"var(--good)":"var(--warn)",3500)}catch(e){showToast("Invalid file: "+String(e.message||e).slice(0,100),"var(--warn)",3500)}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);showToast("✅ Imported "+parsed.length+" watches from markdown!","var(--good)",3000)}else{showToast("No watches found in file","var(--warn)",3000)}}catch(ex){console.error(ex);showToast("Parse error: "+ex.message,"var(--warn)",3000)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -1229,7 +1277,7 @@ function App(){
     React.createElement("div",{style:{position:"fixed",bottom:20,right:16,zIndex:89,pointerEvents:"none",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}},
     React.createElement("button",{onClick:function(){setShowQuickWear(!showQuickWear)},style:{pointerEvents:"auto",width:44,height:44,borderRadius:"50%",background:todayWorn?"linear-gradient(135deg,var(--good),#5a9e5a)":"linear-gradient(135deg,#7ab8d8,#5a8eae)",border:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.25)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff",transition:"transform .15s"},title:todayWorn?"Change today's watch":"Log today's watch"},todayWorn?"✓":"⌚"),
     React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",pointerEvents:"auto"}},
-      React.createElement("button",{onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.3",ts:Date.now(),watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}catch(e){console.error("[Export]",e)}},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",},title:"Quick backup (JSON)"},"📤"),
+      React.createElement("button",{onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.4",ts:Date.now(),watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}catch(e){console.error("[Export]",e)}},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",},title:"Quick backup (JSON)"},"📤"),
     React.createElement("button",{onClick:saveAll,"aria-label":"Save all changes",style:{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s"}},"💾"))),
     /* Quick Wear FAB */
     
@@ -1284,7 +1332,7 @@ function App(){
           [{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,role:"tab","aria-selected":view===t.id&&!selFit,onClick:function(){if(view!==t.id||selFit)navTo(t.id,null)},style:{background:"none",border:"none",borderBottom:view===t.id&&!selFit?"2px solid var(--gold)":"2px solid transparent",color:view===t.id&&!selFit?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("button",{onClick:function(){if("serviceWorker" in navigator&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:"CLEAR_ALL_CACHES"})}else{window.location.href="./?v="+Date.now()}},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:8}},"💣 Force"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v25.3")))),
+        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("button",{onClick:function(){if("serviceWorker" in navigator&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:"CLEAR_ALL_CACHES"})}else{window.location.href="./?v="+Date.now()}},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:8}},"💣 Force"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v25.4")))),
 
     React.createElement("div",{ref:mainRef,style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
@@ -1341,7 +1389,7 @@ function App(){
               React.createElement("button",{onClick:function(){setAiErr("")},style:{background:"none",border:"none",color:"var(--warn)",cursor:"pointer",fontSize:14}},"✕"))),
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
-            [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id);setWMatFilt("all");setWColFilt("all");setGridLimit(24)}},f.l)}),
+            [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id);setWMatFilt("all");setWColFilt("all")}},f.l)}),
             React.createElement("button",{onClick:function(){if(selMode){clearSel()}else{selIdsRef.current=new Set();setSelMode(true);setSelTick(0)}},style:{background:selMode?"rgba(201,168,76,0.15)":"none",border:"1px solid rgba(201,168,76,0.3)",borderRadius:20,padding:"8px 14px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36,marginLeft:"auto"}},selMode?"✕ Cancel":"☑️ Select"),
             React.createElement("button",{onClick:function(){var dupes=findDuplicates();setDupeGroups(dupes);setShowDupes(true)},style:{background:"none",border:"1px solid rgba(201,168,76,0.3)",borderRadius:20,padding:"8px 14px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"🔍 Dupes"),
             React.createElement("button",{onClick:function(){setConfirmDlg({msg:"Clear entire wardrobe?",danger:true,onOk:function(){saveWd([]);setWFilt("all");setConfirmDlg(null)}})},style:{background:"none",border:"1px solid var(--del-border)",borderRadius:20,padding:"8px 14px",color:"var(--del-text)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:36}},"Clear"),
@@ -1371,10 +1419,14 @@ function App(){
                 item.seasons&&item.seasons.length>0&&item.seasons.length<4&&React.createElement("div",{style:{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",borderRadius:3,padding:"1px 3px"}},React.createElement("span",{style:{fontSize:6}},item.seasons.map(function(s){return{spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"}[s]||""}).join(""))))})),
 
           /* Batch action bar */
-          selMode&&selIdsRef.current.size>0&&React.createElement("div",{style:{display:"flex",gap:8,marginTop:10,padding:"10px 14px",background:"var(--card)",border:"1px solid var(--gold)",borderRadius:10,alignItems:"center"}},
-            React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},selIdsRef.current.size+" selected"),
+          selMode&&selIdsRef.current.size>0&&React.createElement("div",{style:{display:"flex",gap:6,marginTop:10,padding:"10px 14px",background:"var(--card)",border:"1px solid var(--gold)",borderRadius:10,alignItems:"center",flexWrap:"wrap"}},
+            React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1,minWidth:80}},selIdsRef.current.size+" selected"),
             React.createElement("button",{onClick:function(){selIdsRef.current=new Set(filteredWd.slice(0,gridLimit).map(function(i){return i.id}));setSelTick(function(t){return t+1})},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"6px 12px",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:32}},"Select All"),
+            React.createElement("button",{onClick:batchArchive,style:{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"6px 12px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:32}},"📦 Archive"),
+            React.createElement("button",{onClick:function(){setBatchTypeMenu(!batchTypeMenu)},style:{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:6,padding:"6px 12px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",minHeight:32}},"🏷️ Reclassify"),
             React.createElement("button",{onClick:batchDelete,style:{background:"rgba(200,90,58,0.15)",border:"1px solid rgba(200,90,58,0.4)",borderRadius:6,padding:"6px 14px",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,cursor:"pointer",minHeight:32}},"\uD83D\uDDD1\uFE0F Delete "+selIdsRef.current.size)),
+          selMode&&batchTypeMenu&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginTop:6,padding:"8px 12px",background:"var(--card2)",borderRadius:8,border:"1px solid var(--border)"}},
+            ALL_T.map(function(t){return React.createElement("span",{key:t,className:"chip",onClick:function(){batchSetType(t);setBatchTypeMenu(false)},style:{cursor:"pointer"}},t)})),
           /* Load More pagination */
           filteredWd.length>gridLimit&&React.createElement("button",{onClick:function(){setGridLimit(function(p){return p+24})},style:{width:"100%",marginTop:10,background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"12px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:44,}},"Show more ("+Math.min(24,filteredWd.length-gridLimit)+" of "+(filteredWd.length-gridLimit)+" remaining)"),
           React.createElement("div",{style:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 14px",marginTop:12}},
