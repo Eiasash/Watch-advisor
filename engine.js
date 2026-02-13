@@ -46,16 +46,22 @@ function compat(c1,c2){
 function scoreW(w,items,ctx,reps,opts){
   if(!w.active||w.status==="sold"||w.status==="service"||w.status==="pending-trade"||w.status==="incoming")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
   if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
-  /* Multi-ctx support: ctx can be string or array */
-  var _ctxArr=Array.isArray(ctx)?ctx:[ctx];var _ctxPri=_ctxArr[0]||"smart-casual";var _ctxSet=new Set(_ctxArr);
-  var _o=opts||{};var wearLog=_o.wearLog||[];
-  let s=0;const bd={ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+
+  var _ctxArr=Array.isArray(ctx)?ctx:[ctx];
+  var _ctxPri=_ctxArr[0]||"smart-casual";
+  var _ctxSet=new Set(_ctxArr);
+  var _o=opts||{};
+  var wearLog=_o.wearLog||[];
+
+  let s=0;
+  const bd={ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+
   const ic=items.filter(i=>i.color).map(i=>i.color.toLowerCase().trim());
   const shoe=items.find(i=>i.garmentType==="Shoes");
   const sc=shoe&&shoe.color?shoe.color.toLowerCase().trim():null;
-  /* ══ UPGRADE: Formality tier scoring (gradient, not binary) ══ */
+
   var FORM_TIERS={formal:["reverso","sbgw267","santos-lg","santos-oct","santos-rep"],event:["reverso","sbgw267","santos-lg","santos-oct","santos-rep","laureato","speedy","monaco","gmt"],clinic:["snowflake","rikka","sbgw267","santos-lg","reverso","bb41","speedy"],date:["santos-lg","reverso","laureato","rikka","snowflake","monaco","speedy"]};
-  /* Score against ALL selected contexts, take best match */
+
   var _bestCxScore=0;
   _ctxArr.forEach(function(_cx){
     var tierList=FORM_TIERS[_cx];
@@ -66,29 +72,41 @@ function scoreW(w,items,ctx,reps,opts){
     }else if(tierList&&tierList.includes(w.id)){_cxS=2}
     if(_cxS>_bestCxScore)_bestCxScore=_cxS;
   });
-  s+=_bestCxScore;bd.ctx=_bestCxScore;
+
+  s+=_bestCxScore;
+  bd.ctx=_bestCxScore;
+
   for(const c of ic){
     if(!c)continue;
     let matched=false;
-    for(const m of(w.mc||[])){if(m==="anything"||c.includes(m)||m.includes(c)){s+=2;bd.color+=2;matched=true;break}}
-    if(!matched)for(const a of(w.ac||[])){if(c.includes(a)||a.includes(c)){s-=2;bd.color-=2;break}}
+    for(const m of(w.mc||[])){
+      if(m==="anything"||c.includes(m)||m.includes(c)){
+        s+=2;bd.color+=2;matched=true;break
+      }
+    }
+    if(!matched)
+      for(const a of(w.ac||[])){
+        if(c.includes(a)||a.includes(c)){
+          s-=2;bd.color-=2;break
+        }
+      }
   }
-  const temps=ic.map(c=>{const e=Object.entries(CM).find(([k])=>c.includes(k));return e?e[1].t:"neutral"});
-  const wm=temps.filter(x=>x==="warm").length,co=temps.filter(x=>x==="cool").length;
-  if(w.mt==="warm"&&wm>co){s+=2;bd.temp=2}if(w.mt==="cool"&&co>=wm){s+=1;bd.temp=1}if(w.mt==="warm"&&co>wm+1){s-=1;bd.temp=-1}
-  /* ══ UPGRADE: Hard strap-shoe enforcement (non-negotiable leather rule) ══ */
-  if(!w.br&&sc&&w.sc&&w.sc.length&&!(w.straps&&w.straps.length)){
-    const sB=sc.includes("black"),sBr=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
-    const hB=w.sc.some(x=>x.includes("black")),hBr=w.sc.some(x=>x.includes("brown")||x.includes("tan")||x.includes("teal")||x.includes("green")||x.includes("burgundy")),hN=w.sc.some(x=>x.includes("navy")||x.includes("blue"));
-    if(sB&&hB){s+=3;bd.strap=3}
-    if(sB&&!hB&&!hN){s-=5;bd.strap=-5}
-    if(sBr&&hBr){s+=3;bd.strap=3}
-    if(sBr&&hB&&!hBr){s-=5;bd.strap=-5}
-    if(sB&&hN){s+=1;bd.strap+=1}
-  }
-  /* New strap system: hard enforcement too */
+
+  const temps=ic.map(c=>{
+    const e=Object.entries(CM).find(([k])=>c.includes(k));
+    return e?e[1].t:"neutral"
+  });
+  const wm=temps.filter(x=>x==="warm").length;
+  const co=temps.filter(x=>x==="cool").length;
+
+  if(w.mt==="warm"&&wm>co){s+=2;bd.temp=2}
+  if(w.mt==="cool"&&co>=wm){s+=1;bd.temp=1}
+  if(w.mt==="warm"&&co>wm+1){s-=1;bd.temp=-1}
+
   if(!w.br&&sc&&w.straps&&w.straps.length){
-    var _sB2=sc.includes("black"),_sBr2=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
+    var _sB2=sc.includes("black");
+    var _sBr2=sc.includes("brown")||sc.includes("tan")||sc.includes("cognac");
+
     var _anyMatch=w.straps.some(function(st){
       if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato")return true;
       var stc=(st.color||"").toLowerCase();
@@ -96,41 +114,19 @@ function scoreW(w,items,ctx,reps,opts){
       if(_sBr2&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")||stc.includes("green")||stc.includes("cognac")))return true;
       return false;
     });
+
     if(!_anyMatch){s-=5;bd.strap-=5}
   }
+
   if(w.br){s+=1;bd.br=1}
-  /* Strap type × context fitness */
-  if(_ctxPri&&w.straps&&w.straps.length){
-    var ctxMap=STRAP_CTX[_ctxPri]||{};
-    var bestStrapFit=Math.max.apply(null,w.straps.map(function(st){return ctxMap[st.type]||0}));
-    if(bestStrapFit>0){s+=Math.min(bestStrapFit,2);bd.strap+=Math.min(bestStrapFit,2)}
-    else if(bestStrapFit<0&&w.straps.length===1){s+=bestStrapFit;bd.strap+=bestStrapFit}
-  }
-  /* Watch size × context scoring */
-  var sz=w.size?parseInt(w.size):0;
-  if(sz>0){
-    if((_ctxSet.has("formal")||_ctxSet.has("clinic"))&&sz>=43){s-=1;bd.ctx-=1}
-    if((_ctxSet.has("formal")||_ctxSet.has("clinic"))&&sz<=39){s+=0.5;bd.ctx+=0.5}
-    if(_ctxSet.has("date")&&sz<=37){s+=0.5;bd.ctx+=0.5}
-    if(_ctxSet.has("date")&&sz>=44){s-=0.5;bd.ctx-=0.5}
-    if((_ctxSet.has("casual")||_ctxSet.has("weekend"))&&sz>=44){s+=0.5;bd.ctx+=0.5}
-    if(_ctxSet.has("riviera")&&sz>=40&&sz<=42){s+=0.5;bd.ctx+=0.5}
-  }
-  /* Material harmony */
-  if(!w.br&&shoe){
-    var sm=(shoe.material||shoe.name||"").toLowerCase();
-    if(sm.includes("leather")&&w.sc&&w.sc.some(function(x){return x.includes("leather")||x.includes("croc")||x.includes("alligator")})){s+=1;bd.strap+=1}
-    if(sm.includes("suede")&&w.sc&&w.sc.some(function(x){return x.includes("suede")})){s+=1;bd.strap+=1}
-  }
-  /* Formality: penalize dressy watches with very casual items */
-  var hasCasualItem=items.some(function(it){return it.garmentType==="T-Shirt"||it.garmentType==="Shorts"||it.garmentType==="Tank Top"||it.garmentType==="Hoodie"||it.garmentType==="Sweatshirt"});
-  var isFormalCtx=_ctxSet.has("formal")||_ctxSet.has("event");
-  if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
-  /* ══ UPGRADE: Rotation freshness — recently worn = score penalty ══ */
+
   var _prefU=opts&&opts.preferUnworn;
   if(wearLog&&wearLog.length){
-    var _now2=Date.now();var _last=null;
-    for(var _e of wearLog){if(_e.watchId===w.id&&(!_last||_e.ts>_last))_last=_e.ts}
+    var _now2=Date.now();
+    var _last=null;
+    for(var _e of wearLog){
+      if(_e.watchId===w.id&&(!_last||_e.ts>_last))_last=_e.ts
+    }
     if(_last){
       var _daysAgo=Math.floor((_now2-_last)/(864e5));
       if(_daysAgo<=1){s-=(_prefU?5:3);bd.fresh=-(_prefU?5:3)}
@@ -139,63 +135,73 @@ function scoreW(w,items,ctx,reps,opts){
       else if(_daysAgo>=7){s+=(_prefU?2.5:1);bd.fresh=(_prefU?2.5:1)}
     }else{s+=(_prefU?2:1);bd.fresh=(_prefU?2:1)}
   }
-  /* ══ UPGRADE: Genuine/replica context bonus ══ */
-  var _authCtx=["formal","event","clinic","date"];
-  if(w.t==="genuine"&&_authCtx.some(function(a){return _ctxSet.has(a)})){s+=1.5;bd.auth=1.5}
-  if(w.t==="replica"&&(_ctxSet.has("casual")||_ctxSet.has("weekend")||_ctxSet.has("riviera"))){s+=0.5;bd.auth=0.5}
+
   return{total:s,...bd};
 }
 
 function strapRec(w,items,ctx,wxOpts){
-  /* Weather + straps-aware recommendation — UPGRADED */
   var _rain=wxOpts&&wxOpts.rain;
+
   if(w.straps&&w.straps.length){
     if(w.straps.length===1){
-      var s0=w.straps[0];var st0=STRAP_TYPES.find(function(t){return t.id===s0.type})||STRAP_TYPES[0];
+      var s0=w.straps[0];
+      var st0=STRAP_TYPES.find(function(t){return t.id===s0.type})||STRAP_TYPES[0];
       var _warn="";
       if(_rain&&s0.type==="leather")_warn=" ⚠️ rain";
-      return{text:s0.type==="bracelet"?(st0.icon+" Bracelet ("+s0.material+")"+_warn):(st0.icon+" "+s0.color+" "+s0.type+_warn),type:_rain&&s0.type==="leather"?"warn":"info",strap:s0};
+      return{
+        text:s0.type==="bracelet"
+          ?(st0.icon+" Bracelet ("+s0.material+")"+_warn)
+          :(st0.icon+" "+s0.color+" "+s0.type+_warn),
+        type:_rain&&s0.type==="leather"?"warn":"info",
+        strap:s0
+      };
     }
+
     var shoe=items.find(function(i){return i.garmentType==="Shoes"});
     var sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
     var sm=(shoe&&(shoe.material||shoe.name)||"").toLowerCase();
-    var _ctxPri2=Array.isArray(ctx)?ctx[0]||"smart-casual":ctx;var ctxMap=STRAP_CTX[_ctxPri2]||{};
+    var _ctxPri2=Array.isArray(ctx)?ctx[0]||"smart-casual":ctx;
+    var ctxMap=STRAP_CTX[_ctxPri2]||{};
+
     var scored=w.straps.map(function(st){
       var pts=ctxMap[st.type]||0;
       var stc=st.color?st.color.toLowerCase():"";
-      /* Shoe-strap color matching */
+
       if(st.type!=="bracelet"&&sc){
         if(sc.includes("black")&&(stc.includes("black")||stc.includes("navy")))pts+=3;
         if((sc.includes("brown")||sc.includes("tan")||sc.includes("cognac"))&&(stc.includes("brown")||stc.includes("tan")||stc.includes("burgundy")||stc.includes("teal")))pts+=3;
         if(sc.includes("black")&&(stc.includes("brown")||stc.includes("tan")))pts-=2;
         if((sc.includes("brown")||sc.includes("tan"))&&stc.includes("black"))pts-=2;
       }
-      /* Material harmony */
+
       if(sm.includes("leather")&&(st.material||"").toLowerCase().match(/leather|alligator|cordovan|nubuck/))pts+=1;
       if(sm.includes("suede")&&(st.material||"").toLowerCase().includes("suede"))pts+=1;
-      /* ══ UPGRADE: Weather-aware strap scoring ══ */
+
       if(_rain){
         if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=4;
         if(st.type==="leather")pts-=4;
         if(st.type==="nato"||st.type==="canvas")pts+=1;
       }
+
       return{strap:st,score:pts};
     }).sort(function(a,b){return b.score-a.score});
-    var best=scored[0];var stDef=STRAP_TYPES.find(function(t){return t.id===best.strap.type})||STRAP_TYPES[0];
-    var label=best.strap.type==="bracelet"?"Bracelet ("+best.strap.material+")":best.strap.color+" "+best.strap.type;
-    var _rainNote=_rain&&best.strap.type==="leather"?" ⚠️ rain":"";
-    return{text:"→ "+stDef.icon+" "+label+_rainNote,type:_rain&&best.strap.type==="leather"?"warn":"good",strap:best.strap,all:scored};
+
+    var best=scored[0];
+    var stDef=STRAP_TYPES.find(function(t){return t.id===best.strap.type})||STRAP_TYPES[0];
+    var label=best.strap.type==="bracelet"
+      ?"Bracelet ("+best.strap.material+")"
+      :best.strap.color+" "+best.strap.type;
+
+    return{
+      text:"→ "+stDef.icon+" "+label,
+      type:"good",
+      strap:best.strap,
+      all:scored
+    };
   }
-  /* Legacy fallback */
-  if(w.br)return{text:"⛓️ Bracelet"+(_rain?" ✓ rain-safe":""),type:"info"};
-  if(!w.sc||!w.sc.length)return{text:"Default strap",type:"info"};
-  const shoe2=items.find(i=>i.garmentType==="Shoes");const sc2=shoe2&&shoe2.color?shoe2.color.toLowerCase():"";
-  if(w.sc.length===1)return{text:w.sc[0]+" strap",type:"info"};
-  for(const st of w.sc){
-    if(sc2.includes("black")&&(st.includes("black")||st.includes("navy")))return{text:"→ "+st,type:"good"};
-    if((sc2.includes("brown")||sc2.includes("tan"))&&(st.includes("brown")||st.includes("tan")||st.includes("teal")||st.includes("burgundy")))return{text:"→ "+st,type:"good"};
-  }
-  return{text:w.sc.join(" / "),type:"info"};
+
+  if(w.br)return{text:"⛓️ Bracelet",type:"info"};
+  return{text:"Default strap",type:"info"};
 }
 function getWarns(w,items){
   const ws=[];const shoe=items.find(i=>i.garmentType==="Shoes");
@@ -313,20 +319,15 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   }
   const wr=watches.map(w=>{
     var sc=scoreW(w,items,ctx,reps,{wearLog:_wl,preferUnworn:_prefUnworn});
-    /* Rain: penalize leather/suede, boost bracelets & rubber */
-    if(isRainy){
-      if(w.straps&&w.straps.length){
-        var hasWR=w.straps.some(function(s){return s.type==="bracelet"||s.type==="rubber"||s.type==="mesh"});
-        var onlyLeather=w.straps.every(function(s){return s.type==="leather"});
-        if(hasWR){sc.total+=2;sc.br+=2}
-        if(onlyLeather){sc.total-=2;sc.strap-=2}
-      }else{
-        if(w.br){sc.total+=2;sc.br+=2}else{sc.total-=2;sc.strap-=2}
-      }
-    }
-    return{...w,score:sc.total,bd:sc,sr:strapRec(w,items,ctx,{rain:isRainy}),wn:getWarns(w,items)}
+    return{
+      ...w,
+      score:sc.total,
+      bd:sc,
+      sr:strapRec(w,items,ctx,{rain:isRainy}),
+      wn:getWarns(w,items)
+    };
   }).filter(w=>w.score>-1).sort((a,b)=>b.score-a.score);
-  if(wr[0])fs+=wr[0].score*0.5;
+  if(wr[0])fs+=wr[0].score*0.7;
   /* Rain warning */
   var wxWarns=[];
   if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets/rubber preferred over leather");
