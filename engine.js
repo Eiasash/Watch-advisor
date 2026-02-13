@@ -384,11 +384,11 @@ function strapRec(w,items,ctx,wxOpts){
       if(sm.includes("leather")&&(st.material||"").toLowerCase().match(/leather|alligator|cordovan|nubuck/))pts+=1;
       if(sm.includes("suede")&&(st.material||"").toLowerCase().includes("suede"))pts+=1;
 
-      if(_rain){
-        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=4;
-        if(st.type==="leather")pts-=4;
-        if(st.type==="nato"||st.type==="canvas")pts+=1;
-      }
+     if(_rain){
+  if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh")pts+=1.5;
+  if(st.type==="leather")pts-=1.0;
+  if(st.type==="nato"||st.type==="canvas")pts+=0.5;
+}
 
       return{strap:st,score:pts};
     }).sort(function(a,b){return b.score-a.score});
