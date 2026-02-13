@@ -27,7 +27,7 @@ Native ES modules — browser handles imports, no transpilation.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v25.3
+## Current Version: v25.4
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -54,6 +54,7 @@ Native ES modules — browser handles imports, no transpilation.
 
 | Version | Changes |
 |---------|---------|
+| **v25.4** | ⚡ VirtualGrid: hybrid windowing for wardrobe grid. Only visible pages in DOM, off-screen pages become spacers. IO-based auto-pagination replaces "Show More" button. |
 | **v25.3** | Fix blank screen — orphaned `const DEFAULT_CX=[` in utils.js broke module parse. |
 | **v25.2** | Unworn rotation: "Fresh" toggle, 14d+ badges, neglected wardrobe insight. SW escape hatch: Force button, CLEAR_ALL_CACHES, controllerchange auto-reload. |
 | **v25.1** | ES module split (monolith → 7 modules). Undo toasts, haptic feedback, tab slide animations, lazy image loading. |
