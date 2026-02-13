@@ -145,7 +145,7 @@ if(_wMeta&&Array.isArray(_wMeta.dc)&&_wMeta.dc.length){
     var _bestStrapPts=-Infinity;
     w.straps.forEach(function(st){
       var stc=(st.color||"").toLowerCase();var pts=0;
-      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"){pts=0.2}
+if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts=0.2}
       else{
         var _brSt=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy");
         var _blSt=stc.includes("black")||stc.includes("navy");
