@@ -1,48 +1,67 @@
-const CACHE = "wa-v25.1";
+const CACHE = "wa-v25.2";
 const MODULES = [
   "./", "./index.html",
   "./app.js", "./data.js", "./engine.js",
   "./utils.js", "./ai.js", "./photos.js", "./crypto.js"
 ];
-/* Install: cache critical assets, activate immediately */
+
+/* Install: cache critical assets, force takeover */
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches
-      .open(CACHE)
+    caches.open(CACHE)
       .then((c) => c.addAll(MODULES))
-      .then(() => self.skipWaiting()),
+      .then(() => self.skipWaiting())
   );
 });
-/* Activate: purge old caches, claim all clients */
+
+/* Activate: nuke ALL old caches, claim clients immediately */
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches
-      .keys()
-      .then((ks) =>
-        Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-      )
-      .then(() => self.clients.claim()),
+    caches.keys()
+      .then((ks) => Promise.all(
+        ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+      .then(() => {
+        return self.clients.matchAll({ type: "window" }).then((cls) => {
+          cls.forEach((c) => c.postMessage({ type: "SW_ACTIVATED", cache: CACHE }));
+        });
+      })
   );
 });
-/* Listen for SKIP_WAITING from app's "Update now" button */
+
+/* Message handlers */
 self.addEventListener("message", (e) => {
-  if (e.data && e.data.type === "SKIP_WAITING") {
+  if (!e.data) return;
+  if (e.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (e.data.type === "CLEAR_ALL_CACHES") {
+    caches.keys().then((ks) =>
+      Promise.all(ks.map((k) => caches.delete(k)))
+    ).then(() => {
+      self.clients.matchAll({ type: "window" }).then((cls) => {
+        cls.forEach((c) => c.postMessage({ type: "CACHES_CLEARED" }));
+      });
+    });
+  }
+  if (e.data.type === "GET_VERSION") {
+    e.source.postMessage({ type: "SW_VERSION", cache: CACHE });
+  }
 });
+
 /* Fetch strategy:
-   HTML + JS modules → network-first (always get latest, fall back to cache)
-   Other → cache-first with network fallback */
+   Navigations + app code → NETWORK-FIRST (never serve stale shell)
+   Static assets → cache-first with network fallback */
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
+  const isNavigation = e.request.mode === "navigate";
   const isAppCode =
-    e.request.mode === "navigate" ||
     url.pathname.endsWith(".html") ||
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith("/");
-  if (isAppCode) {
-    /* NETWORK-FIRST: always try to get fresh app code */
+  if (isNavigation || isAppCode) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
@@ -52,22 +71,19 @@ self.addEventListener("fetch", (e) => {
           }
           return res;
         })
-        .catch(() => caches.match(e.request)),
+        .catch(() => caches.match(e.request))
     );
   } else {
-    /* Cache-first for static assets (fonts, images) */
     e.respondWith(
-      caches.match(e.request).then(
-        (r) =>
-          r ||
-          fetch(e.request).then((res) => {
-            if (res.status === 200) {
-              const c = res.clone();
-              caches.open(CACHE).then((ca) => ca.put(e.request, c));
-            }
-            return res;
-          }),
-      ),
+      caches.match(e.request).then((r) =>
+        r || fetch(e.request).then((res) => {
+          if (res.status === 200) {
+            const c = res.clone();
+            caches.open(CACHE).then((ca) => ca.put(e.request, c));
+          }
+          return res;
+        })
+      )
     );
   }
 });

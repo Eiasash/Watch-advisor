@@ -127,16 +127,17 @@ function scoreW(w,items,ctx,reps,opts){
   var isFormalCtx=_ctxSet.has("formal")||_ctxSet.has("event");
   if(isFormalCtx&&hasCasualItem){s-=2;bd.ctx-=2}
   /* ══ UPGRADE: Rotation freshness — recently worn = score penalty ══ */
+  var _prefU=opts&&opts.preferUnworn;
   if(wearLog&&wearLog.length){
     var _now2=Date.now();var _last=null;
     for(var _e of wearLog){if(_e.watchId===w.id&&(!_last||_e.ts>_last))_last=_e.ts}
     if(_last){
       var _daysAgo=Math.floor((_now2-_last)/(864e5));
-      if(_daysAgo<=1){s-=3;bd.fresh=-3}
-      else if(_daysAgo<=3){s-=1.5;bd.fresh=-1.5}
-      else if(_daysAgo>=14){s+=2;bd.fresh=2}
-      else if(_daysAgo>=7){s+=1;bd.fresh=1}
-    }else{s+=1;bd.fresh=1}
+      if(_daysAgo<=1){s-=(_prefU?5:3);bd.fresh=-(_prefU?5:3)}
+      else if(_daysAgo<=3){s-=(_prefU?3:1.5);bd.fresh=-(_prefU?3:1.5)}
+      else if(_daysAgo>=14){s+=(_prefU?4:2);bd.fresh=(_prefU?4:2)}
+      else if(_daysAgo>=7){s+=(_prefU?2.5:1);bd.fresh=(_prefU?2.5:1)}
+    }else{s+=(_prefU?2:1);bd.fresh=(_prefU?2:1)}
   }
   /* ══ UPGRADE: Genuine/replica context bonus ══ */
   var _authCtx=["formal","event","clinic","date"];
@@ -238,7 +239,8 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   items.forEach(function(it){var s=it.seasons;if(s&&s.length>0&&s.length<4&&!s.includes(_csn))fs-=1});
   /* Freshness penalty — discourage recently-worn garments for variety */
   var _now=Date.now();
-  items.forEach(function(it){if(it.lastWorn){var daysAgo=Math.floor((_now-new Date(it.lastWorn).getTime())/(864e5));if(daysAgo<=1)fs-=2;else if(daysAgo<=3)fs-=0.8;else if(daysAgo<=5)fs-=0.3;else if(daysAgo>=14)fs+=0.3}});
+  var _prefUnworn=extraOpts&&extraOpts.preferUnworn;
+  items.forEach(function(it){if(it.lastWorn){var daysAgo=Math.floor((_now-new Date(it.lastWorn).getTime())/(864e5));if(daysAgo<=1)fs-=(_prefUnworn?4:2);else if(daysAgo<=3)fs-=(_prefUnworn?2:0.8);else if(daysAgo<=5)fs-=(_prefUnworn?1:0.3);else if(daysAgo>=14)fs+=(_prefUnworn?2:0.3);else if(daysAgo>=7&&_prefUnworn)fs+=1}else if(_prefUnworn){fs+=1}});
   /* Color compat — use outermost visible layer for primary scoring */
   if(outerTop&&bot)fs+=compat(outerTop.color,bot.color)*3;
   if(outerTop&&shoe)fs+=compat(outerTop.color,shoe.color)*2;
@@ -295,7 +297,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
     });
   }
   const wr=watches.map(w=>{
-    var sc=scoreW(w,items,ctx,reps,{wearLog:_wl});
+    var sc=scoreW(w,items,ctx,reps,{wearLog:_wl,preferUnworn:_prefUnworn});
     /* Rain: penalize leather/suede, boost bracelets & rubber */
     if(isRainy){
       if(w.straps&&w.straps.length){
@@ -373,7 +375,7 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
       if(shoe&&tc.some(function(t){return t.id===shoe.id}))continue;
       if(shoe&&shoe.id===bot.id)continue;
       var items=tc.concat([bot]).concat(shoe?[shoe]:[]);
-      var r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b2){return b2.garmentType==="Jeans"})});
+      var r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b2){return b2.garmentType==="Jeans"}),preferUnworn:opts.preferUnworn});
       var topIds=tc.map(function(t){return t.id}).join("+");
       combos.push({id:topIds+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.outerTop||tc[0],bot:r.bot,shoe:r.shoe,outerTop:r.outerTop,tops:tc,layers:tc,items:r.items,topType:outerItem.garmentType,wxWarns:r.wxWarns});
     }
