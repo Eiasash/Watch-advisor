@@ -132,14 +132,14 @@ const WMO={0:{i:"☀️",l:"Clear",rain:false},1:{i:"🌤️",l:"Mostly Clear",r
 const getWMO=c=>WMO[c]||{i:"❓",l:"Unknown",rain:false};
 
 const WATCH_PRESETS=[
-{id:"p-aw",n:"Apple Watch",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"⌚",mc:["black","grey","navy","white","charcoal"],ac:[],cx:["casual","weekend","clinic","travel"],wt:["light","mid","heavy"]},
-{id:"p-gshock",n:"G-Shock",d:"Black",c:"#2a2a2a",br:true,sc:[],mt:"cool",i:"💪",mc:["black","olive","navy","grey","khaki"],ac:["formal"],cx:["casual","weekend","travel"],wt:["light","mid","heavy"]},
-{id:"p-seiko5",n:"Seiko 5",d:"Blue",c:"#2a5a9a",br:true,sc:[],mt:"cool",i:"🔵",mc:["navy","white","cream","grey","light blue"],ac:[],cx:["casual","smart-casual","weekend"],wt:["light","mid","heavy"]},
-{id:"p-sub",n:"Submariner-style",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"🤿",mc:["black","navy","white","grey","olive"],ac:[],cx:["casual","smart-casual","weekend","riviera","travel"],wt:["light","mid","heavy"]},
-{id:"p-tank",n:"Tank-style",d:"White",c:"#f0f0ec",br:false,sc:["black"],mt:"cool",i:"🏛️",mc:["white","charcoal","navy","cream","black"],ac:["casual"],cx:["formal","date","smart-casual","clinic"],wt:["mid","heavy"]},
-{id:"p-chrono",n:"Chronograph",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"⏱️",mc:["black","navy","white","grey","charcoal"],ac:[],cx:["smart-casual","casual","weekend"],wt:["light","mid","heavy"]},
-{id:"p-dress",n:"Dress Watch",d:"White",c:"#f5f0e8",br:false,sc:["brown"],mt:"warm",i:"👔",mc:["cream","white","charcoal","navy","tan","burgundy"],ac:["casual"],cx:["formal","date","smart-casual","clinic"],wt:["mid","heavy"]},
-{id:"p-field",n:"Field Watch",d:"Green",c:"#3a5a3a",br:false,sc:["brown","olive"],mt:"cool",i:"🧭",mc:["olive","khaki","cream","brown","tan","navy"],ac:["formal"],cx:["casual","weekend","travel"],wt:["light","mid","heavy"]},
+{id:"p-aw",n:"Apple Watch",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"⌚",mc:["black","grey","navy","white","charcoal"],ac:[],cx:["casual","weekend","clinic","travel"],wt:["light","mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:true},
+{id:"p-gshock",n:"G-Shock",d:"Black",c:"#2a2a2a",br:true,sc:[],mt:"cool",i:"💪",mc:["black","olive","navy","grey","khaki"],ac:["formal"],cx:["casual","weekend","travel"],wt:["light","mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
+{id:"p-seiko5",n:"Seiko 5",d:"Blue",c:"#2a5a9a",br:true,sc:[],mt:"cool",i:"🔵",mc:["navy","white","cream","grey","light blue"],ac:[],cx:["casual","smart-casual","weekend"],wt:["light","mid","heavy"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:false},
+{id:"p-sub",n:"Submariner-style",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"🤿",mc:["black","navy","white","grey","olive"],ac:[],cx:["casual","smart-casual","weekend","riviera","travel"],wt:["light","mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false},
+{id:"p-tank",n:"Tank-style",d:"White",c:"#f0f0ec",br:false,sc:["black"],mt:"cool",i:"🏛️",mc:["white","charcoal","navy","cream","black"],ac:["casual"],cx:["formal","date","smart-casual","clinic"],wt:["mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
+{id:"p-chrono",n:"Chronograph",d:"Black",c:"#1a1a1a",br:true,sc:[],mt:"cool",i:"⏱️",mc:["black","navy","white","grey","charcoal"],ac:[],cx:["smart-casual","casual","weekend"],wt:["light","mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false},
+{id:"p-dress",n:"Dress Watch",d:"White",c:"#f5f0e8",br:false,sc:["brown"],mt:"warm",i:"👔",mc:["cream","white","charcoal","navy","tan","burgundy"],ac:["casual"],cx:["formal","date","smart-casual","clinic"],wt:["mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
+{id:"p-field",n:"Field Watch",d:"Green",c:"#3a5a3a",br:false,sc:["brown","olive"],mt:"cool",i:"🧭",mc:["olive","khaki","cream","brown","tan","navy"],ac:["formal"],cx:["casual","weekend","travel"],wt:["light","mid","heavy"],neutralDial:false,twoTone:false,steelBracelet:false,integratedBracelet:false},
 ];
 const GARMENT_PRESETS=[
 {garmentType:"Shirt",name:"White Shirt",color:"white",pattern:"solid"},
@@ -188,43 +188,43 @@ const _OWNER_DEFAULTS=[
 {id:"snowflake",n:"GS Snowflake",t:"genuine",d:"Silver-White",c:"#c8d0d8",straps:[
   {type:"leather",color:"grey",material:"alligator",source:"Gentry Tao",buckle:"GS script pin"},
   {type:"leather",color:"navy",material:"alligator",source:"DayDayWatchband",buckle:"deployant",notes:"Blue contrast stitch, 19→18mm taper"}
-],mt:"cool",i:"❄️",mc:["grey","navy","white","light blue","charcoal","silver","lavender","slate"],ac:["orange","red"],cx:["clinic","formal","smart-casual"],sg:"Grey→dark shoes. Navy→navy outfits.",wt:["light","mid","heavy"],active:true,status:"active",ref:"SBGA211",size:41,lug:19,mvmt:"Spring Drive 9R65"},
+],mt:"cool",i:"❄️",mc:["grey","navy","white","light blue","charcoal","silver","lavender","slate"],ac:["orange","red"],cx:["clinic","formal","smart-casual"],sg:"Grey→dark shoes. Navy→navy outfits.",wt:["light","mid","heavy"],active:true,status:"active",ref:"SBGA211",size:41,lug:19,mvmt:"Spring Drive 9R65",neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"rikka",n:"GS Rikka",t:"genuine",d:"Green",c:"#5a8a6a",straps:[
   {type:"leather",color:"teal",material:"alligator",source:"Gentry Tao",buckle:"Seiko script pin"},
   {type:"leather",color:"brown",material:"calf leather",buckle:"pin"}
-],mt:"cool",i:"🌿",mc:["cream","ivory","sage","olive","teal","khaki","tan","forest green","white"],ac:["black","bright red"],cx:["smart-casual","date","weekend"],sg:"Teal→brown shoes. Brown leather→smart casual.",wt:["light","mid"],active:true,status:"active",ref:"SBGH351",size:40,lug:21,mvmt:"Hi-Beat 36000 9S85"},
+],mt:"cool",i:"🌿",mc:["cream","ivory","sage","olive","teal","khaki","tan","forest green","white"],ac:["black","bright red"],cx:["smart-casual","date","weekend"],sg:"Teal→brown shoes. Brown leather→smart casual.",wt:["light","mid"],active:true,status:"active",ref:"SBGH351",size:40,lug:21,mvmt:"Hi-Beat 36000 9S85",neutralDial:false,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"sbgw267",n:"GS SBGW267",t:"genuine",d:"Ivory",c:"#f5f0e8",straps:[
   {type:"leather",color:"burgundy",material:"alligator",source:"Gentry Tao",buckle:"GS script pin",notes:"Reads purple/magenta, not true oxblood"},
   {type:"leather",color:"burgundy",material:"alligator",source:"DayDayWatchband",buckle:"pin",notes:"Redundant with Gentry Tao — both read purple"},
   {type:"leather",color:"tan",material:"calf leather",buckle:"pin",notes:"Honey tone, white contrast stitch"}
-],mt:"warm",i:"🪷",mc:["burgundy","plum","cream","mauve","ivory","charcoal","wine","tan","honey"],ac:["cobalt","neon"],cx:["formal","date","clinic","smart-casual"],sg:"Purple straps→oxblood shoes. Tan→brown Ecco lace-ups.",wt:["mid","heavy"],active:true,status:"active",ref:"SBGW267",size:37.3,lug:19,mvmt:"Manual 9S64"},
+],mt:"warm",i:"🪷",mc:["burgundy","plum","cream","mauve","ivory","charcoal","wine","tan","honey"],ac:["cobalt","neon"],cx:["formal","date","clinic","smart-casual"],sg:"Purple straps→oxblood shoes. Tan→brown Ecco lace-ups.",wt:["mid","heavy"],active:true,status:"active",ref:"SBGW267",size:37.3,lug:19,mvmt:"Manual 9S64",neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"laureato",n:"GP Laureato",t:"genuine",d:"Blue",c:"#2a5a9a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"🔷",mc:["white","cream","light grey","navy","cobalt","light blue","silver"],ac:["brown","olive"],cx:["riviera","smart-casual","flex","date"],sg:"Integrated bracelet only.",wt:["light","mid"],active:true,status:"active",ref:"81010",size:42,mvmt:"GP03300"},
+],mt:"cool",i:"🔷",mc:["white","cream","light grey","navy","cobalt","light blue","silver"],ac:["brown","olive"],cx:["riviera","smart-casual","flex","date"],sg:"Integrated bracelet only.",wt:["light","mid"],active:true,status:"active",ref:"81010",size:42,mvmt:"GP03300",neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true},
 {id:"reverso",n:"JLC Reverso",t:"genuine",d:"Navy",c:"#1a2a4a",straps:[
   {type:"leather",color:"navy",material:"alligator",buckle:"deployant"}
-],mt:"cool",i:"🌙",mc:["white","charcoal","navy","dark grey","silver"],ac:["casual"],cx:["formal","clinic","event"],sg:"Navy→black/dark brown shoes.",wt:["mid","heavy"],active:true,status:"active",ref:"216.8.D3",size:42,mvmt:"Cal 986"},
+],mt:"cool",i:"🌙",mc:["white","charcoal","navy","dark grey","silver"],ac:["casual"],cx:["formal","clinic","event"],sg:"Navy→black/dark brown shoes.",wt:["mid","heavy"],active:true,status:"active",ref:"216.8.D3",size:42,mvmt:"Cal 986",neutralDial:false,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"santos-lg",n:"Santos Large",t:"genuine",d:"White/Gold",c:"#d4af37",straps:[
   {type:"bracelet",color:"silver",material:"steel",notes:"QuickSwitch"},
   {type:"leather",color:"brown",material:"calfskin",source:"Cartier OEM",buckle:"QuickSwitch deployant"}
-],mt:"mixed",i:"💎",mc:["cream","white","light blue","tan","black","navy","gold"],ac:["neon"],cx:["clinic","smart-casual","date","riviera","flex"],sg:"Two-tone. QuickSwitch bracelet + brown calfskin. Most versatile.",wt:["light","mid","heavy"],active:true,status:"active",ref:"W2SA0009",size:39.8,mvmt:"1847MC"},
+],mt:"mixed",i:"💎",mc:["cream","white","light blue","tan","black","navy","gold"],ac:["neon"],cx:["clinic","smart-casual","date","riviera","flex"],sg:"Two-tone. QuickSwitch bracelet + brown calfskin. Most versatile.",wt:["light","mid","heavy"],active:true,status:"active",ref:"W2SA0009",size:39.8,mvmt:"1847MC",neutralDial:true,twoTone:true,steelBracelet:true,integratedBracelet:false},
 {id:"santos-oct",n:"Santos Octagon YG",t:"genuine",d:"White",c:"#c5a03a",straps:[
   {type:"leather",color:"brown",material:"alligator",buckle:"deployant",notes:"Brown alligator, stainless deployant, cream lining"}
-],mt:"warm",i:"👑",mc:["cream","tan","camel","chocolate","ivory","gold","brown"],ac:["grey","navy","silver"],cx:["formal","date","flex"],sg:"Brown shoes mandatory.",wt:["mid","heavy"],active:true,status:"active",ref:"Vintage 1980s",size:29,mvmt:"Quartz"},
+],mt:"warm",i:"👑",mc:["cream","tan","camel","chocolate","ivory","gold","brown"],ac:["grey","navy","silver"],cx:["formal","date","flex"],sg:"Brown shoes mandatory.",wt:["mid","heavy"],active:true,status:"active",ref:"Vintage 1980s",size:29,mvmt:"Quartz",neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"bb41",n:"Tudor BB41",t:"genuine",d:"Black/Red",c:"#8b1a1a",straps:[
   {type:"bracelet",color:"silver",material:"steel",source:"Tudor OEM",notes:"Five-link"},
   {type:"leather",color:"brown",material:"distressed leather",source:"Tudor OEM",buckle:"Tudor deployant",notes:"Rough-out finish, ecru stitching. Via Speedmaster trade."},
   {type:"leather",color:"black",material:"calf leather",buckle:"pin",notes:"White stitch, 22/22mm straight. Dressy/clinic."}
-],mt:"cool",i:"🔴",mc:["black","grey","white","charcoal","dark green","navy","olive","rust","brown","tan"],ac:["pastel"],cx:["casual","weekend","smart-casual"],sg:"Bracelet default. Brown strap→brown shoes, warm tones. Black strap→clinic/dressy.",wt:["light","mid","heavy"],active:true,status:"active",ref:"7941A1A0RU",size:41,lug:22,mvmt:"MT5400 METAS"},
+],mt:"cool",i:"🔴",mc:["black","grey","white","charcoal","dark green","navy","olive","rust","brown","tan"],ac:["pastel"],cx:["casual","weekend","smart-casual"],sg:"Bracelet default. Brown strap→brown shoes, warm tones. Black strap→clinic/dressy.",wt:["light","mid","heavy"],active:true,status:"active",ref:"7941A1A0RU",size:41,lug:22,mvmt:"MT5400 METAS",neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:false},
 {id:"monaco",n:"TAG Monaco",t:"genuine",d:"Black",c:"#1a1a1a",straps:[
   {type:"leather",color:"black",material:"calf leather",buckle:"pin"}
-],mt:"cool",i:"🏁",mc:["black","charcoal","white","navy"],ac:["brown","warm"],cx:["smart-casual","date","weekend"],sg:"Black shoes ONLY.",wt:["mid","heavy"],active:true,status:"active",ref:"CW2111",size:39,mvmt:"ETA 2894-2"},
+],mt:"cool",i:"🏁",mc:["black","charcoal","white","navy"],ac:["brown","warm"],cx:["smart-casual","date","weekend"],sg:"Black shoes ONLY.",wt:["mid","heavy"],active:true,status:"active",ref:"CW2111",size:39,mvmt:"ETA 2894-2",neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"gmt",n:"Rolex GMT-II",t:"genuine",d:"Black",c:"#2a2a2a",straps:[
   {type:"bracelet",color:"silver",material:"steel",source:"Rolex OEM"}
-],mt:"cool",i:"🌍",mc:["black","navy","grey","white","olive"],ac:[],cx:["casual","travel","smart-casual"],sg:"PENDING TRADE→Alpine Eagle 8HF.",wt:["light","mid","heavy"],active:true,status:"pending-trade",ref:"116710LN",size:40,mvmt:"Cal 3186"},
+],mt:"cool",i:"🌍",mc:["black","navy","grey","white","olive"],ac:[],cx:["casual","travel","smart-casual"],sg:"PENDING TRADE→Alpine Eagle 8HF.",wt:["light","mid","heavy"],active:true,status:"pending-trade",ref:"116710LN",size:40,mvmt:"Cal 3186",neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false},
 {id:"alpine-8hf",n:"Chopard Alpine Eagle 8HF",t:"genuine",d:"Blue-Grey",c:"#5a6a7a",straps:[
   {type:"bracelet",color:"silver",material:"titanium"}
-],mt:"cool",i:"🏔️",mc:["grey","navy","white","light blue","charcoal","silver","cream","slate"],ac:["orange","bright red"],cx:["clinic","smart-casual","date","flex","riviera"],sg:"GPHG Sports Watch. 8Hz movement. Replaces GMT-II.",wt:["light","mid","heavy"],active:false,status:"incoming",ref:"298600-3005",size:41,mvmt:"L.U.C 01.12-C 8Hz"},
+],mt:"cool",i:"🏔️",mc:["grey","navy","white","light blue","charcoal","silver","cream","slate"],ac:["orange","bright red"],cx:["clinic","smart-casual","date","flex","riviera"],sg:"GPHG Sports Watch. 8Hz movement. Replaces GMT-II.",wt:["light","mid","heavy"],active:false,status:"incoming",ref:"298600-3005",size:41,mvmt:"L.U.C 01.12-C 8Hz",neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true},
 {id:"hanhart",n:"Hanhart Pioneer",t:"genuine",d:"White/Teal",c:"#3a8a8a",straps:[
   {type:"leather",color:"teal",material:"leather",source:"Hanhart OEM",notes:"Yellow lining, statement"},
   {type:"leather",color:"black",material:"calf leather",buckle:"pin"},
@@ -232,10 +232,10 @@ const _OWNER_DEFAULTS=[
   {type:"leather",color:"green",material:"suede",buckle:"pin",notes:"Dark green rough-out, tan lining. Textured casual."},
   {type:"leather",color:"olive",material:"full grain leather",buckle:"pin",notes:"Sage/olive chunky, cream stitch. Field/military."},
   {type:"canvas",color:"grey",material:"canvas",buckle:"bronze pin",notes:"Grey woven canvas. Vintage tool watch vibe."}
-],mt:"cool",i:"✈️",mc:["teal","cream","sage","white","burnt orange","olive","khaki","tan","black","grey"],ac:["formal"],cx:["casual","weekend","riviera","smart-casual"],sg:"Teal→statement. Black→versatile. Light brown→brown Eccos. Green suede→field. Olive→military. Canvas→vintage.",wt:["light","mid"],active:true,status:"active",ref:"417 ES",size:39,mvmt:"Flyback chronograph"},
+],mt:"cool",i:"✈️",mc:["teal","cream","sage","white","burnt orange","olive","khaki","tan","black","grey"],ac:["formal"],cx:["casual","weekend","riviera","smart-casual"],sg:"Teal→statement. Black→versatile. Light brown→brown Eccos. Green suede→field. Olive→military. Canvas→vintage.",wt:["light","mid"],active:true,status:"active",ref:"417 ES",size:39,mvmt:"Flyback chronograph",neutralDial:false,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"laco",n:"Laco Flieger",t:"genuine",d:"Black",c:"#3a3a3a",straps:[
   {type:"leather",color:"brown",material:"distressed leather",buckle:"pin",notes:"Pilot style, aged"}
-],mt:"cool",i:"🛩️",mc:["olive","brown","dark green","grey","khaki","tan"],ac:["silk","suits"],cx:["casual","weekend"],sg:"Rugged only.",wt:["mid","heavy"],active:true,status:"active",ref:"Type B",size:42,mvmt:"Manual wind"},
+],mt:"cool",i:"🛩️",mc:["olive","brown","dark green","grey","khaki","tan"],ac:["silk","suits"],cx:["casual","weekend"],sg:"Rugged only.",wt:["mid","heavy"],active:true,status:"active",ref:"Type B",size:42,mvmt:"Manual wind",neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false},
 {id:"speedy",n:"Omega Speedmaster 3861",t:"genuine",d:"Black",c:"#1a1a1a",straps:[
   {type:"bracelet",color:"silver",material:"steel",source:"Omega OEM"},
   {type:"leather",color:"teal",material:"Buttero Italian veg-tanned",buckle:"pin",notes:"Dark teal, cream stitch. Statement."},
@@ -246,37 +246,37 @@ const _OWNER_DEFAULTS=[
   {type:"leather",color:"black",material:"grained leather",buckle:"gold butterfly deployant",notes:"Gold hardware on steel — intentional warm accent."},
   {type:"leather",color:"tan",material:"calf leather",buckle:"pin",notes:"Tan/honey, 20→18mm taper. Brown shoe pairing."},
   {type:"nato",color:"navy",material:"nylon",notes:"Navy/white/orange striped. Regatta casual."}
-],mt:"neutral",i:"🌑",mc:["black","navy","white","grey","charcoal","cream","olive","denim","burgundy"],ac:[],cx:["clinic","smart-casual","casual","date","flex","weekend","travel","event"],sg:"Moonwatch. 9 strap options. Most versatile watch in collection.",wt:["mid","heavy"],active:true,status:"active",ref:"310.30.42.50.01.001",size:42,lug:20,mvmt:"Cal 3861 manual"},
+],mt:"neutral",i:"🌑",mc:["black","navy","white","grey","charcoal","cream","olive","denim","burgundy"],ac:[],cx:["clinic","smart-casual","casual","date","flex","weekend","travel","event"],sg:"Moonwatch. 9 strap options. Most versatile watch in collection.",wt:["mid","heavy"],active:true,status:"active",ref:"310.30.42.50.01.001",size:42,lug:20,mvmt:"Cal 3861 manual",neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false},
 {id:"iwc-perp",n:"IWC Perpetual",t:"replica",d:"Blue",c:"#1a3a7a",straps:[
   {type:"leather",color:"blue",material:"alligator",buckle:"deployant"}
-],mt:"cool",i:"🔵",mc:["navy","charcoal","white","silver"],ac:["casual"],cx:["formal","date","flex"],sg:"Dark shoes only.",wt:["mid","heavy"],active:true,status:"active",size:42},
+],mt:"cool",i:"🔵",mc:["navy","charcoal","white","silver"],ac:["casual"],cx:["formal","date","flex"],sg:"Dark shoes only.",wt:["mid","heavy"],neutralDial:false,twoTone:false,steelBracelet:false,integratedBracelet:false,active:true,status:"active",size:42},
 {id:"iwc-ing",n:"IWC Ingenieur",t:"replica",d:"Teal",c:"#1a8a7a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"🌊",mc:["teal","cream","white","sage","turquoise","mint"],ac:["dark heavy"],cx:["riviera","smart-casual","flex"],sg:"Summer coastal.",wt:["light"],active:true,status:"active",size:40},
+],mt:"cool",i:"🌊",mc:["teal","cream","white","sage","turquoise","mint"],ac:["dark heavy"],cx:["riviera","smart-casual","flex"],sg:"Summer coastal.",wt:["light"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true,active:true,status:"active",size:40},
 {id:"vc-perp",n:"VC Overseas Perp",t:"replica",d:"Burgundy",c:"#6a1a2a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"🍷",mc:["burgundy","cream","plum","black","ivory","charcoal","wine"],ac:["cobalt"],cx:["date","formal","flex"],sg:"Fills burgundy gap.",wt:["mid","heavy"],active:true,status:"active",size:41.5},
+],mt:"cool",i:"🍷",mc:["burgundy","cream","plum","black","ivory","charcoal","wine"],ac:["cobalt"],cx:["date","formal","flex"],sg:"Fills burgundy gap.",wt:["mid","heavy"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true,active:true,status:"active",size:41.5},
 {id:"santos-rep",n:"Santos 35mm",t:"replica",d:"White",c:"#e0d8c8",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"◻️",mc:["white","light blue","cream","grey"],ac:[],cx:["clinic","smart-casual"],sg:"Universal.",wt:["light","mid"],active:true,status:"active",size:35},
+],mt:"cool",i:"◻️",mc:["white","light blue","cream","grey"],ac:[],cx:["clinic","smart-casual"],sg:"Universal.",wt:["light","mid"],neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false,active:true,status:"active",size:35},
 {id:"alpine-red",n:"Chopard Alpine",t:"replica",d:"Red",c:"#b83a3a",straps:[
   {type:"bracelet",color:"rose gold",material:"steel"}
-],mt:"warm",i:"🔺",mc:["black","cream","burgundy","charcoal","white"],ac:["cool blues"],cx:["date","flex","riviera"],sg:"Rose gold. Black anchors.",wt:["light","mid"],active:true,status:"active",size:41},
+],mt:"warm",i:"🔺",mc:["black","cream","burgundy","charcoal","white"],ac:["cool blues"],cx:["date","flex","riviera"],sg:"Rose gold. Black anchors.",wt:["light","mid"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true,active:true,status:"active",size:41},
 {id:"ap-roc",n:"AP Royal Oak",t:"replica",d:"Green",c:"#1a5a2a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"🟢",mc:["dark green","cream","white","olive","black","navy"],ac:["close greens"],cx:["smart-casual","flex","date"],sg:"Dark makes green pop.",wt:["mid","heavy"],active:true,status:"active",size:41},
+],mt:"cool",i:"🟢",mc:["dark green","cream","white","olive","black","navy"],ac:["close greens"],cx:["smart-casual","flex","date"],sg:"Dark makes green pop.",wt:["mid","heavy"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:true,active:true,status:"active",size:41},
 {id:"gmt-met",n:"GMT Meteorite",t:"replica",d:"Meteorite",c:"#6a6a6a",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"☄️",mc:["grey","silver","charcoal","white","black"],ac:["warm earth"],cx:["flex","date"],sg:"Cool monochrome.",wt:["mid","heavy"],active:true,status:"active",size:40},
+],mt:"cool",i:"☄️",mc:["grey","silver","charcoal","white","black"],ac:["warm earth"],cx:["flex","date"],sg:"Cool monochrome.",wt:["mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:true,integratedBracelet:false,active:true,status:"active",size:40},
 {id:"dd-turq",n:"Day-Date Turq",t:"replica",d:"Turquoise",c:"#2ab8a8",straps:[
   {type:"bracelet",color:"rose gold",material:"steel"}
-],mt:"warm",i:"💠",mc:["white","cream","turquoise","tan","light blue","sand"],ac:["dark formal"],cx:["riviera","flex","date"],sg:"Pure summer.",wt:["light"],active:true,status:"active",size:36},
+],mt:"warm",i:"💠",mc:["white","cream","turquoise","tan","light blue","sand"],ac:["dark formal"],cx:["riviera","flex","date"],sg:"Pure summer.",wt:["light"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:false,active:true,status:"active",size:36},
 {id:"op-grape",n:"Rolex OP Grape",t:"replica",d:"Purple",c:"#6a3d7d",straps:[
   {type:"bracelet",color:"silver",material:"steel"}
-],mt:"cool",i:"🍇",mc:["navy","white","cream","grey","charcoal","light blue","olive","tan","lavender"],ac:["orange","bright red"],cx:["casual","weekend","smart-casual","date","riviera"],sg:"Purple/grape dial. Bold statement.",wt:["light","mid"],active:true,status:"active",size:36},
+],mt:"cool",i:"🍇",mc:["navy","white","cream","grey","charcoal","light blue","olive","tan","lavender"],ac:["orange","bright red"],cx:["casual","weekend","smart-casual","date","riviera"],sg:"Purple/grape dial. Bold statement.",wt:["light","mid"],neutralDial:false,twoTone:false,steelBracelet:true,integratedBracelet:false,active:true,status:"active",size:36},
 {id:"breguet",n:"Breguet Tradition",t:"replica",d:"Black",c:"#0a0a0a",straps:[
   {type:"leather",color:"black",material:"alligator",buckle:"pin"}
-],mt:"cool",i:"⚫",mc:["black","charcoal","white"],ac:["color","casual"],cx:["formal","date"],sg:"Black shoes only.",wt:["mid","heavy"],active:true,status:"active",size:40},
+],mt:"cool",i:"⚫",mc:["black","charcoal","white"],ac:["color","casual"],cx:["formal","date"],sg:"Black shoes only.",wt:["mid","heavy"],neutralDial:true,twoTone:false,steelBracelet:false,integratedBracelet:false,active:true,status:"active",size:40},
 ];
 function migrateStraps(w){
   if(w.straps&&w.straps.length){
