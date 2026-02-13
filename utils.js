@@ -93,7 +93,6 @@ function smartDefaults(ai){
   else if(d.material==="linen")d.seasons=["spring","summer"];
   return d;
 }
-const DEFAULT_CX=[
 
 /* ═══ MARKDOWN WATCH LOG PARSER ═══ */
 function parseWatchLog(mdText, existingWatches){
