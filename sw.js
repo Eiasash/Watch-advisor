@@ -1,4 +1,4 @@
-const CACHE = "wa-v24.13";
+const CACHE = "wa-v24.14";
 /* Install: cache critical assets, activate immediately */
 self.addEventListener("install", (e) => {
   e.waitUntil(

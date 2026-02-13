@@ -19,7 +19,7 @@ No build step, no npm, no bundler.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v24.13
+## Current Version: v24.14
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
