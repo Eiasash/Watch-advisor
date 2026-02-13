@@ -58,35 +58,179 @@ function parseDialColors(d){
   return[];
 }
 
-function scoreW(w,items,ctx,reps,opts){
-  if(!w.active||w.status==="sold"||w.status==="service"||w.status==="pending-trade"||w.status==="incoming")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
-  if(!reps&&w.t==="replica")return{total:-1,ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
+/* ══════ engine.js — Forgiving Scoring Engine ══════ */
+import {
+  CM, CP, COLOR_FAMILIES, STRAP_CTX, STRAP_TYPES,
+  CXR, CATS, catOf, layerOf, getSeason, getWT,
+  migrateStraps, WATCH_META
+} from './data.js';
 
-  var _ctxArr=Array.isArray(ctx)?ctx:[ctx];
-  var _ctxPri=_ctxArr[0]||"smart-casual";
-  var _ctxSet=new Set(_ctxArr);
-  var _o=opts||{};
-  var wearLog=_o.wearLog||[];
+/* ───────────────────────── COLOR COMPAT ───────────────────────── */
+
+function getColorFamily(c){
+  for (var fam in COLOR_FAMILIES) {
+    if (COLOR_FAMILIES[fam].includes(c)) return fam;
+  }
+  return null;
+}
+
+function compat(c1,c2){
+  if(!c1||!c2) return 0.2;
+  const a=c1.toLowerCase().trim();
+  const b=c2.toLowerCase().trim();
+  if(a===b) return 0.4;                     // allow tonal dressing
+  if((CP[a]||[]).includes(b)||(CP[b]||[]).includes(a)) return 1;
+
+  const famA=getColorFamily(a);
+  const famB=getColorFamily(b);
+
+  if(famA&&famB&&famA===famB) return 0.6;   // same family = good
+  if(["blacks","whites","greys"].includes(famA) ||
+     ["blacks","whites","greys"].includes(famB)) return 0.65; // neutral safe
+
+  return 0.35; // default forgiving baseline
+}
+
+/* ───────────────────────── DIAL PARSING ───────────────────────── */
+
+function parseDialColors(d){
+  if(!d) return [];
+  var dl=d.toLowerCase().trim();
+  if(CM[dl]) return [dl];
+  var keys=Object.keys(CM);
+  return keys.filter(k=>dl.includes(k));
+}
+
+/* ───────────────────────── WATCH SCORE ───────────────────────── */
+
+function scoreW(w,items,ctx,reps,opts){
+
+  if(!w.active) return {total:-1};
+  if(!reps && w.t==="replica") return {total:-1};
+
+  const ic=items.filter(i=>i.color).map(i=>i.color.toLowerCase());
+  const shoe=items.find(i=>i.garmentType==="Shoes");
+  const sc=shoe && shoe.color ? shoe.color.toLowerCase() : null;
 
   let s=0;
-  const bd={ctx:0,color:0,temp:0,strap:0,br:0,fresh:0,auth:0};
 
-  const ic=items.filter(i=>i.color).map(i=>i.color.toLowerCase().trim());
-  const shoe=items.find(i=>i.garmentType==="Shoes");
-  const sc=shoe&&shoe.color?shoe.color.toLowerCase().trim():null;
+  /* Dial source fallback chain */
+  let dc=[];
+  const meta=WATCH_META[w.id]||null;
 
-  var FORM_TIERS={formal:["reverso","sbgw267","santos-lg","santos-oct","santos-rep"],event:["reverso","sbgw267","santos-lg","santos-oct","santos-rep","laureato","speedy","monaco","gmt"],clinic:["snowflake","rikka","sbgw267","santos-lg","reverso","bb41","speedy"],date:["santos-lg","reverso","laureato","rikka","snowflake","monaco","speedy"]};
+  if(meta && meta.dc) dc=meta.dc;
+  else if(w.dc) dc=w.dc;
+  else {
+    dc=parseDialColors(w.d);
+    if(!dc.length && w.mc) dc=w.mc.slice(0,3);
+  }
 
-  var _bestCxScore=0;
-  _ctxArr.forEach(function(_cx){
-    var tierList=FORM_TIERS[_cx];
-    var _cxS=0;
-    if(_cx&&w.cx&&w.cx.includes(_cx)){
-      if(tierList&&tierList.includes(w.id)){_cxS=5}
-      else{_cxS=3}
-    }else if(tierList&&tierList.includes(w.id)){_cxS=2}
-    if(_cxS>_bestCxScore)_bestCxScore=_cxS;
+  /* Dial compatibility */
+  let best=0;
+  dc.forEach(d=>{
+    ic.forEach(c=>{
+      best=Math.max(best, compat(d,c));
+    });
   });
+
+  let dialBonus =
+    best>=0.8?1.6:
+    best>=0.6?1.1:
+    meta&&meta.dialNeutral?0.6:
+    0.3;
+
+  s+=dialBonus;
+
+  /* Strap shoe matching — softened */
+  if(sc && w.straps){
+    let bestPts=-Infinity;
+    w.straps.forEach(st=>{
+      let pts=0;
+      const stc=(st.color||"").toLowerCase();
+
+      if(["bracelet","rubber","mesh","nato"].includes(st.type)){
+        pts=0.3;
+      } else {
+        const br=stc.includes("brown")||stc.includes("tan");
+        const bl=stc.includes("black")||stc.includes("navy");
+        const sBr=sc.includes("brown")||sc.includes("tan");
+        const sBl=sc.includes("black");
+        const sWh=sc.includes("white");
+
+        if(br && sBr) pts=1.4;
+        else if(bl && sBl) pts=1.2;
+        else if((br&&sBl)||(bl&&sBr)) pts=-0.5;
+        else if(sWh) pts=0.4;
+      }
+      bestPts=Math.max(bestPts,pts);
+    });
+    s+=bestPts;
+  }
+
+  /* Rain logic softened */
+  if(opts && opts.rain){
+    if(w.straps){
+      const safe=w.straps.some(st=>["bracelet","rubber","mesh"].includes(st.type));
+      const onlyLeather=w.straps.every(st=>st.type==="leather");
+      if(safe) s+=1.5;
+      else if(onlyLeather) s-=1.0;
+    }
+  }
+
+  /* Versatility bonuses */
+  if(meta){
+    let vb=0;
+    if(meta.twoTone) vb+=0.7;
+    if(meta.steel) vb+=0.5;
+    if(meta.dialNeutral) vb+=0.6;
+    if(meta.isNeutralAnchor) vb+=0.7;
+    s+=Math.min(vb,2.5);
+  }
+
+  return {total:Math.max(-6,Math.min(8,s))};
+}
+
+/* ───────────────────────── STRAP REC ───────────────────────── */
+
+function strapRec(w,items,ctx,wxOpts){
+
+  const shoe=items.find(i=>i.garmentType==="Shoes");
+  const sc=shoe&&shoe.color?shoe.color.toLowerCase():"";
+  const rain=wxOpts&&wxOpts.rain;
+
+  const scored=w.straps.map(st=>{
+    let pts=0;
+    const stc=(st.color||"").toLowerCase();
+
+    if(["bracelet","rubber","mesh","nato"].includes(st.type)){
+      pts+=0.3;
+    } else {
+      if(sc.includes("brown") && stc.includes("brown")) pts+=1.2;
+      if(sc.includes("black") && stc.includes("black")) pts+=1.1;
+      if((sc.includes("brown")&&stc.includes("black"))||
+         (sc.includes("black")&&stc.includes("brown"))) pts-=0.6;
+    }
+
+    if(rain){
+      if(["bracelet","rubber","mesh"].includes(st.type)) pts+=1.5;
+      if(st.type==="leather") pts-=1.0;
+    }
+
+    return {strap:st,score:pts};
+  }).sort((a,b)=>b.score-a.score);
+
+  const best=scored[0];
+
+  return {
+    text:"→ "+best.strap.type+" ("+(best.strap.color||"")+")",
+    strap:best.strap,
+    type:"good",
+    all:scored
+  };
+}
+
+export { compat, scoreW, strapRec };
+
 
   s+=_bestCxScore;
   bd.ctx=_bestCxScore;
