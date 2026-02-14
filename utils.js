@@ -1,5 +1,5 @@
 /* ══════ utils.js — Garment Utilities, Watch Parsing, Name Building ══════ */
-import { CM, CATS, STRAP_HEX, CP } from './data.js';
+import { CM, CATS, STRAP_HEX, CP, autoMatchColors, migrateStraps } from './data.js';
 
 /* ═══ AUTO GARMENT NAME BUILDER ═══ */
 /* Builds "Color [Material] Type" name. Used when user changes color/material/type. */
