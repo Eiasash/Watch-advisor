@@ -971,7 +971,7 @@ function App(){
       })};
       var retry=async function(){
         if(!item.photoUrl)return;setRetrying(true);
-        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);var b64=compressed.split(",")[1];
+        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);var _rs=compressed.split(",");var b64=_rs.length>1?_rs[1]:null;if(!b64){setRetrying(false);showToast("Invalid image data","var(--warn)",3000);return}
           var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
           if(aiResult&&aiResult.length){var first=aiResult[0];setF(function(p){return Object.assign({},p,first)})}
           else showToast(getLastAiError()||"AI couldn't identify. Classify manually.","var(--warn)",3500)}catch(e){showToast("Retry error: "+e,"var(--warn)",3000)}
@@ -1586,10 +1586,10 @@ function App(){
                 if(!broken.length)return;
                 for(var k=0;k<broken.length;k++){
                   var it=broken[k];
-                  try{var compressed=await compressImage(it.photoUrl,600,0.6);var b64=compressed.split(",")[1];
+                  try{var _raw=it.photoUrl.startsWith("idb:")?await photoAsDataUrl(it.photoUrl):it.photoUrl;if(!_raw){setAiErr("Could not load photo for "+((it.name||it.color)||"item"));continue}var compressed=await compressImage(_raw,600,0.6);var _rp=compressed.split(",");var b64=_rp.length>1?_rp[1]:null;if(!b64){setAiErr("Invalid image data for "+((it.name||it.color)||"item"));continue}
                     var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
                     if(aiResult&&aiResult.length)updG(it.id,aiResult[0]);else setAiErr(getLastAiError());
-                  }catch(e){console.warn("[WA]",e)}
+                  }catch(e){console.warn("[WA]",e);setAiErr("Retry error: "+String(e.message||e))}
                   if(k<broken.length-1)await new Promise(function(r){setTimeout(r,800)});
                 }
               },style:{background:"var(--gold)",color:"var(--bg)",border:"none",borderRadius:8,padding:"8px 14px",fontFamily:"var(--f)",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",minHeight:36}},"🔄 Retry AI"))),
