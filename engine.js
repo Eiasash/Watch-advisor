@@ -145,7 +145,7 @@ function scoreW(w,items,ctx,reps,opts){
     w.straps.forEach(function(st){
       var stc=(st.color||"").toLowerCase();var pts=0;
       /* Neutral shoe-agnostic tier */
-      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts=0.2}
+      if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts=0.3}
       else{
         var _brSt=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy")||stc.includes("teal");
         var _blSt=stc.includes("black")||stc.includes("navy");
@@ -162,9 +162,11 @@ function scoreW(w,items,ctx,reps,opts){
   var _rain=_o.rain;
   if(_rain){
     if(w.straps&&w.straps.length){
-      var _hasBrOrRubber=w.straps.some(function(st){return st.type==="bracelet"||st.type==="rubber"});
+      var _hasBrRuMe=w.straps.some(function(st){return st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"});
+      var _hasNatoCan=w.straps.some(function(st){return st.type==="nato"||st.type==="canvas"});
       var _onlyLeather=w.straps.every(function(st){return st.type==="leather"});
-      if(_hasBrOrRubber){s+=1.5;bd.strap+=1.5}
+      if(_hasBrRuMe){s+=1.5;bd.strap+=1.5}
+      else if(_hasNatoCan){s+=0.5;bd.strap+=0.5}
       else if(_onlyLeather){s-=1.0;bd.strap-=1.0}
     }else{
       if(w.br){s+=1.5;bd.strap+=1.5}else{s-=1.0;bd.strap-=1.0}
@@ -229,8 +231,8 @@ function strapRec(w,items,ctx,wxOpts){
       var stc=st.color?st.color.toLowerCase():"";
 
       if(sc){
-        /* Neutral shoe-agnostic tier (+0.2) includes nato */
-        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts+=0.2}
+        /* Neutral shoe-agnostic tier (+0.3) includes nato */
+        if(st.type==="bracelet"||st.type==="rubber"||st.type==="mesh"||st.type==="nato"){pts+=0.3}
         else{
           var _brS=stc.includes("brown")||stc.includes("tan")||stc.includes("cognac")||stc.includes("burgundy")||stc.includes("teal");
           var _blS=stc.includes("black")||stc.includes("navy");
@@ -327,6 +329,8 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   /* Layering bonus — reward multi-layer outfits */
   if(tops.length>=2)fs+=0.5;
   if(tops.length>=3)fs+=0.5;
+  /* Cold weather rewards layering */
+  if(wxOpts&&wxOpts.temp!==undefined&&wxOpts.temp<15&&tops.length>=2)fs+=0.5;
   /* Season penalty for off-season items */
   /* Season — temperature-based when weather available, hemisphere-aware month fallback */
   var _csn=getSeason(wxOpts&&wxOpts.temp!==undefined?wxOpts.temp:undefined,wxOpts&&wxOpts.lat);
@@ -341,19 +345,34 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   if(bot&&shoe)fs+=compat(bot.color,shoe.color)*2;
   /* Layer-to-layer color harmony */
   for(var li=0;li<tops.length-1;li++){fs+=compat(tops[li].color,tops[li+1].color)*1.5}
-  /* ══ MONOTONE PENALTY: punish all-same-color outfits ══ */
+  /* ══ MONOTONE PENALTY + TONAL DRESSING ══ */
   if(outerTop&&bot&&shoe){
     var _tc=(outerTop.color||"").toLowerCase(),_bc=(bot.color||"").toLowerCase(),_sc=(shoe.color||"").toLowerCase();
-    if(_tc===_bc&&_bc===_sc)fs-=3; /* all 3 same = harsh penalty */
-    else if(_tc===_bc||_tc===_sc||_bc===_sc)fs-=1; /* 2 of 3 same = mild penalty */
+    var _fTC=getColorFamily(_tc),_fBC=getColorFamily(_bc),_fSC=getColorFamily(_sc);
+    if(_tc===_bc&&_bc===_sc)fs-=1.5; /* all 3 exact same — reduced */
+    else if(_tc===_bc||_tc===_sc||_bc===_sc)fs-=0.5; /* 2 of 3 same — mild */
+    /* Tonal dressing: same family, different shade = cohesive */
+    var _tonalPairs=0;
+    if(_fTC&&_fBC&&_fTC===_fBC&&_tc!==_bc)_tonalPairs++;
+    if(_fTC&&_fSC&&_fTC===_fSC&&_tc!==_sc)_tonalPairs++;
+    if(_fBC&&_fSC&&_fBC===_fSC&&_bc!==_sc)_tonalPairs++;
+    if(_tonalPairs>0)fs+=_tonalPairs*0.4;
   }
-  /* ══ CONTRAST BONUS: reward mixing warm+cool or different families ══ */
+  /* ══ CONTRAST BONUS: reward tasteful contrast, not chaos ══ */
   if(outerTop&&bot){
-    var _fT=getColorFamily((outerTop.color||"").toLowerCase()),_fB=getColorFamily((bot.color||"").toLowerCase());
+    var _tcC=(outerTop.color||"").toLowerCase(),_bcC=(bot.color||"").toLowerCase();
+    var _fT=getColorFamily(_tcC),_fB=getColorFamily(_bcC);
     if(_fT&&_fB&&_fT!==_fB){
-      var _neutrals=["blacks","whites","greys"];
-      if(!_neutrals.includes(_fT)&&!_neutrals.includes(_fB))fs+=1.5; /* two distinct chromatic families */
-      else fs+=0.5; /* neutral + chromatic = safe but intentional */
+      var _neutralFams=["blacks","whites","greys"];
+      var _tIsN=_neutralFams.includes(_fT),_bIsN=_neutralFams.includes(_fB);
+      if(_tIsN||_bIsN){
+        fs+=0.5; /* neutral grounding bold */
+      }else{
+        var _tTmp=(CM[_tcC]||{}).t,_bTmp=(CM[_bcC]||{}).t;
+        if(!_tTmp){var _tE=Object.entries(CM).find(function(x){return _tcC.includes(x[0])});if(_tE)_tTmp=_tE[1].t}
+        if(!_bTmp){var _bE=Object.entries(CM).find(function(x){return _bcC.includes(x[0])});if(_bE)_bTmp=_bE[1].t}
+        if((_tTmp==="warm"&&_bTmp==="cool")||(_tTmp==="cool"&&_bTmp==="warm"))fs+=1.2; /* strong warm+cool contrast */
+      }
     }
   }
   /* Jeans-first preference: jeans are the default bottom unless formality demands otherwise.
@@ -365,8 +384,13 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
     var _semiCx=_cx==="clinic"||_cx==="smart-casual"||_cx==="date";
     var _hasJeans=extraOpts&&extraOpts.hasJeansInPool||false;
     if(bot.garmentType==="Jeans"){fs+=_formalCx?0:_semiCx?1.2:2.0}
-    else if(bot.garmentType==="Chinos"){fs+=_formalCx?1.0:_semiCx?0:(_hasJeans?-0.8:0.5)}
+    else if(bot.garmentType==="Chinos"){fs+=_formalCx?1.0:_semiCx?0:(_hasJeans?-0.3:0.5)}
     else if(bot.garmentType==="Pants/Trousers"){fs+=_formalCx?1.5:_semiCx?0.3:(_hasJeans?-1.2:0)}
+  }
+  /* ══ CONTEXT SOFTENING: prefer, don't eliminate ══ */
+  var _cx2=Array.isArray(ctx)?ctx[0]:ctx;
+  if(_cx2==="formal"||_cx2==="event"){
+    items.forEach(function(it){if(it.garmentType==="Hoodie"||it.garmentType==="Sweatshirt")fs-=1});
   }
   /* Pattern bonus — check outermost top vs bottom */
   if(outerTop&&bot){
@@ -383,7 +407,7 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
     var sc2=(shoe.color||"").toLowerCase();
     var sn2=(shoe.name||"").toLowerCase();
     /* Penalize white/cream shoes in rain */
-    if(sc2==="white"||sc2==="cream"||sc2==="beige"||sc2==="sand")fs-=2;
+    if(sc2==="white"||sc2==="cream"||sc2==="beige"||sc2==="sand")fs-=1;
     /* Black shoes safest in rain */
     if(sc2==="black")fs+=1;
     /* Suede/canvas/material penalty in rain */
@@ -420,7 +444,35 @@ function makeOutfit(items,watches,ctx,reps,wxOpts,tempVal,extraOpts){
   var wxWarns=[];
   if(isRainy)wxWarns.push("🌧️ Rain expected — bracelets/rubber preferred over leather");
   if(isWindy)wxWarns.push("💨 High wind — secure light items");
-  return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,outerTop:outerTop,tops:tops,items,wxWarns:wxWarns};
+  /* ══ EXPLAINABILITY ══ */
+  var explain=[];
+  if(tops.length>=2){
+    if(wxOpts&&wxOpts.temp!==undefined&&wxOpts.temp<15)explain.push("Cold-weather layering");
+    else explain.push("Well-layered ensemble");
+  }
+  if(outerTop&&bot){
+    var _exTC=(outerTop.color||"").toLowerCase(),_exBC=(bot.color||"").toLowerCase();
+    var _exFT=getColorFamily(_exTC),_exFB=getColorFamily(_exBC);
+    if(_exFT&&_exFB&&_exFT===_exFB&&_exTC!==_exBC){
+      var _famLabel=_exFT.replace(/s$/,"");
+      explain.push("Tonal "+_famLabel+" dressing");
+    }else if(_exFT&&_exFB&&_exFT!==_exFB){
+      var _exNeu=["blacks","whites","greys"];
+      if(_exNeu.includes(_exFT)||_exNeu.includes(_exFB))explain.push("Neutral grounding");
+      else{
+        var _exTT=(CM[_exTC]||{}).t,_exTB=(CM[_exBC]||{}).t;
+        if((_exTT==="warm"&&_exTB==="cool")||(_exTT==="cool"&&_exTB==="warm"))explain.push("Balanced warm-cool contrast");
+        else explain.push("Balanced contrast");
+      }
+    }
+  }
+  if(isRainy)explain.push("Weather-appropriate choices");
+  else if(wxOpts&&wxOpts.temp!==undefined){
+    if(wxOpts.temp>25)explain.push("Light fabrics for warmth");
+    else if(wxOpts.temp<10)explain.push("Weather-appropriate fabrics");
+  }
+  if(!explain.length)explain.push("Solid versatile combination");
+  return{fs:Math.round(fs*10)/10,watches:wr.slice(0,3),allW:wr,top,bot,shoe,outerTop:outerTop,tops:tops,items,wxWarns:wxWarns,explain:explain};
 }
 
 function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
@@ -430,7 +482,9 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
   var curSeason=getSeason(opts.temp,opts.lat);
   var seasonFilter=function(i){var s=i.seasons;if(!s||!s.length||s.length>=4)return true;return s.includes(curSeason)};
   var valid=wardrobe.filter(function(i){return i.color&&!i.needsEdit});
-  var allTops=valid.filter(function(i){return catOf(i.garmentType)==="tops"&&!(rules.no||[]).includes(i.garmentType)&&seasonFilter(i)});
+  var _softNo=["Hoodie","Sweatshirt"];
+  var _hardNo=(rules.no||[]).filter(function(n){return!_softNo.includes(n)});
+  var allTops=valid.filter(function(i){return catOf(i.garmentType)==="tops"&&!_hardNo.includes(i.garmentType)&&seasonFilter(i)});
   var bots=valid.filter(function(i){return catOf(i.garmentType)==="bottoms"&&!(rules.no||[]).includes(i.garmentType)&&seasonFilter(i)});
   if(!allTops.length)allTops=valid.filter(function(i){return catOf(i.garmentType)==="tops"&&!(rules.no||[]).includes(i.garmentType)});
   if(!bots.length)bots=valid.filter(function(i){return catOf(i.garmentType)==="bottoms"&&!(rules.no||[]).includes(i.garmentType)});
@@ -473,25 +527,27 @@ function genFits(wardrobe,watches,ctx,reps,ww,count,opts){
   for(var tci=0;tci<topCombos.length;tci++){var tc=topCombos[tci];for(var bi=0;bi<bots.length;bi++){var bot=bots[bi];
     var outerItem=tc[tc.length-1];
     if(tc.some(function(t){return t.id===bot.id}))continue;
-    var tb=compat(outerItem.color,bot.color);if(tb<0.2)continue;
+    var tb=compat(outerItem.color,bot.color);if(tb<0.1)continue;
     for(var si2=0;si2<(shoes.length||1);si2++){var shoe=shoes.length?shoes[si2]:null;
       if(shoe&&tc.some(function(t){return t.id===shoe.id}))continue;
       if(shoe&&shoe.id===bot.id)continue;
       var items=tc.concat([bot]).concat(shoe?[shoe]:[]);
       var r=makeOutfit(items,watches,ctx,reps,wxOpts,opts.temp,{wearLog:opts.wearLog||[],hasJeansInPool:bots.some(function(b2){return b2.garmentType==="Jeans"}),preferUnworn:opts.preferUnworn,strapLogs:opts.strapLogs||null,weatherKey:opts.weatherKey||null});
       var topIds=tc.map(function(t){return t.id}).join("+");
-      combos.push({id:topIds+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.outerTop||tc[0],bot:r.bot,shoe:r.shoe,outerTop:r.outerTop,tops:tc,layers:tc,items:r.items,topType:outerItem.garmentType,wxWarns:r.wxWarns});
+      combos.push({id:topIds+"-"+bot.id+"-"+(shoe?shoe.id:"x"),fs:r.fs,watches:r.watches,allW:r.allW,top:r.outerTop||tc[0],bot:r.bot,shoe:r.shoe,outerTop:r.outerTop,tops:tc,layers:tc,items:r.items,topType:outerItem.garmentType,wxWarns:r.wxWarns,explain:r.explain});
     }
   }}
   combos.sort(function(a,b){return b.fs-a.fs});
-  var seen=new Set(),botUse={},uniq=[];
+  var seen=new Set(),botUse={},topBotSeen=new Set(),uniq=[];
   for(var ci=0;ci<combos.length;ci++){var c=combos[ci];
     var outerC=c.outerTop||c.top;
     var ck=(outerC?outerC.color:"")+ "-"+(c.bot?c.bot.color:"") +"-"+(c.layers?c.layers.length:1);
     var bid=c.bot?c.bot.id:"x";
+    var tbk=(outerC?outerC.id:"")+"+"+(c.bot?c.bot.id:"");
     if(seen.has(ck)&&uniq.length>2)continue;
-    if((botUse[bid]||0)>=3&&uniq.length>4)continue;
-    seen.add(ck);botUse[bid]=(botUse[bid]||0)+1;
+    if((botUse[bid]||0)>=2&&uniq.length>2)continue;
+    if(topBotSeen.has(tbk)&&uniq.length>1)continue;
+    seen.add(ck);botUse[bid]=(botUse[bid]||0)+1;topBotSeen.add(tbk);
     uniq.push(c);if(uniq.length>=count)break;
   }
   if(opts.shuffle){for(var shi=uniq.length-1;shi>0;shi--){var shj=Math.floor(Math.random()*(shi+1));var st=uniq[shi];uniq[shi]=uniq[shj];uniq[shj]=st}}
