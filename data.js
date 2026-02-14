@@ -613,3 +613,56 @@ export {
   CP, COLOR_FAMILIES, CXR,
   WATCH_META
 };
+/* ═════════════════ WATCH META — Versatility Layer ═════════════════ */
+
+const WATCH_META = {
+
+  /* Cartier Santos Large */
+  "santos-lg": {
+    twoTone: true,
+    steel: true,
+    dialNeutral: true,
+    isNeutralAnchor: true,
+    dc: ["white","silver"]
+  },
+
+  /* Speedmaster */
+  "speedy": {
+    steel: true,
+    dialNeutral: true,
+    isNeutralAnchor: true,
+    dc: ["black"]
+  },
+
+  /* BB41 */
+  "bb41": {
+    steel: true,
+    dc: ["black","blue"]
+  },
+
+  /* Snowflake */
+  "snowflake": {
+    steel: true,
+    dialNeutral: false,
+    dc: ["blue"]
+  },
+
+  /* Rikka */
+  "rikka": {
+    steel: true,
+    dc: ["green"]
+  },
+
+  /* Reverso */
+  "reverso": {
+    dialNeutral: true,
+    isNeutralAnchor: true,
+    dc: ["silver","white"]
+  }
+
+};
+
+/* Make sure this is exported */
+export {
+  WATCH_META
+};
