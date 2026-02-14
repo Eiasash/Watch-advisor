@@ -1,7 +1,7 @@
 {
   "name": "Watch Advisor",
   "short_name": "WatchAdvisor",
-  "description": "AI-Powered Watch & Outfit Coordinator v23 — Dynamic layers, bug fixes, improved caching",
+  "description": "AI-Powered Watch & Outfit Coordinator v25.5 — Release: Version bump, all systems verified",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
