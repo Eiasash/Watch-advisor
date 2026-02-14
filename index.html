@@ -2,23 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5, user-scalable=yes" />
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#12101a">
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v25.8</title>
+<title>Watch Advisor v25.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#07060a;--card:#0d0c14;--card2:#12101a;--card3:#14121e;--border:#1c1828;--gold:#c9a84c;--text:#e0dcd4;--sub:#7a7484;--dim:#4a4458;--warn:#c85a3a;--good:#7ab87a;--badge-good:#0a1a0a;--badge-warn:#1a0a0a;--badge-neutral:#0a0a1a;--del-text:#6a3a3a;--del-border:#2a1a1a;--rep-border:#2a2520;--f:'DM Sans',sans-serif;--sf:'Cormorant Garamond',Georgia,serif}
-html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;-webkit-font-smoothing:antialiased}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body.modal-open{overflow:hidden}
 /* Safety: ensure modal class gets cleaned up */
 body:not(.modal-open){position:static}
 input,select,button,textarea{font-family:var(--f);outline:none}
 input[type="file"]{display:none}
-input,select,textarea{font-size:16px!important}
+input,select,textarea{font-size:1rem!important}
 /* GPU-accelerated transforms for all interactive elements */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:translate3d(0,0,0)}}

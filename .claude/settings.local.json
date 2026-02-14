@@ -4,7 +4,11 @@
       "Bash(gh repo clone:*)",
       "Bash(git add:*)",
       "Bash(git init:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

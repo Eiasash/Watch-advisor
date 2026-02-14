@@ -1,4 +1,4 @@
-const CACHE = "wa-v25.8";
+const CACHE = "wa-v25.9";
 const MODULES = [
   "./", "./index.html",
   "./app.js", "./data.js", "./engine.js",

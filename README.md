@@ -5,7 +5,7 @@ No build step, no npm, no bundler.
 
 **Live:** [eiasash.github.io/Watch-advisor](https://eiasash.github.io/Watch-advisor/)
 
-## Architecture (v25.5)
+## Architecture (v25.9)
 
 | File | Lines | Purpose |
 |------|-------|---------|
@@ -27,7 +27,7 @@ Native ES modules — browser handles imports, no transpilation.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v25.5
+## Current Version: v25.9
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -54,6 +54,7 @@ Native ES modules — browser handles imports, no transpilation.
 
 | Version | Changes |
 |---------|---------|
+| **v25.9** | 📱 Enable pinch-zoom (removed `user-scalable=no`) and add in-app UI scale slider in Settings → Accessibility. Also makes small card grids more responsive with `auto-fit` columns. |
 | **v25.5** | 🐛 Fix wardrobe photos not displaying after reload — `preloadPhotos()` now dispatches `wa-photo-ready` event to trigger React re-render. 🔤 Wardrobe grid font sizes increased across the board (names 9→11px, types 7→9px, badges 6→8px). Photo thumbnails enlarged 90→100px, wider grid columns. |
 | **v25.4** | ⚡ VirtualGrid: hybrid windowing for wardrobe grid. Only visible pages in DOM, off-screen pages become spacers. IO-based auto-pagination replaces "Show More" button. |
 | **v25.3** | Fix blank screen — orphaned `const DEFAULT_CX=[` in utils.js broke module parse. |
