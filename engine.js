@@ -118,7 +118,7 @@ function scoreW(w, items, ctx, reps, opts) {
       const stc = (st.color || "").toLowerCase();
 
       if (["bracelet", "rubber", "mesh", "nato"].includes(st.type)) {
-        pts = 0.3;
+        pts = 0.2;
       } else {
         const br = stc.includes("brown") || stc.includes("tan") || stc.includes("cognac") || stc.includes("burgundy");
         const bl = stc.includes("black") || stc.includes("navy");
@@ -213,7 +213,7 @@ function strapRec(w, items, ctx, wxOpts) {
       if (sc) {
         /* Neutral strap types — NATO included as neutral tier */
         if (["bracelet", "rubber", "mesh", "nato"].includes(st.type)) {
-          pts += 0.3;
+          pts += 0.2;
         } else {
           var _brS = stc.includes("brown") || stc.includes("tan") || stc.includes("cognac") || stc.includes("burgundy");
           var _blS = stc.includes("black") || stc.includes("navy");
