@@ -72,7 +72,7 @@ const LAYER_MID=["Sweater/Knit","Cardigan","Hoodie","Sweatshirt","Vest/Gilet"];
 const LAYER_OUTER=["Jacket/Blazer","Coat","Overshirt"];
 function layerOf(gt){return LAYER_BASE.includes(gt)?"base":LAYER_MID.includes(gt)?"mid":LAYER_OUTER.includes(gt)?"outer":"base"}
 const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":CATS.accessories.includes(g)?"accessories":"other";
-const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜","🌑","🔺","🍇"];
+const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜","🌑","🔺","🍇","👥"];
 const STRAP_TYPES=[
 {id:"bracelet",l:"Bracelet",icon:"⛓️",mats:["steel","titanium","gold","rose gold","ceramic"]},
 {id:"leather",l:"Leather",icon:"🔗",mats:["calf leather","alligator","cordovan","suede","shell cordovan","nubuck"]},
