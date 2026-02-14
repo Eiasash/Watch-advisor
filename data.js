@@ -72,7 +72,7 @@ const LAYER_MID=["Sweater/Knit","Cardigan","Hoodie","Sweatshirt","Vest/Gilet"];
 const LAYER_OUTER=["Jacket/Blazer","Coat","Overshirt"];
 function layerOf(gt){return LAYER_BASE.includes(gt)?"base":LAYER_MID.includes(gt)?"mid":LAYER_OUTER.includes(gt)?"outer":"base"}
 const catOf=g=>CATS.tops.includes(g)?"tops":CATS.bottoms.includes(g)?"bottoms":CATS.shoes.includes(g)?"shoes":CATS.accessories.includes(g)?"accessories":"other";
-const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜","🌑","🔺","🍇","👥"];
+const EMOJIS=["⌚","❄️","🌿","🪷","🔷","🌙","💎","👑","🔴","🏁","⭐","🌍","✈️","🧭","🛩️","🍀","🔵","🌊","🍷","◻️","🏔️","🟢","☄️","💠","🌻","⚫","🔥","💜","🌑","🔺","🍇"];
 const STRAP_TYPES=[
 {id:"bracelet",l:"Bracelet",icon:"⛓️",mats:["steel","titanium","gold","rose gold","ceramic"]},
 {id:"leather",l:"Leather",icon:"🔗",mats:["calf leather","alligator","cordovan","suede","shell cordovan","nubuck"]},
@@ -279,17 +279,38 @@ const _OWNER_DEFAULTS=[
 ],mt:"cool",i:"⚫",mc:["black","charcoal","white"],ac:["color","casual"],cx:["formal","date"],sg:"Black shoes only.",wt:["mid","heavy"],active:true,status:"active",size:40},
 ];
 
-/* ── Enrich presets from WATCH_META (single source of truth, defined below) ── */
-/* Deferred: runs after WATCH_META is defined at bottom of file */
-function _enrichPresets(){
-  WATCH_PRESETS.forEach(function(w){
-    var m=WATCH_META[w.id];if(!m)return;
-    if(m.dc)w.dc=m.dc;
-    if(m.dialNeutral)w.dn=true;
-    if(m.twoTone)w.tt=true;
-    if(m.isNeutralAnchor)w.na=true;
-  });
-}
+/* ── Versatility metadata for forgiving scoring ── */
+/* dc: dial colors for compat(), dn: dialNeutral, tt: twoTone, na: neutralAnchor */
+var _VERS_META={
+  "snowflake":{dc:["silver","white"],dn:true},
+  "rikka":{dc:["green"]},
+  "sbgw267":{dc:["ivory","cream"],dn:true},
+  "laureato":{dc:["blue"]},
+  "reverso":{dc:["navy"]},
+  "santos-lg":{dc:["white","gold"],dn:true,tt:true,na:true},
+  "santos-oct":{dc:["white","gold"],tt:true},
+  "bb41":{dc:["black","red"]},
+  "monaco":{dc:["black"],dn:true},
+  "gmt":{dc:["black"],dn:true},
+  "alpine-8hf":{dc:["blue","grey"]},
+  "hanhart":{dc:["white","teal"]},
+  "laco":{dc:["black"],dn:true},
+  "speedy":{dc:["black"],dn:true,na:true},
+  "iwc-perp":{dc:["blue"]},
+  "iwc-ing":{dc:["teal"]},
+  "vc-perp":{dc:["burgundy"]},
+  "santos-rep":{dc:["white"],dn:true,na:true},
+  "alpine-red":{dc:["red"]},
+  "ap-roc":{dc:["green"]},
+  "gmt-met":{dc:["grey","silver"],dn:true},
+  "dd-turq":{dc:["turquoise"]},
+  "op-grape":{dc:["purple"]},
+  "breguet":{dc:["black"],dn:true}
+};
+WATCH_PRESETS.forEach(function(w){
+  var m=_VERS_META[w.id];
+  if(m){Object.assign(w,m)}
+});
 function migrateStraps(w){
   if(w.straps&&w.straps.length){
     var o=Object.assign({},w);
@@ -443,7 +464,6 @@ const WATCH_META={
 "op-grape":{dc:["purple"]},
 "breguet":{dc:["black"],dialNeutral:true},
 };
-_enrichPresets();
 
 export {
   IS_SHARED, SK, getSeason,

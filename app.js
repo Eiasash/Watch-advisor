@@ -394,8 +394,6 @@ function App(){
   const[wTab,setWTab]=useState("all");
   const[wSearch,setWSearch]=useState("");
   const[aiErr,setAiErr]=useState("");
-  const[batchProgress,setBatchProgress]=useState(null);/* {done,total,succeeded,failed:[]} */
-  const batchCancelRef=useRef(false);
   const[apiKey,setApiKey]=useState("");
   const[recUser,setRecUser]=useState(function(){try{return localStorage.getItem("wa_rec_user")||""}catch(e){return""}});
   const[recPass,setRecPass]=useState("");
@@ -721,36 +719,6 @@ function App(){
   const updG=useCallback(function(id,u){clearCompatCache();setWd(function(p){var n=p.map(function(i){return i.id===id?Object.assign({},i,u,{needsEdit:false}):i});ps("wd_"+SK,n);return n})},[ps]);
   const addGarment=useCallback(function(item){clearCompatCache();setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n})},[ps]);
 
-  const batchClassify=useCallback(async function(limit){
-    var broken=wd.filter(function(i){return(i.needsEdit||!i.color)&&i.photoUrl});
-    if(!broken.length){showToast("Nothing to classify","var(--dim)");return}
-    var items=limit?broken.slice(0,limit):broken;
-    batchCancelRef.current=false;
-    setBatchProgress({done:0,total:items.length,succeeded:0,failed:[]});
-    for(var k=0;k<items.length;k++){
-      if(batchCancelRef.current){setBatchProgress(function(p){return p?Object.assign({},p,{cancelled:true}):p});break}
-      var it=items[k];
-      try{
-        var _raw=it.photoUrl.startsWith("idb:")?await photoAsDataUrl(it.photoUrl):it.photoUrl;
-        if(!_raw){setBatchProgress(function(p){if(!p)return p;return Object.assign({},p,{done:p.done+1,failed:p.failed.concat([{id:it.id,name:it.name||"item",error:"Could not read image"}])})});continue}
-        var compressed=await compressImage(_raw,600,0.6);
-        var aiResult=await aiID(compressed,null,apiKeyRef.current);
-        if(aiResult&&aiResult.length){
-          updG(it.id,aiResult[0]);
-          setBatchProgress(function(p){if(!p)return p;return Object.assign({},p,{done:p.done+1,succeeded:p.succeeded+1})});
-        }else{
-          /* On failure: keep needsEdit=true, just store the error */
-          setWd(function(p){var n=p.map(function(i){return i.id===it.id?Object.assign({},i,{aiError:getLastAiError(),needsEdit:true}):i});ps("wd_"+SK,n);return n});
-          setBatchProgress(function(p){if(!p)return p;return Object.assign({},p,{done:p.done+1,failed:p.failed.concat([{id:it.id,name:it.name||"item",error:getLastAiError()||"AI returned no result"}])})});
-        }
-      }catch(e){
-        setWd(function(p){var n=p.map(function(i){return i.id===it.id?Object.assign({},i,{aiError:String(e),needsEdit:true}):i});ps("wd_"+SK,n);return n});
-        setBatchProgress(function(p){if(!p)return p;return Object.assign({},p,{done:p.done+1,failed:p.failed.concat([{id:it.id,name:it.name||"item",error:String(e)}])})});
-      }
-      if(k<items.length-1)await new Promise(function(r){setTimeout(r,800)});
-    }
-  },[wd,ps,updG]);
-
   const logWear=useCallback(function(watchId,dateStr){
     setWearLog(function(p){
       /* Remove existing entry for same date, then add new */
@@ -797,7 +765,8 @@ function App(){
         /* High-res for storage display, moderate for AI API submission */
         var compressed=await compressImage(rawUrl,800,0.7);
         var thumb=await compressImage(rawUrl,1200,0.82);
-        var aiResult=await aiID(compressed,null,apiKeyRef.current);
+        var parts=compressed.split(",");var b64=parts.length>1?parts[1]:compressed;
+        var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var _dh=await computeDHash(thumb);var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,dHash:_dh,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null,material:ai.material||null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
@@ -842,7 +811,8 @@ function App(){
           var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=function(){j(x.error||new Error("Read failed"))};x.readAsDataURL(arr[fi])});
           var compressed=await compressImage(rawUrl,600,0.6);
           var thumb=await compressImage(rawUrl,400,0.5);
-          var result=await aiWatchID(compressed,null,apiKeyRef.current);
+          var _cp=compressed.split(",");var b64=_cp.length>1?_cp[1]:compressed;
+          var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
           if(result&&result.brand){
             var id=(crypto&&crypto.randomUUID)?crypto.randomUUID():("scan-"+Date.now()+"-"+fi);
             var dialInfo=inferDial(result.brand+" "+result.model,result.dial_color||"");
@@ -881,7 +851,8 @@ function App(){
       var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(file)});
       var compressed=await compressImage(rawUrl,800,0.7);
       var thumb=await compressImage(rawUrl,600,0.7);
-      var result=await aiSelfieCheck(compressed,null,apiKeyRef.current,W,null,effectiveCtx);
+      var _sp=compressed.split(",");var b64=_sp.length>1?_sp[1]:compressed;
+      var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current,W,null,effectiveCtx);
       if(result&&result.impact){
         var entry={id:Date.now(),ts:Date.now(),thumb:thumb,result:result,impact:result.impact};
         setSelfieResult(entry);
@@ -1000,8 +971,8 @@ function App(){
       })};
       var retry=async function(){
         if(!item.photoUrl)return;setRetrying(true);
-        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);
-          var aiResult=await aiID(compressed,null,apiKeyRef.current);
+        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);var b64=compressed.split(",")[1];
+          var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
           if(aiResult&&aiResult.length){var first=aiResult[0];setF(function(p){return Object.assign({},p,first)})}
           else showToast(getLastAiError()||"AI couldn't identify. Classify manually.","var(--warn)",3500)}catch(e){showToast("Retry error: "+e,"var(--warn)",3000)}
         setRetrying(false);
@@ -1045,21 +1016,12 @@ function App(){
           React.createElement("span",null,"Added: "+new Date(item.ts).toLocaleDateString()),
           f.lastWorn&&React.createElement("span",null,"Last worn: "+new Date(f.lastWorn).toLocaleDateString()),
           saved.some(function(o){return(o.items||[]).some(function(it){return it.id===item.id})})&&React.createElement("span",{style:{color:"var(--good)"}},"✓ Used in "+saved.filter(function(o){return(o.items||[]).some(function(it){return it.id===item.id})}).length+" saved outfit(s)")),
-        /* ── Action buttons ── */
-        (function(){
-          var _wasUnclassified=item.needsEdit||!item.color;
-          var _otherBroken=wd.filter(function(i){return i.id!==item.id&&(i.needsEdit||!i.color)});
-          var _hasNext=_wasUnclassified&&_otherBroken.length>0;
-          return React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
-            _hasNext?
-              React.createElement(React.Fragment,null,
-                React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);haptic(15);var next=wd.find(function(i){return i.id!==item.id&&(i.needsEdit||!i.color)});if(next){setEditG(next);showToast("Saved! "+_otherBroken.length+" remaining","var(--good)",1200)}else{setEditG(null);showToast("All classified!","var(--good)",2000)}}},"Save & Next → ("+_otherBroken.length+" left)"),
-                React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 12px"},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);setEditG(null);haptic(15)},title:"Save and close"},"✓"))
-            :React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);setEditG(null);haptic(15);if(_wasUnclassified)showToast("All items classified!","var(--good)",2000)}},"✓ Save"),
-            f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setEditG(null);navTo("fits",null);setMode("auto")},title:"Lock for fits"},"🔒"),
-            item.photoUrl&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:retry,disabled:retrying},retrying?"⏳":"🔄"),
-            React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var dup=Object.assign({},f,{id:Date.now(),ts:Date.now(),name:(f.name||"")+" copy"});addGarment(dup);setEditG(null)},title:"Duplicate"},"📋"),
-            React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var deleted=wd.find(function(x){return x.id===item.id});rmG(item.id);setEditG(null);haptic(15);showToast("🗑️ Deleted "+(deleted?deleted.name||deleted.color:"item"),"var(--warn)",5000,function(){if(deleted){setWd(function(p){var n=[deleted].concat(p);ps("wd_"+SK,n);return n})}})}},"🗑️"))})();
+        React.createElement("div",{style:{display:"flex",gap:8}},
+          React.createElement("button",{className:"btn btn-gold",style:{flex:1},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);setEditG(null);haptic(15)}},"✓ Save"),
+          f.color&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){if(!f.color){showToast("Pick a color first","var(--warn)");return}updG(item.id,f);setLockItem(Object.assign({},item,f));setEditG(null);navTo("fits",null);setMode("auto")},title:"Lock for fits"},"🔒"),
+          item.photoUrl&&React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:retry,disabled:retrying},retrying?"⏳":"🔄"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var dup=Object.assign({},f,{id:Date.now(),ts:Date.now(),name:(f.name||"")+" copy"});addGarment(dup);setEditG(null)},title:"Duplicate"},"📋"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:0,padding:"14px 16px"},onClick:function(){var deleted=wd.find(function(x){return x.id===item.id});rmG(item.id);setEditG(null);haptic(15);showToast("🗑️ Deleted "+(deleted?deleted.name||deleted.color:"item"),"var(--warn)",5000,function(){if(deleted){setWd(function(p){var n=[deleted].concat(p);ps("wd_"+SK,n);return n})}})}},"🗑️")));
     };
     return React.createElement(GE,{key:item.id});
   }
@@ -1616,36 +1578,31 @@ function App(){
         proc.length>0&&React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}},proc.map(function(p){return React.createElement("div",{key:p,style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 14px",display:"flex",alignItems:"center",gap:8}},React.createElement("div",{className:"sp",style:{width:14,height:14,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Identifying..."))})),
 
         wd.length>0&&React.createElement(React.Fragment,null,
-          needsFix>0&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:12,padding:"12px 14px",marginBottom:10}},
-            batchProgress&&batchProgress.done<batchProgress.total?
-              /* ── Batch in progress ── */
-              React.createElement(React.Fragment,null,
-                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
-                  React.createElement("div",{className:"sp",style:{width:14,height:14,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%"}}),
-                  React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,flex:1}},"Classifying... "+batchProgress.done+"/"+batchProgress.total),
-                  React.createElement("button",{onClick:function(){batchCancelRef.current=true},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"4px 10px",color:"var(--warn)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer"}},"Stop")),
-                React.createElement("div",{style:{height:4,borderRadius:2,background:"var(--bg)",overflow:"hidden"}},
-                  React.createElement("div",{style:{width:Math.round(batchProgress.done/batchProgress.total*100)+"%",height:"100%",background:"var(--gold)",transition:"width .3s"}})),
-                batchProgress.succeeded>0&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--good)",marginTop:4,display:"inline-block"}},"✓ "+batchProgress.succeeded+" done"),
-                batchProgress.failed.length>0&&React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--warn)",marginTop:4,marginLeft:8,display:"inline-block"}},"✗ "+batchProgress.failed.length+" need manual fix"))
-            :batchProgress&&batchProgress.done>=batchProgress.total?
-              /* ── Batch complete — summary ── */
-              React.createElement(React.Fragment,null,
-                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-                  React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,flex:1,color:batchProgress.failed.length?"var(--gold)":"var(--good)"}},
-                    batchProgress.cancelled?"Stopped. ":"Done! ",
-                    batchProgress.succeeded+" classified"+(batchProgress.failed.length?", "+batchProgress.failed.length+" need manual fix":"")),
-                  batchProgress.failed.length>0&&React.createElement("button",{onClick:function(){var firstFail=wd.find(function(i){return i.needsEdit||!i.color});if(firstFail)setEditG(firstFail)},style:{background:"var(--gold)",color:"var(--bg)",border:"none",borderRadius:8,padding:"6px 12px",fontFamily:"var(--f)",fontSize:10,fontWeight:600,cursor:"pointer"}},"Fix Remaining"),
-                  React.createElement("button",{onClick:function(){setBatchProgress(null)},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"4px 10px",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer"}},"Dismiss")))
-            :
-              /* ── Ready to classify ── */
-              React.createElement(React.Fragment,null,
-                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}},
-                  React.createElement("p",{style:{fontSize:12,fontFamily:"var(--f)",color:"var(--gold)",margin:0,fontWeight:600,flex:1}},"⚠️ "+needsFix+" item"+(needsFix!==1?"s":"")+" need classification")),
-                React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
-                  React.createElement("button",{onClick:function(){batchClassify()},disabled:!apiKeyRef.current,style:{background:"linear-gradient(135deg,var(--gold),#a8882a)",color:"var(--bg)",border:"none",borderRadius:8,padding:"10px 16px",fontFamily:"var(--f)",fontSize:12,fontWeight:600,cursor:"pointer",minHeight:40,flex:1}},"Classify All (AI) "+needsFix),
-                  needsFix>10&&React.createElement("button",{onClick:function(){batchClassify(10)},disabled:!apiKeyRef.current,style:{background:"var(--card2)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:8,padding:"10px 14px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:11,cursor:"pointer",minHeight:40}},"Classify 10"),
-                  React.createElement("button",{onClick:function(){var firstBroken=wd.find(function(i){return i.needsEdit||!i.color});if(firstBroken)setEditG(firstBroken)},style:{background:"var(--card2)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",color:"var(--sub)",fontFamily:"var(--f)",fontSize:11,cursor:"pointer",minHeight:40}},"Manual Fix")))),
+          needsFix>0&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:10}},
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+              React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",margin:0,fontWeight:500,flex:1}},"⚠️ "+needsFix+" items need classification — tap to set type & color"),
+              React.createElement("button",{onClick:async function(){
+                var broken=wd.filter(function(i){return(i.needsEdit||!i.color)&&i.photoUrl});
+                if(!broken.length)return;
+                for(var k=0;k<broken.length;k++){
+                  var it=broken[k];
+                  try{
+                    // Most photos are stored as idb: refs. Claude needs a real base64 data URL.
+                    var srcDataUrl=await photoAsDataUrl(it.photoUrl);
+                    if(!srcDataUrl||typeof srcDataUrl!=="string"||srcDataUrl.indexOf(",")===-1){
+                      throw new Error("Photo not available for AI (try re-importing it).")
+                    }
+                    var compressed=await compressImage(srcDataUrl,600,0.6);
+                    if(!compressed||typeof compressed!=="string"||compressed.indexOf(",")===-1){
+                      throw new Error("Could not encode image for AI.")
+                    }
+                    var b64=compressed.split(",")[1];
+                    var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
+                    if(aiResult&&aiResult.length)updG(it.id,aiResult[0]);else setAiErr(getLastAiError());
+                  }catch(e){console.warn("[WA]",e);setAiErr(e.message||String(e))}
+                  if(k<broken.length-1)await new Promise(function(r){setTimeout(r,800)});
+                }
+              },style:{background:"var(--gold)",color:"var(--bg)",border:"none",borderRadius:8,padding:"8px 14px",fontFamily:"var(--f)",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",minHeight:36}},"🔄 Retry AI"))),
           aiErr&&React.createElement("div",{style:{background:"rgba(200,90,58,0.08)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:10,padding:"10px 14px",marginBottom:10}},
             React.createElement("div",{style:{display:"flex",alignItems:"flex-start",gap:8}},
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)",margin:0,flex:1,wordBreak:"break-all"}},"🚨 AI Error: "+aiErr),
