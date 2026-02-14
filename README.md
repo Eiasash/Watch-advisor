@@ -27,7 +27,7 @@ Native ES modules — browser handles imports, no transpilation.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v25.6
+## Current Version: v25.5
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -35,7 +35,6 @@ Native ES modules — browser handles imports, no transpilation.
 - **📸 Selfie Check** — AI vision identifies garments + watch, scores impact 1-10
 - **🔄 Unworn rotation** — "Fresh" toggle boosts neglected items, 14d+ badges on cards
 - **🧊 Neglected wardrobe** — insights section showing dormant garments
-- **Batch classification** — classify 50+ garments in one tap with AI, progress bar, and error summary
 - AI Style Coach — full wardrobe analysis with gap detection
 - AI Occasion Planner — event-specific outfit recommendations
 - Wear Stats Dashboard — 30/60/90 day views, neglected watch alerts
@@ -51,36 +50,10 @@ Native ES modules — browser handles imports, no transpilation.
 - Day/night theme toggle
 - PWA with offline support
 
-## Clothes Classification Workflow
-
-Three ways to classify garments, designed for speed at scale:
-
-### 1. AI Batch Classification (fastest for 10+ items)
-Upload photos via the Closet tab. Unclassified items show a **"Classify All (AI)"** button
-with a live progress bar. The AI identifies garment type, color, pattern, and material.
-For rate-limit-friendly batches, use **"Classify 10"**.
-
-### 2. Quick Manual Fix (for AI failures)
-When AI can't classify an item, it's marked **FIX**. Tap an item to open the editor:
-- Pick **Type** (chips), **Color** (grid), **Pattern**, **Material** with single taps
-- **"Save & Next"** automatically advances to the next unclassified item
-- No dead ends: there's always a clear next action
-
-### 3. Hybrid flow
-Run AI batch first, then manually fix the stragglers. The banner shows a summary:
-> "Done! 28 classified, 8 need manual fix" with a **"Fix Remaining"** button.
-
-### Image handling
-- Accepts JPEG, PNG, WebP from upload or camera
-- Auto-extracts MIME type from data URLs (no hardcoded image/jpeg)
-- Strips whitespace/newlines from base64 before sending to API
-- If image data is empty or corrupt, shows a clean error instead of a raw JSON dump
-
 ## Changelog
 
 | Version | Changes |
 |---------|---------|
-| **v25.6** | Batch classification with progress bar + cancel. Auto-advance "Save & Next" in manual classify. `normalizeImagePayload()` in ai.js fixes base64/data-URL errors across all AI flows. Consolidated `_VERS_META` into `WATCH_META` (single source of truth). |
 | **v25.5** | 🐛 Fix wardrobe photos not displaying after reload — `preloadPhotos()` now dispatches `wa-photo-ready` event to trigger React re-render. 🔤 Wardrobe grid font sizes increased across the board (names 9→11px, types 7→9px, badges 6→8px). Photo thumbnails enlarged 90→100px, wider grid columns. |
 | **v25.4** | ⚡ VirtualGrid: hybrid windowing for wardrobe grid. Only visible pages in DOM, off-screen pages become spacers. IO-based auto-pagination replaces "Show More" button. |
 | **v25.3** | Fix blank screen — orphaned `const DEFAULT_CX=[` in utils.js broke module parse. |
