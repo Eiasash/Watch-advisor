@@ -15,7 +15,7 @@ async function aiID(b64,mime,apiKey){
         messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"Identify ALL clothing items in this photo.\n\nRules:\n1. Full outfit shown? Return EACH piece separately.\n2. Single garment? Return one item.\n3. Layered? Identify each layer. Max 5 items.\n4. Note position in frame.\n5. NEVER identify socks, underwear, undershirts, or undergarments — SKIP these entirely.\n\nYou MUST pick values from these EXACT lists only:\n\ngarmentType (pick ONE): Shirt, Polo, T-Shirt, Henley, Tank Top, Sweater/Knit, Cardigan, Hoodie, Sweatshirt, Jacket/Blazer, Vest/Gilet, Overshirt, Coat, Pants/Trousers, Chinos, Jeans, Shorts, Shoes, Hat, Scarf, Belt, Bag, Sunglasses, Accessory\n\nIMPORTANT: Do NOT invent categories. If unsure, pick the closest from the list above. A button-down is a Shirt. A pullover is a Sweater/Knit. A zip-up is a Hoodie or Jacket/Blazer.\n\ncolor (pick ONE): "+AC.join(", ")+"\n\npattern (pick ONE): solid, plaid, striped, checked, print, textured\n\nmaterial (pick ONE or null): cotton, wool, linen, denim, leather, silk, cashmere, knit, corduroy, tweed, fleece, suede, canvas, nylon, chino, synthetic, jersey, poplin, oxford, chambray, pique, merino, seersucker, velvet\n\nseason_hint (pick ONE): all-season, warm-weather, cold-weather, transitional\n\nCOLOR ACCURACY IS CRITICAL: Navy vs black, charcoal vs grey, cream vs white, olive vs sage, burgundy vs brown, tan vs beige vs camel. Pick the CLOSEST match from the list above.\n\nReturn ONLY a JSON array:\n[{\\\"garmentType\\\":\\\"value\\\",\\\"name\\\":\\\"2-4 word name\\\",\\\"color\\\":\\\"from list above\\\",\\\"colorConfidence\\\":0.0-1.0,\\\"colorAlternatives\\\":[\\\"2nd best\\\",\\\"3rd best\\\"],\\\"pattern\\\":\\\"from list\\\",\\\"material\\\":\\\"from list or null\\\",\\\"materialConfidence\\\":0.0-1.0,\\\"position\\\":\\\"where in frame\\\",\\\"season_hint\\\":\\\"from list\\\",\\\"notes\\\":\\\"only if confidence<0.6 for any field\\\"}]\nIf only ONE item visible, still return array with one element."}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    var p=JSON.parse(txt);
+    var p;try{p=JSON.parse(txt)}catch(pe){_lastAiError="AI returned invalid JSON: "+String(pe.message||pe).slice(0,80);return null}
     /* Handle both array and single object responses */
     if(Array.isArray(p)){if(p.length&&p[0].garmentType&&p[0].color){
       /* Validate and sanitize AI responses */
@@ -60,7 +60,7 @@ async function aiVision(fit,watch,ctx,apiKey){
         messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Vision HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="Vision: invalid JSON from AI";return null}
   }catch(e){_lastAiError="Vision error: "+String(e.message||e).slice(0,100);return null}
 }
 
@@ -83,7 +83,7 @@ async function aiStyleCoach(wardrobe,watches,ctx,apiKey){
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Coach HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="Coach: invalid JSON from AI";return null}
   }catch(e){_lastAiError="Coach error: "+String(e.message||e).slice(0,100);return null}
 }
 
@@ -103,7 +103,7 @@ async function aiOccasionPlan(occasion,wardrobe,watches,apiKey){
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Occasion HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="Occasion: invalid JSON from AI";return null}
   }catch(e){_lastAiError="Occasion error: "+String(e.message||e).slice(0,100);return null}
 }
 
@@ -129,7 +129,7 @@ async function aiWardrobeAudit(wardrobe,watches,saved,wearLog,apiKey){
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,messages:[{role:"user",content:prompt}]})});
     if(!r.ok){_lastAiError="Audit HTTP "+r.status;return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="Audit: invalid JSON from AI";return null}
   }catch(e){_lastAiError="Audit error: "+String(e.message||e).slice(0,100);return null}
 }
 
@@ -147,7 +147,7 @@ async function aiWatchID(b64,mime,apiKey){
         messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an expert watch identifier for a luxury watch collection app. Analyze this watch photo and identify it.\n\nReturn ONLY valid JSON, no markdown:\n{\"brand\":\"Full brand name\",\"model\":\"Model name\",\"reference\":\"Reference number if identifiable or null\",\"dial_color\":\"Primary dial color description (e.g. Silver-White, Blue, Black, Teal, Burgundy, Green, White, Meteorite, Turquoise, Ivory, Purple)\",\"dial_hex\":\"Hex color code for the dial\",\"case_material\":\"steel/titanium/gold/rose gold/two-tone\",\"case_size\":\"Estimated size in mm or null\",\"movement_type\":\"automatic/manual/quartz/spring drive\",\"has_bracelet\":true/false,\"strap_type\":\"bracelet/leather/rubber/nato/canvas or null\",\"strap_color\":\"strap color or null\",\"complications\":[\"list of complications like chronograph, GMT, moon phase, perpetual calendar, date, day-date\"],\"style_category\":\"dress/sport/diver/pilot/chronograph/field/integrated\",\"suggested_contexts\":[\"formal\",\"clinic\",\"smart-casual\",\"casual\",\"date\",\"weekend\",\"riviera\",\"flex\",\"event\",\"travel\"],\"temperature\":\"warm/cool/neutral/mixed\",\"confidence\":1-10,\"emoji\":\"Single emoji that best represents this watch\",\"notes\":\"Any additional identification notes (1 sentence)\"}"}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="WatchID HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="WatchID: invalid JSON from AI";return null}
   }catch(e){_lastAiError="WatchID error: "+String(e.message||e).slice(0,120);return null}
 }
 
@@ -162,7 +162,7 @@ async function aiSelfieCheck(b64,mime,apiKey,watches,selWatch,ctx){
         messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:"You are an elite men's luxury style advisor with encyclopedic horological knowledge.\n\nOWNER'S COLLECTION (ref numbers, sizes, movements for watch identification):\n"+JSON.stringify((watches||[]).map(function(w){return{name:w.n,ref:w.ref||null,size_mm:w.size||null,movement:w.mvmt||null,dial:w.d,bracelet:w.br,straps:w.straps?w.straps.map(function(s){return{type:s.type,color:s.color}}):[]}}),null,0)+"\n\n"+(selWatch?"CONFIRMED: "+selWatch.n+(selWatch.ref?" (Ref "+selWatch.ref+")":"")+(selWatch.size?" "+selWatch.size+"mm":"")+"\n":"")+"Context: "+(Array.isArray(ctx)?ctx.join(" + "):ctx||"smart-casual")+"\n\nAnalyze:\n1. Every visible garment — color, material, fit, proportion\n2. WATCH DETECTION — examine wrist for: case shape, dial color/texture, bezel, bracelet/strap, size. Match against collection using ref numbers.\n3. Color harmony, formality coherence\n4. CRITICAL: brown strap MUST match brown shoes, black strap MUST match black shoes\n5. Overall impression\n\nReturn ONLY valid JSON, no markdown:\n{\"impact\":1-10,\"impact_why\":\"One sentence on the psychological impression this look makes\",\"vision\":\"3-4 sentence cinematic editorial description of the look\",\"color_story\":\"Analysis of color palette — monochrome/complementary/analogous? Warm/cool balance? (2 sentences)\",\"fit_assessment\":\"How well do the clothes fit? Proportions correct? (1-2 sentences)\",\"works\":\"What specific elements create the strongest visual effect (1-2 sentences)\",\"risk\":\"Any clash, proportion issue, formality mismatch, or execution risk (1-2 sentences, or null if flawless)\",\"upgrade\":\"One specific change to elevate this look (1 sentence)\",\"strap_call\":\"Strap recommendation for the watch, or null if current is optimal (1 sentence)\",\"better_watch\":\"If a different watch from the collection would score higher, name it with ref and why (1 sentence, or null)\",\"watch_confidence\":1-10,\"watch_details\":\"What watch is visible and how it fits the outfit, or 'No watch visible' (1-2 sentences)\",\"items_detected\":[{\"type\":\"Top/Bottom/Shoes/Watch/Accessory\",\"color\":\"detected color\",\"description\":\"brief description\"}]}"}]}]})});
     if(!r.ok){var errTxt=await r.text().catch(function(){return "(no body)"});_lastAiError="Selfie HTTP "+r.status+": "+errTxt.slice(0,120);return null}
     var d=await r.json();var txt=(d.content||[]).map(function(b){return b.text||""}).join("").replace(/```json|```/g,"").trim();
-    return JSON.parse(txt);
+    try{return JSON.parse(txt)}catch(pe){_lastAiError="Selfie: invalid JSON from AI";return null}
   }catch(e){_lastAiError="Selfie error: "+String(e.message||e).slice(0,120);return null}
 }
 

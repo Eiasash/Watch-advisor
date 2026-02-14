@@ -346,7 +346,7 @@ const _OWNER_WARDROBE=[
 {id:"ow-shoe-white",garmentType:"Shoes",name:"White Sneakers",color:"white",pattern:"solid",active:true,ts:17},
 {id:"ow-shoe-formal",garmentType:"Shoes",name:"Formal Black Shoes",color:"black",pattern:"solid",active:true,ts:18}
 ];
-const WD_DEFAULTS=IS_SHARED?[]:_OWNER_WARDROBE;
+const WD_DEFAULTS=IS_SHARED?[]:_OWNER_WARDROBE.map(function(g){return Object.assign({},g)});
 
 /* ══════ SCORING (null-safe) ══════ */
 const CP={
