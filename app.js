@@ -1707,7 +1707,7 @@ function App(){
                 var slotId="layer-"+layer.id;
                 return React.createElement("div",{key:layer.id,className:"outfit-slot "+(layer.item?"filled":"")+" "+(buildSlot===slotId?"active":""),onClick:function(){setBuildSlot(buildSlot===slotId?null:slotId)},style:{position:"relative"}},
                   layer.item?React.createElement(React.Fragment,null,
-                    ph(layer.item.photoUrl)?React.createElement("img",{src:ph(layer.item.photoUrl),alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:layer.item.color,size:18}),
+                    ph(layer.item.photoUrl)?React.createElement("img",{src:ph(layer.item.photoUrl),alt:"",style:{width:"100%",height:70,objectFit:"cover",borderRadius:8}}):React.createElement("div",{style:{width:"100%",height:70,display:"flex",alignItems:"center",justifyContent:"center",background:(CM[layer.item.color]||{}).h||"#3a3a3a",borderRadius:8}},React.createElement(Dot,{color:layer.item.color,size:20})),
                     React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},layer.item.name||layer.item.color),
                     React.createElement("div",{style:{display:"flex",gap:2,justifyContent:"center"}},
                       React.createElement("button",{onClick:function(e){e.stopPropagation();setBuildLayers(function(p){return p.map(function(l){return l.id===layer.id?Object.assign({},l,{item:null}):l})});setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:8,fontFamily:"var(--f)",cursor:"pointer",minHeight:20}},"✕"),
@@ -1723,7 +1723,7 @@ function App(){
             [{slot:"bot",l:"BOTTOM",sub:"Pants / Jeans",val:bBot,set:setBBot},{slot:"shoe",l:"SHOES",sub:"Footwear",val:bShoe,set:setBShoe}].map(function(o){
               return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)}},
                 o.val?React.createElement(React.Fragment,null,
-                  ph(o.val.photoUrl)?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:50,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:18}),
+                  ph(o.val.photoUrl)?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:70,objectFit:"cover",borderRadius:8}}):React.createElement("div",{style:{width:"100%",height:70,display:"flex",alignItems:"center",justifyContent:"center",background:(CM[o.val.color]||{}).h||"#3a3a3a",borderRadius:8}},React.createElement(Dot,{color:o.val.color,size:20})),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
                   React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
                 :React.createElement(React.Fragment,null,
@@ -1735,7 +1735,7 @@ function App(){
             [{slot:"acc",l:"ACCESSORY",sub:"Hat / Scarf / Belt / Bag",val:bAcc,set:setBAcc}].map(function(o){
               return React.createElement("div",{key:o.slot,className:"outfit-slot "+(o.val?"filled":"")+" "+(buildSlot===o.slot?"active":""),onClick:function(){setBuildSlot(buildSlot===o.slot?null:o.slot)},style:{minHeight:48}},
                 o.val?React.createElement(React.Fragment,null,
-                  ph(o.val.photoUrl)?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:40,objectFit:"cover",borderRadius:8}}):React.createElement(Dot,{color:o.val.color,size:16}),
+                  ph(o.val.photoUrl)?React.createElement("img",{src:ph(o.val.photoUrl),alt:"",style:{width:"100%",height:60,objectFit:"cover",borderRadius:8}}):React.createElement("div",{style:{width:"100%",height:60,display:"flex",alignItems:"center",justifyContent:"center",background:(CM[o.val.color]||{}).h||"#3a3a3a",borderRadius:8}},React.createElement(Dot,{color:o.val.color,size:18})),
                   React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--text)",fontWeight:500,textAlign:"center"}},o.val.name||o.val.color),
                   React.createElement("button",{onClick:function(e){e.stopPropagation();o.set(null);setBuildAiCritique(null)},style:{background:"none",border:"none",color:"var(--warn)",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",minHeight:24}},"✕ clear"))
                 :React.createElement(React.Fragment,null,
@@ -1763,7 +1763,7 @@ function App(){
               React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:600,marginBottom:8}},"Pick "+pickLabel),
               React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8}},
                 items.map(function(item){return React.createElement("div",{key:item.id,className:"gcard",onClick:function(){setter(item);setBuildSlot(null);setBuildAiCritique(null)},style:{background:"var(--bg)",border:"2px solid transparent",textAlign:"center"}},
-                  ph(item.photoUrl)?React.createElement("img",{src:ph(item.photoUrl),alt:"",style:{width:"100%",height:60,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{height:40,display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:item.color,size:14})),
+                  ph(item.photoUrl)?React.createElement("img",{src:ph(item.photoUrl),alt:"",style:{width:"100%",height:72,objectFit:"cover",display:"block",borderRadius:"8px 8px 0 0"}}):React.createElement("div",{style:{height:72,display:"flex",alignItems:"center",justifyContent:"center",background:(CM[item.color]||{}).h||"#3a3a3a",borderRadius:"8px 8px 0 0"}},React.createElement(Dot,{color:item.color,size:16})),
                   React.createElement("div",{style:{padding:"4px 4px 6px"}},React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",fontWeight:500}},item.name||item.color)))}),
                 !items.length&&React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",gridColumn:"1/-1",padding:10}},"No classified items")));
           })(),
@@ -2142,7 +2142,7 @@ function App(){
                               React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
                             (function(){var _fa=filteredAlts(o.slot,o.item&&o.item.id);return _fa.length===0?[React.createElement("div",{key:"_empty",style:{flexShrink:0,padding:"8px 12px",color:"var(--dim)",fontSize:8,fontFamily:"var(--f)",fontStyle:"italic",whiteSpace:"nowrap"}},"No matches")]:_fa})().map(function(alt){
                               return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
-                                ph(alt.photoUrl)?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                                ph(alt.photoUrl)?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:48,height:48,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:48,height:48,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:alt.color,size:14})),
                                 React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))}),
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(201,168,76,0.06)",borderRadius:8,padding:"6px 8px"}},
                         React.createElement("span",{style:{fontSize:16}},w.i),
@@ -2307,7 +2307,7 @@ function App(){
                   var pk="t-"+o.slot;var isOpen=piecePicker===pk;var isSwapped=!!pieceSwap[pk];
                   return React.createElement("div",{key:o.l},
                     React.createElement("div",{style:{background:isSwapped?"rgba(201,168,76,0.06)":"var(--bg)",borderRadius:10,overflow:"hidden",border:isSwapped?"1px solid rgba(201,168,76,0.25)":"1px solid var(--border)",cursor:"pointer"},onClick:function(ev){ev.stopPropagation();setPiecePicker(isOpen?null:pk);setPieceFilter(null)}},
-                      ph(o.item.photoUrl)?React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:"100%",height:64,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:40,background:(CM[o.item.color]||{}).h||"#3a3a3a"}}),
+                      ph(o.item.photoUrl)?React.createElement("img",{src:ph(o.item.photoUrl),alt:"",style:{width:"100%",height:80,objectFit:"cover",display:"block"}}):React.createElement("div",{style:{width:"100%",height:80,background:(CM[o.item.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:o.item.color,size:18})),
                       React.createElement("div",{style:{padding:"5px 8px",display:"flex",alignItems:"center",gap:4}},
                         React.createElement(Dot,{color:o.item.color,size:6}),
                         React.createElement("span",{style:{fontSize:9,fontFamily:"var(--f)",color:isSwapped?"var(--gold)":"var(--text)",fontWeight:500}},o.item.name||o.item.color),
@@ -2329,7 +2329,7 @@ function App(){
                         React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--del-text)"}},"Reset")),
                       (function(){var _fa=filteredAlts(o.slot,o.item&&o.item.id);return _fa.length===0?[React.createElement("div",{key:"_empty",style:{flexShrink:0,padding:"8px 12px",color:"var(--dim)",fontSize:8,fontFamily:"var(--f)",fontStyle:"italic",whiteSpace:"nowrap"}},"No matches")]:_fa})().map(function(alt){
                         return React.createElement("div",{key:alt.id,onClick:function(){setPieceSwap(function(p){var n=Object.assign({},p);n[pk]=alt;return n});setPiecePicker(null)},style:{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 6px",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",minWidth:52,maxWidth:64}},
-                          ph(alt.photoUrl)?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:40,height:40,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:40,height:40,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a"}}),
+                          ph(alt.photoUrl)?React.createElement("img",{src:ph(alt.photoUrl),alt:"",style:{width:48,height:48,objectFit:"cover",borderRadius:6}}):React.createElement("div",{style:{width:48,height:48,borderRadius:6,background:(CM[alt.color]||{}).h||"#3a3a3a",display:"flex",alignItems:"center",justifyContent:"center"}},React.createElement(Dot,{color:alt.color,size:14})),
                           React.createElement("span",{style:{fontSize:7,fontFamily:"var(--f)",color:"var(--sub)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:56}},alt.name||alt.color))}))))}))),
             /* Actions */
             React.createElement("div",{style:{display:"flex",gap:8}},
