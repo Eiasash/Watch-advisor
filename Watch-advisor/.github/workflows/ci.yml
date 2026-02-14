@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Parse-check every JS module
+        run: |
+          for f in app.js data.js engine.js utils.js ai.js photos.js crypto.js sw.js; do
+            node --check "$f" && echo "✅ $f" || { echo "❌ $f FAILED"; exit 1; }
+          done
+
+      - name: Verify import/export consistency
+        run: |
+          node -e "
+            const fs=require('fs');
+            function getExports(f){
+              const m=fs.readFileSync(f,'utf8').match(/export\s*\{([^}]+)\}/s);
+              return m?m[1].split(',').map(s=>s.trim()).filter(Boolean):[];
+            }
+            function getImports(f,from){
+              const code=fs.readFileSync(f,'utf8');
+              const re=new RegExp('import\\\\s*\\\\{([^}]+)\\\\}\\\\s*from\\\\s*[\\x27\"]\\\\.\\\\/'+from.replace(/\\./g,'\\\\\\\\.')+'[\\x27\"]','gs');
+              const r=[];let m;
+              while((m=re.exec(code))!==null)m[1].split(',').map(s=>s.trim()).filter(Boolean).forEach(n=>r.push(n));
+              return r;
+            }
+            const mods=['data.js','utils.js','engine.js','ai.js','photos.js','crypto.js'];
+            const consumers=['app.js','utils.js','engine.js','ai.js'];
+            let errs=0;
+            mods.forEach(mod=>{
+              const ex=getExports(mod);
+              consumers.forEach(con=>{
+                if(con===mod)return;
+                getImports(con,mod).forEach(imp=>{
+                  if(!ex.includes(imp)){console.error('❌ '+con+' imports \"'+imp+'\" from '+mod+' — NOT EXPORTED');errs++}
+                });
+              });
+            });
+            if(errs)process.exit(1);
+            console.log('✅ All imports resolve');
+          "
+
+      - name: Validate manifest.json
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('✅ manifest.json OK');"

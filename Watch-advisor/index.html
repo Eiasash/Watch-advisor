@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#12101a">
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="manifest" href="./manifest.json">
+<title>Watch Advisor v25.8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#07060a;--card:#0d0c14;--card2:#12101a;--card3:#14121e;--border:#1c1828;--gold:#c9a84c;--text:#e0dcd4;--sub:#7a7484;--dim:#4a4458;--warn:#c85a3a;--good:#7ab87a;--badge-good:#0a1a0a;--badge-warn:#1a0a0a;--badge-neutral:#0a0a1a;--del-text:#6a3a3a;--del-border:#2a1a1a;--rep-border:#2a2520;--f:'DM Sans',sans-serif;--sf:'Cormorant Garamond',Georgia,serif}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;-webkit-font-smoothing:antialiased}
+body.modal-open{overflow:hidden}
+/* Safety: ensure modal class gets cleaned up */
+body:not(.modal-open){position:static}
+input,select,button,textarea{font-family:var(--f);outline:none}
+input[type="file"]{display:none}
+input,select,textarea{font-size:16px!important}
+/* GPU-accelerated transforms for all interactive elements */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes slideUp{from{opacity:0;transform:translate3d(0,100%,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fu{animation:fadeUp .35s cubic-bezier(.22,.68,0,1) both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}.hscroll::-webkit-scrollbar{display:none}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:12px;font-size:11px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);white-space:nowrap;transition:background .15s,border-color .15s,color .15s;min-height:32px;user-select:none}
+.chip.on{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:var(--gold)}
+.chip:active{transform:scale(0.95)}
+.inp{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%}
+.inp:focus{border-color:rgba(201,168,76,0.4)}
+.sel{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%}
+.lbl{font-size:9px;font-family:var(--f);color:var(--dim);letter-spacing:0.1em;margin-bottom:4px;display:block;text-transform:uppercase}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;flex-direction:column;justify-content:flex-end;animation:fadeIn .15s ease-out;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.modal-body{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp .3s cubic-bezier(.22,.68,0,1)}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 14px}
+.swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s,box-shadow .15s;flex-shrink:0}
+.swatch:active{transform:scale(0.9)}
+.swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;user-select:none;transition:transform .15s cubic-bezier(.22,.68,0,1),box-shadow .2s ease}
+.btn:active{transform:scale(0.97)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
+.outfit-slot{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:10px;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:border-color .2s,background .2s}
+.outfit-slot.filled{border-style:solid;border-color:var(--border)}
+.outfit-slot.active{border-color:var(--gold);background:var(--card)}
+.score-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.22,.68,0,1)}
+.card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform .2s cubic-bezier(.22,.68,0,1);content-visibility:auto;contain-intrinsic-size:auto 230px}
+.card-lift:active{box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.gcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.22,.68,0,1);content-visibility:auto;contain-intrinsic-size:auto 210px}
+.gcard:active{transform:scale(0.97)}
+.gcard-overlay{position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(transparent,rgba(0,0,0,0.7));pointer-events:none}
+img{image-rendering:auto;-webkit-image-rendering:auto}
+.dots-row{display:flex;gap:3px;align-items:center}
+.onboard{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center}
+.onboard h1{font-size:32px;font-weight:300;letter-spacing:0.2em;color:var(--gold);margin-bottom:8px}
+body.light{--bg:#f5f4f0;--card:#ffffff;--card2:#fafaf8;--card3:#f0efe8;--border:#e0dcd4;--gold:#b8962a;--text:#1a1a1a;--sub:#6a6464;--dim:#9a9494;--warn:#c85a3a;--good:#2a8a2a;--badge-good:#e6f4e6;--badge-warn:#f4e6e6;--badge-neutral:#eaeaf2;--del-text:#c85a3a;--del-border:#e0c8c8;--rep-border:#d0ccc4}
+body.light .chip{background:#f0efe8;color:#6a6464;border-color:#e0dcd4}
+body.light .chip.on{background:rgba(184,150,42,0.12);border-color:rgba(184,150,42,0.35);color:#b8962a}
+body.light .inp,body.light .sel{background:#f5f4f0;border-color:#e0dcd4;color:#1a1a1a}
+body.light .modal-backdrop{background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+body.light .modal-body{background:#ffffff}
+body.light .modal-handle{background:var(--border)}
+body.light .score-bar{background:var(--border)}
+body.light .card-lift{box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+body.light .btn-gold{background:linear-gradient(135deg,#b8962a,#9a7a1a);color:#fff}
+body.light .btn-ghost{border-color:#e0dcd4;color:#6a6464}
+body.light .gcard{border-color:#e0dcd4}
+body.light .swatch.on{border-color:#b8962a;box-shadow:0 0 0 3px rgba(184,150,42,0.3)}
+body.light .gcard-overlay{background:linear-gradient(transparent,rgba(255,255,255,0.6))}
+body.light input,body.light select,body.light textarea{color:#1a1a1a}
+body.light .outfit-slot.active{background:rgba(184,150,42,0.06)}
+.theme-toggle{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--dim);font-size:14px;min-height:32px;transition:border-color .2s,color .2s}
+.theme-toggle:hover{border-color:var(--gold);color:var(--gold)}
+/* ══ UX v25.0: Skeleton shimmer ══ */
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+body.light .skeleton{background:linear-gradient(90deg,#f0efe8 25%,#e0dcd4 50%,#f0efe8 75%);background-size:200% 100%}
+/* ══ UX v25.0: Undo toast ══ */
+@keyframes toastCountdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.toast-undo{position:fixed;top:60px;left:16px;right:16px;z-index:95;border-radius:12px;padding:12px 18px;font-family:var(--f);font-size:12px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);text-align:center;max-width:500px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:fadeUp .25s cubic-bezier(.22,.68,0,1) both}
+.toast-undo .undo-btn{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 12px;color:#fff;font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:28px;letter-spacing:0.05em}
+.toast-undo .undo-btn:active{transform:scale(0.95)}
+.toast-undo .toast-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 12px 12px;background:rgba(255,255,255,0.3);transform-origin:left}
+/* ══ UX v25.0: Tab slide ══ */
+.tab-content{animation:tabSlide .2s cubic-bezier(.22,.68,0,1) both}
+@keyframes tabSlide{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+/* ══ UX v25.0: Unworn badge ══ */
+.unworn-badge{position:absolute;top:6px;right:6px;background:rgba(200,90,58,0.85);color:#fff;font-size:8px;font-family:var(--f);padding:2px 6px;border-radius:8px;font-weight:700;letter-spacing:0.03em;pointer-events:none;z-index:2;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+</style>
+</head>
+<body>
+<div id="root"><div id="crash-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px;text-align:center;font-family:'DM Sans',sans-serif;color:#7a7484"><div style="font-size:40px;margin-bottom:16px">⌚</div><div style="font-size:14px;color:#e0dcd4;margin-bottom:8px">Loading Watch Advisor…</div><div style="font-size:10px;color:#4a4458;margin-bottom:24px">If this stays visible, the app failed to load.</div><button onclick="if(navigator.serviceWorker&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:'CLEAR_ALL_CACHES'})}else{window.location.href='./?v='+Date.now()}" style="background:none;border:1px solid rgba(200,90,58,0.4);border-radius:8px;padding:10px 20px;color:#c85a3a;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">💣 Force Update</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('[WA] SW:',e)})}
+</script>
+</body>
+</html>
