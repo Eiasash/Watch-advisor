@@ -450,6 +450,11 @@ function App(){
   var batchArchive=function(){var ids=Array.from(selIdsRef.current);if(!ids.length)return;setWd(function(p){var n=p.map(function(i){return ids.includes(i.id)?Object.assign({},i,{archived:!i.archived}):i});ps("wd_"+SK,n);return n});var ct=ids.length;clearSel();showToast("\u2705 Toggled archive on "+ct+" item"+(ct>1?"s":""),"var(--good)")};
   var batchSetType=function(type){var ids=Array.from(selIdsRef.current);if(!ids.length)return;setWd(function(p){var n=p.map(function(i){if(!ids.includes(i.id))return i;var upd=Object.assign({},i,{garmentType:type,needsEdit:false});upd.name=buildGarmentName(upd.color,upd.material,type);return upd});ps("wd_"+SK,n);return n});var ct=ids.length;clearSel();showToast("\u2705 Set "+ct+" item"+(ct>1?"s":"")+" to "+type,"var(--good)")};
   const[batchTypeMenu,setBatchTypeMenu]=useState(false);  const reScanRef=useRef();
+  /* ═══ UNCLASSIFIED INBOX STATE ═══ */
+  const[inboxOpen,setInboxOpen]=useState(true);/* default open when unclassified items exist */
+  const[batchAiProg,setBatchAiProg]=useState(null);/* {current:n, total:n, errors:[]} or null */
+  const batchAiCancel=useRef(false);
+  const[inboxTypeMenu,setInboxTypeMenu]=useState(false);
   const[importDupe,setImportDupe]=useState(null);/* {newItem, match, onKeep, onUseExisting} */
   const touchRef=useRef({sx:0,sy:0,swiping:false});
   const mainRef=useRef(null);
@@ -765,8 +770,10 @@ function App(){
         /* High-res for storage display, moderate for AI API submission */
         var compressed=await compressImage(rawUrl,800,0.7);
         var thumb=await compressImage(rawUrl,1200,0.82);
-        var parts=compressed.split(",");var b64=parts.length>1?parts[1]:compressed;
-        var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
+        var parts=compressed.split(",");var b64=parts.length>1?parts[1]:null;
+        if(!b64){setAiErr("Could not encode image for AI");var item={garmentType:"Shirt",name:"",color:"",pattern:"solid",photoUrl:thumb,id:pid,needsEdit:true,ts:Date.now(),aiError:"Image encoding failed"};setWd(function(p){var n=p.concat([item]);ps("wd_"+SK,n);return n});setProc(function(p){return p.filter(function(x){return x!==pid})});continue}
+        var aiResult=apiKeyRef.current?await aiID(b64,"image/jpeg",apiKeyRef.current):null;
+        if(!apiKeyRef.current){setAiErr("Missing Claude API Key — set it in Settings. Items added for manual classification.")}
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var _dh=await computeDHash(thumb);var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,dHash:_dh,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null,material:ai.material||null})});
           setWd(function(p){var n=p.concat(newItems);ps("wd_"+SK,n);return n});
@@ -811,7 +818,9 @@ function App(){
           var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=function(){j(x.error||new Error("Read failed"))};x.readAsDataURL(arr[fi])});
           var compressed=await compressImage(rawUrl,600,0.6);
           var thumb=await compressImage(rawUrl,400,0.5);
-          var _cp=compressed.split(",");var b64=_cp.length>1?_cp[1]:compressed;
+          var _cp=compressed.split(",");var b64=_cp.length>1?_cp[1]:null;
+          if(!b64){errs.push({fi:fi,error:"Could not encode image"});continue}
+          if(!apiKeyRef.current){errs.push({fi:fi,error:"Missing Claude API Key"});continue}
           var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
           if(result&&result.brand){
             var id=(crypto&&crypto.randomUUID)?crypto.randomUUID():("scan-"+Date.now()+"-"+fi);
@@ -851,7 +860,9 @@ function App(){
       var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(file)});
       var compressed=await compressImage(rawUrl,800,0.7);
       var thumb=await compressImage(rawUrl,600,0.7);
-      var _sp=compressed.split(",");var b64=_sp.length>1?_sp[1]:compressed;
+      var _sp=compressed.split(",");var b64=_sp.length>1?_sp[1]:null;
+      if(!b64){setSelfieLoading(false);showToast("Could not encode image for AI","var(--warn)");return}
+      if(!apiKeyRef.current){setSelfieLoading(false);showToast("Missing Claude API Key — set it in Settings","var(--warn)");return}
       var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current,W,null,effectiveCtx);
       if(result&&result.impact){
         var entry={id:Date.now(),ts:Date.now(),thumb:thumb,result:result,impact:result.impact};
@@ -970,11 +981,20 @@ function App(){
         return next;
       })};
       var retry=async function(){
-        if(!item.photoUrl)return;setRetrying(true);
-        try{var _raw=item.photoUrl.startsWith("idb:")?await photoAsDataUrl(item.photoUrl):item.photoUrl;if(!_raw){setRetrying(false);return}var compressed=await compressImage(_raw,800,0.7);var b64=compressed.split(",")[1];
+        if(!item.photoUrl){showToast("Photo not available — re-import item photo","var(--warn)",3500);return}
+        if(!apiKeyRef.current){showToast("Missing Claude API Key — set it in Settings","var(--warn)",3500);return}
+        setRetrying(true);
+        try{
+          var _raw=await photoAsDataUrl(item.photoUrl);
+          if(!_raw||typeof _raw!=="string"||_raw.indexOf(",")===-1){showToast("Photo not available — re-import item photo","var(--warn)",3500);setRetrying(false);return}
+          var compressed=await compressImage(_raw,800,0.7);
+          if(!compressed||typeof compressed!=="string"||compressed.indexOf(",")===-1){showToast("Could not encode image for AI","var(--warn)",3500);setRetrying(false);return}
+          var b64=compressed.split(",")[1];
+          if(!b64){showToast("Could not encode image for AI","var(--warn)",3500);setRetrying(false);return}
           var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
           if(aiResult&&aiResult.length){var first=aiResult[0];setF(function(p){return Object.assign({},p,first)})}
-          else showToast(getLastAiError()||"AI couldn't identify. Classify manually.","var(--warn)",3500)}catch(e){showToast("Retry error: "+e,"var(--warn)",3000)}
+          else showToast(getLastAiError()||"AI couldn't identify. Classify manually.","var(--warn)",3500)
+        }catch(e){console.warn("[WA] Retry error:",e);showToast("Retry failed: "+(e.message||String(e)).slice(0,80),"var(--warn)",3500)}
         setRetrying(false);
       };
       return React.createElement(Modal,{onClose:function(){setEditG(null)}},
@@ -1578,35 +1598,125 @@ function App(){
         proc.length>0&&React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}},proc.map(function(p){return React.createElement("div",{key:p,style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 14px",display:"flex",alignItems:"center",gap:8}},React.createElement("div",{className:"sp",style:{width:14,height:14,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%"}}),React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)"}},"Identifying..."))})),
 
         wd.length>0&&React.createElement(React.Fragment,null,
-          needsFix>0&&React.createElement("div",{style:{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:10}},
-            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-              React.createElement("p",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",margin:0,fontWeight:500,flex:1}},"⚠️ "+needsFix+" items need classification — tap to set type & color"),
-              React.createElement("button",{onClick:async function(){
-                var broken=wd.filter(function(i){return(i.needsEdit||!i.color)&&i.photoUrl});
-                if(!broken.length)return;
-                for(var k=0;k<broken.length;k++){
-                  var it=broken[k];
-                  try{
-                    // Most photos are stored as idb: refs. Claude needs a real base64 data URL.
-                    var srcDataUrl=await photoAsDataUrl(it.photoUrl);
-                    if(!srcDataUrl||typeof srcDataUrl!=="string"||srcDataUrl.indexOf(",")===-1){
-                      throw new Error("Photo not available for AI (try re-importing it).")
-                    }
-                    var compressed=await compressImage(srcDataUrl,600,0.6);
-                    if(!compressed||typeof compressed!=="string"||compressed.indexOf(",")===-1){
-                      throw new Error("Could not encode image for AI.")
-                    }
-                    var b64=compressed.split(",")[1];
-                    var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
-                    if(aiResult&&aiResult.length)updG(it.id,aiResult[0]);else setAiErr(getLastAiError());
-                  }catch(e){console.warn("[WA]",e);setAiErr(e.message||String(e))}
-                  if(k<broken.length-1)await new Promise(function(r){setTimeout(r,800)});
-                }
-              },style:{background:"var(--gold)",color:"var(--bg)",border:"none",borderRadius:8,padding:"8px 14px",fontFamily:"var(--f)",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",minHeight:36}},"🔄 Retry AI"))),
+          /* ═══ AI ERROR BANNER ═══ */
           aiErr&&React.createElement("div",{style:{background:"rgba(200,90,58,0.08)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:10,padding:"10px 14px",marginBottom:10}},
             React.createElement("div",{style:{display:"flex",alignItems:"flex-start",gap:8}},
-              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)",margin:0,flex:1,wordBreak:"break-all"}},"🚨 AI Error: "+aiErr),
+              React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)",margin:0,flex:1,wordBreak:"break-word"}},"AI Error: "+aiErr),
               React.createElement("button",{onClick:function(){setAiErr("")},style:{background:"none",border:"none",color:"var(--warn)",cursor:"pointer",fontSize:14}},"✕"))),
+
+          /* ═══ UNCLASSIFIED INBOX ═══ */
+          needsFix>0&&React.createElement("div",{style:{background:"rgba(201,168,76,0.04)",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,marginBottom:12,overflow:"hidden"}},
+            /* Header bar — always visible */
+            React.createElement("div",{onClick:function(){setInboxOpen(!inboxOpen)},style:{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",background:"rgba(201,168,76,0.06)"}},
+              React.createElement("span",{style:{fontSize:14}},inboxOpen?"▾":"▸"),
+              React.createElement("span",{style:{fontSize:12,fontFamily:"var(--f)",fontWeight:600,color:"var(--gold)",flex:1}},"Unclassified Inbox ("+needsFix+")"),
+              /* Batch AI classify all button */
+              React.createElement("button",{onClick:function(e){
+                e.stopPropagation();
+                if(batchAiProg){batchAiCancel.current=true;return}
+                if(!apiKeyRef.current){showToast("Missing Claude API Key — set it in Settings","var(--warn)",3500);return}
+                var broken=wd.filter(function(i){return(i.needsEdit||!i.color)&&i.photoUrl});
+                if(!broken.length){showToast("No items with photos to classify","var(--warn)");return}
+                batchAiCancel.current=false;
+                var prog={current:0,total:broken.length,errors:[]};
+                setBatchAiProg(Object.assign({},prog));
+                (async function(){
+                  for(var k=0;k<broken.length;k++){
+                    if(batchAiCancel.current){setBatchAiProg(null);showToast("AI batch cancelled","var(--warn)");return}
+                    var it=broken[k];
+                    prog.current=k+1;setBatchAiProg(Object.assign({},prog));
+                    try{
+                      var srcDataUrl=await photoAsDataUrl(it.photoUrl);
+                      if(!srcDataUrl||typeof srcDataUrl!=="string"||srcDataUrl.indexOf(",")===-1){
+                        prog.errors.push({id:it.id,msg:"Photo not available — re-import item photo"});
+                        console.warn("[WA] Batch AI: photo not available for",it.id);
+                        continue;
+                      }
+                      var compressed=await compressImage(srcDataUrl,600,0.6);
+                      if(!compressed||typeof compressed!=="string"||compressed.indexOf(",")===-1){
+                        prog.errors.push({id:it.id,msg:"Could not encode image"});
+                        continue;
+                      }
+                      var b64=compressed.split(",")[1];
+                      if(!b64){prog.errors.push({id:it.id,msg:"Could not encode image"});continue}
+                      var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
+                      if(aiResult&&aiResult.length){updG(it.id,aiResult[0])}
+                      else{var errMsg=getLastAiError()||"AI could not identify";prog.errors.push({id:it.id,msg:errMsg.slice(0,80)});console.warn("[WA] Batch AI error:",errMsg)}
+                    }catch(ex){
+                      var exMsg=(ex.message||String(ex)).slice(0,80);
+                      prog.errors.push({id:it.id,msg:exMsg});
+                      console.warn("[WA] Batch AI exception:",ex);
+                    }
+                    setBatchAiProg(Object.assign({},prog));
+                    if(k<broken.length-1){var delay=800+Math.floor(Math.random()*400);await new Promise(function(r){setTimeout(r,delay)})}
+                  }
+                  var errCount=prog.errors.length;
+                  if(errCount>0){setAiErr(errCount+" item"+(errCount>1?"s":"")+" failed — check items below")}
+                  showToast("AI classified "+(prog.total-errCount)+"/"+prog.total+" items","var(--good)",3000);
+                  setBatchAiProg(null);
+                })();
+              },style:{background:batchAiProg?"rgba(200,90,58,0.15)":"var(--gold)",color:batchAiProg?"var(--warn)":"var(--bg)",border:"none",borderRadius:8,padding:"6px 12px",fontFamily:"var(--f)",fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",minHeight:30}},batchAiProg?"Cancel":"AI Classify All"),
+              /* Set all to type button */
+              React.createElement("button",{onClick:function(e){e.stopPropagation();setInboxTypeMenu(!inboxTypeMenu)},style:{background:"none",border:"1px solid rgba(201,168,76,0.3)",borderRadius:8,padding:"6px 10px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:10,cursor:"pointer",whiteSpace:"nowrap",minHeight:30}},"Set Type")),
+            /* Batch type picker dropdown */
+            inboxTypeMenu&&React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",padding:"8px 14px",background:"var(--card2)",borderTop:"1px solid var(--border)"}},
+              ALL_T.map(function(t){return React.createElement("span",{key:t,className:"chip",onClick:function(){
+                var broken=wd.filter(function(i){return i.needsEdit||!i.color});
+                broken.forEach(function(it){updG(it.id,{garmentType:t})});
+                setInboxTypeMenu(false);
+                showToast("Set "+broken.length+" items to "+t,"var(--good)")},style:{cursor:"pointer",fontSize:10}},t)})),
+            /* Progress bar */
+            batchAiProg&&React.createElement("div",{style:{padding:"8px 14px",borderTop:"1px solid rgba(201,168,76,0.15)"}},
+              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
+                React.createElement("div",{className:"sp",style:{width:12,height:12,border:"2px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%"}}),
+                React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--gold)",fontWeight:500}},"Processing "+batchAiProg.current+"/"+batchAiProg.total+"..."),
+                batchAiProg.errors.length>0&&React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--warn)"}},batchAiProg.errors.length+" failed")),
+              React.createElement("div",{style:{height:3,borderRadius:2,background:"var(--bg)",overflow:"hidden"}},
+                React.createElement("div",{style:{width:(batchAiProg.current/batchAiProg.total*100)+"%",height:"100%",background:"var(--gold)",transition:"width 0.3s ease"}}))),
+            /* Inbox cards — expanded view */
+            inboxOpen&&React.createElement("div",{style:{padding:"8px 10px"}},
+              (function(){
+                var unclassified=wd.filter(function(i){return i.needsEdit||!i.color});
+                return React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},
+                  unclassified.map(function(item){
+                    var _phUrl=item.photoUrl?ph(item.photoUrl):null;
+                    return React.createElement("div",{key:item.id,style:{background:"var(--card)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:10,overflow:"hidden"}},
+                      /* Photo or fallback */
+                      _phUrl?React.createElement(LazyImg,{src:_phUrl,alt:"",onClick:function(){openLightbox(item.photoUrl,item.id)},style:{width:"100%",height:90,objectFit:"cover",display:"block",cursor:"zoom-in"}}):
+                        React.createElement("div",{style:{width:"100%",height:70,background:(CM[item.color]||{}).h||"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center"}},
+                          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--f)",color:"#fff8"}},"No photo")),
+                      React.createElement("div",{style:{padding:"6px 8px"}},
+                        /* Suggested info */
+                        React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4,marginBottom:3}},
+                          item.color&&React.createElement(Dot,{color:item.color,size:7}),
+                          React.createElement("span",{style:{fontSize:10,fontFamily:"var(--f)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}},item.name||item.garmentType||"Unknown")),
+                        item.garmentType&&React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",display:"block",marginBottom:4}},
+                          [item.garmentType,item.color,item.pattern!=="solid"?item.pattern:null,item.material].filter(Boolean).join(" · ")),
+                        /* Quick action buttons */
+                        React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap"}},
+                          React.createElement("button",{onClick:function(){setEditG(item)},style:{flex:1,background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:6,padding:"4px 6px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,cursor:"pointer",minHeight:24}},"Edit"),
+                          React.createElement("button",{onClick:async function(){
+                            if(!apiKeyRef.current){showToast("Missing Claude API Key — set it in Settings","var(--warn)",3500);return}
+                            if(!item.photoUrl){showToast("Photo not available — re-import item photo","var(--warn)",3500);return}
+                            try{
+                              var srcDataUrl=await photoAsDataUrl(item.photoUrl);
+                              if(!srcDataUrl||typeof srcDataUrl!=="string"||srcDataUrl.indexOf(",")===-1){showToast("Photo not available — re-import item photo","var(--warn)",3500);return}
+                              var compressed=await compressImage(srcDataUrl,600,0.6);
+                              if(!compressed||typeof compressed!=="string"||compressed.indexOf(",")===-1){showToast("Could not encode image","var(--warn)");return}
+                              var b64=compressed.split(",")[1];
+                              if(!b64){showToast("Could not encode image","var(--warn)");return}
+                              showToast("Classifying...","var(--gold)",2000);
+                              var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
+                              if(aiResult&&aiResult.length){updG(item.id,aiResult[0]);showToast("Classified as "+aiResult[0].color+" "+aiResult[0].garmentType,"var(--good)")}
+                              else{showToast(getLastAiError()||"AI couldn't identify — classify manually","var(--warn)",3500)}
+                            }catch(ex){console.warn("[WA]",ex);showToast("AI failed: "+(ex.message||String(ex)).slice(0,60),"var(--warn)",3500)}
+                          },style:{flex:1,background:"rgba(201,168,76,0.1)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:6,padding:"4px 6px",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,cursor:"pointer",minHeight:24}},item.photoUrl?"AI":"No photo"),
+                          React.createElement("button",{onClick:function(){
+                            if(item.color&&item.garmentType){updG(item.id,{needsEdit:false});showToast("Marked done","var(--good)")}
+                            else{showToast("Set color & type first","var(--warn)")}
+                          },style:{background:"rgba(122,184,122,0.1)",border:"1px solid rgba(122,184,122,0.3)",borderRadius:6,padding:"4px 6px",color:"var(--good)",fontFamily:"var(--f)",fontSize:9,cursor:"pointer",minHeight:24}},"Done"))))
+                  }))
+              })())),
 
           React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}},
             [{id:"all",l:"All "+wd.length},{id:"tops",l:"Tops "+byCat.tops.length},{id:"bottoms",l:"Btms "+byCat.bottoms.length},{id:"shoes",l:"Shoes "+byCat.shoes.length}].map(function(f){return React.createElement(Pill,{key:f.id,on:wFilt===f.id,onClick:function(){setWFilt(f.id);setWMatFilt("all");setWColFilt("all")}},f.l)}),
