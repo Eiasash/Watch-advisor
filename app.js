@@ -528,8 +528,8 @@ function App(){
 
   /* Storage: Claude.ai artifact has window.storage.set/get returning promises. Chrome's StorageManager is different. */
   const hasAS=(function(){try{return typeof window.storage==="object"&&typeof window.storage.set==="function"&&typeof window.storage.get==="function"&&window.storage!==navigator.storage}catch(e){return false}})();
-  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){if(e2.name==="QuotaExceededError"){console.warn("Storage quota exceeded for key:",k);throw e2}}}},[]);
-  const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){return r&&r.value?JSON.parse(r.value):null}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
+  const ps=useCallback(async function(k,v){var j=JSON.stringify(v);try{if(hasAS){await window.storage.set(k,j)}else{localStorage.setItem(k,j)}}catch(e){try{localStorage.setItem(k,j)}catch(e2){if(e2.name==="QuotaExceededError"){console.warn("Storage quota exceeded for key:",k)}else{console.warn("Storage error for key:",k,e2)}}}},[]);
+  const loadKey=function(k){if(hasAS){return window.storage.get(k).then(function(r){try{return r&&r.value?JSON.parse(r.value):null}catch(e){console.warn("[WA] corrupt key:",k,e);return null}}).catch(function(){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}})}try{var v=localStorage.getItem(k);return Promise.resolve(v?JSON.parse(v):null)}catch(e){return Promise.resolve(null)}};
 
   useEffect(function(){var sp=document.getElementById("splash");if(sp)sp.remove();(async function(){
     var wLoaded=false,wdLoaded=false,ofLoaded=false;
@@ -710,7 +710,7 @@ function App(){
     setLightboxItems(items.length>1?items:itemId?wd.filter(function(i){return i.id===itemId}):[]);
   },[wd]);
 
-  const updateW=useCallback(function(id,u){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
+  const updateW=useCallback(function(id,u){clearCompatCache();setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,u):w});ps("w_"+SK,n);return n})},[ps]);
   const toggleW=useCallback(function(id){setW(function(p){var n=p.map(function(w){return w.id===id?Object.assign({},w,{active:!w.active}):w});ps("w_"+SK,n);return n})},[ps]);
   const removeW=useCallback(function(id){setW(function(p){var del=p.find(function(w){return w.id===id});if(del){revokePhoto(del.photoUrl);if(del.straps)del.straps.forEach(function(s){revokePhoto(s.photoUrl)})}var n=p.filter(function(w){return w.id!==id});ps("w_"+SK,n);return n})},[ps]);
 
@@ -757,6 +757,7 @@ function App(){
     _processingRef.current=true;
     var arr=Array.from(files);var pids=arr.map(function(_,i){return Date.now()+i});
     setProc(function(p){return p.concat(pids)});
+    try{
     for(var i=0;i<arr.length;i++){
       var f=arr[i],pid=pids[i];
       try{
@@ -764,7 +765,7 @@ function App(){
         /* High-res for storage display, moderate for AI API submission */
         var compressed=await compressImage(rawUrl,800,0.7);
         var thumb=await compressImage(rawUrl,1200,0.82);
-        var b64=compressed.split(",")[1];
+        var parts=compressed.split(",");var b64=parts.length>1?parts[1]:compressed;
         var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
           var _dh=await computeDHash(thumb);var newItems=aiResult.map(function(ai,idx){var sd=smartDefaults(ai);return Object.assign({},sd,ai,{photoUrl:thumb,dHash:_dh,id:pid+idx,ts:Date.now(),positionHint:aiResult.length>1?(ai.position||null):null,material:ai.material||null})});
@@ -794,7 +795,7 @@ function App(){
       // Delay between items to avoid rate limit
       if(i<arr.length-1)await new Promise(function(r){setTimeout(r,600)});
     }
-    _processingRef.current=false;
+    }finally{_processingRef.current=false}
   },[ps]);
 
   const scanWatch=useCallback(async function(files){
@@ -810,7 +811,7 @@ function App(){
           var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=function(){j(x.error||new Error("Read failed"))};x.readAsDataURL(arr[fi])});
           var compressed=await compressImage(rawUrl,600,0.6);
           var thumb=await compressImage(rawUrl,400,0.5);
-          var b64=compressed.split(",")[1];
+          var _cp=compressed.split(",");var b64=_cp.length>1?_cp[1]:compressed;
           var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
           if(result&&result.brand){
             var id=(crypto&&crypto.randomUUID)?crypto.randomUUID():("scan-"+Date.now()+"-"+fi);
@@ -850,7 +851,7 @@ function App(){
       var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=j;x.readAsDataURL(file)});
       var compressed=await compressImage(rawUrl,800,0.7);
       var thumb=await compressImage(rawUrl,600,0.7);
-      var b64=compressed.split(",")[1];
+      var _sp=compressed.split(",");var b64=_sp.length>1?_sp[1]:compressed;
       var result=await aiSelfieCheck(b64,"image/jpeg",apiKeyRef.current,W,null,effectiveCtx);
       if(result&&result.impact){
         var entry={id:Date.now(),ts:Date.now(),thumb:thumb,result:result,impact:result.impact};
@@ -1349,7 +1350,7 @@ function App(){
                 var buf=await f.arrayBuffer();
                 var packed=new Uint8Array(buf);
                 var json=await decryptData(packed,((recUser||"").trim()||f.name.replace("watch-advisor-","").replace(".wabackup",""))+"::"+recPass.trim());
-                var d=JSON.parse(json);
+                var d;try{d=JSON.parse(json)}catch(pe){showToast("Invalid backup file format","var(--warn)",3000);setRecStatus("");return}
                 var imported=[];
                 if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}
                 if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}
