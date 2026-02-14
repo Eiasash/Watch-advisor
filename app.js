@@ -1585,7 +1585,7 @@ function App(){
                 if(!broken.length)return;
                 for(var k=0;k<broken.length;k++){
                   var it=broken[k];
-                  try{var compressed=await compressImage(it.photoUrl,600,0.6);var b64=compressed.split(",")[1];
+                  try{var _raw=it.photoUrl.startsWith("idb:")?await photoAsDataUrl(it.photoUrl):it.photoUrl;if(!_raw)continue;var compressed=await compressImage(_raw,600,0.6);var b64=compressed.split(",")[1];
                     var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
                     if(aiResult&&aiResult.length)updG(it.id,aiResult[0]);else setAiErr(getLastAiError());
                   }catch(e){console.warn("[WA]",e)}
