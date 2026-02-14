@@ -5,19 +5,19 @@ No build step, no npm, no bundler.
 
 **Live:** [eiasash.github.io/Watch-advisor](https://eiasash.github.io/Watch-advisor/)
 
-## Architecture (v25.8)
+## Architecture (v25.5)
 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `index.html` | ~107 | CSS + HTML shell |
-| `app.js` | ~2,780 | React UI components + application logic |
-| `data.js` | ~417 | Constants, color maps, presets, defaults |
-| `engine.js` | ~488 | Outfit scoring, rotation, compatibility |
+| `app.js` | ~3,058 | React UI components + application logic |
+| `data.js` | ~481 | Constants, color maps, presets, defaults |
+| `engine.js` | ~621 | Outfit scoring, rotation, compatibility |
 | `utils.js` | ~343 | Garment naming, watch parsing, helpers |
-| `ai.js` | ~165 | AI classification, vision, occasion planning |
+| `ai.js` | ~173 | AI classification, vision, occasion planning |
 | `photos.js` | ~101 | IDB photo storage, hashing, compression |
 | `crypto.js` | ~26 | API key encryption/decryption |
-| `sw.js` | ~73 | Service worker (network-first for code) |
+| `sw.js` | ~89 | Service worker (network-first for code) |
 
 Native ES modules — browser handles imports, no transpilation.
 
@@ -27,7 +27,7 @@ Native ES modules — browser handles imports, no transpilation.
 2. Tap ⋮ → **Add to Home Screen**
 3. Full-screen app, works offline
 
-## Current Version: v25.8
+## Current Version: v25.5
 
 ### Features
 - 7-day watch rotation with weather-aware outfit generation
@@ -54,7 +54,7 @@ Native ES modules — browser handles imports, no transpilation.
 
 | Version | Changes |
 |---------|---------|
-| **v25.8** | 🚀 Release: Version synchronized across all files. All systems verified, ready for production. |
+| **v25.5** | 🐛 Fix wardrobe photos not displaying after reload — `preloadPhotos()` now dispatches `wa-photo-ready` event to trigger React re-render. 🔤 Wardrobe grid font sizes increased across the board (names 9→11px, types 7→9px, badges 6→8px). Photo thumbnails enlarged 90→100px, wider grid columns. |
 | **v25.4** | ⚡ VirtualGrid: hybrid windowing for wardrobe grid. Only visible pages in DOM, off-screen pages become spacers. IO-based auto-pagination replaces "Show More" button. |
 | **v25.3** | Fix blank screen — orphaned `const DEFAULT_CX=[` in utils.js broke module parse. |
 | **v25.2** | Unworn rotation: "Fresh" toggle, 14d+ badges, neglected wardrobe insight. SW escape hatch: Force button, CLEAR_ALL_CACHES, controllerchange auto-reload. |
