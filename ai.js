@@ -5,7 +5,19 @@ import { AC, IS_SHARED } from './data.js';
 var _lastAiError="";
 function getLastAiError(){return _lastAiError}
 
-async function aiID(b64,mime,apiKey){
+/* ══════ FRIENDLY ERROR MAPPING ══════ */
+function _friendlyError(raw){
+  if(!raw)return"Couldn't classify — try again.";var r=raw.toLowerCase();
+  if(r.includes("401")||r.includes("unauthorized"))return"API key invalid or expired. Check Settings.";
+  if(r.includes("429")||r.includes("rate"))return"Rate limited — wait a moment.";
+  if(r.includes("529")||r.includes("overloaded"))return"AI is busy — try again shortly.";
+  if(r.includes("timeout")||r.includes("failed to fetch"))return"Network issue — check connection.";
+  if(r.includes("base64")||r.includes("image"))return"Image format issue — try a different photo.";
+  if(r.includes("quota")||r.includes("billing"))return"API quota reached — check billing.";
+  return"Couldn't classify — try again.";
+}
+
+async function _aiIDCore(b64,mime,apiKey){
   _lastAiError="";
   try{
     var headers={"Content-Type":"application/json"};
@@ -29,6 +41,21 @@ async function aiID(b64,mime,apiKey){
     if(p.garmentType&&p.color)return[p];
     _lastAiError="AI returned incomplete: "+JSON.stringify(p).slice(0,80);return null;
   }catch(e){_lastAiError="Exception: "+String(e.message||e).slice(0,120);return null}
+}
+
+async function aiID(b64,mime,apiKey){
+  _lastAiError="";
+  var result=await _aiIDCore(b64,mime,apiKey);
+  if(result)return result;
+  /* Auto-retry once after 1s delay */
+  var firstErr=_lastAiError;
+  console.warn("[WA] AI classify retry…",firstErr);
+  _lastAiError="";
+  await new Promise(function(r){setTimeout(r,1000)});
+  result=await _aiIDCore(b64,mime,apiKey);
+  if(result)return result;
+  _lastAiError=_friendlyError(firstErr||_lastAiError);
+  return null;
 }
 
 async function aiVision(fit,watch,ctx,apiKey){
