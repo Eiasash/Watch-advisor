@@ -36,6 +36,16 @@ import {
 
 import { encryptApiKey, decryptApiKey } from './crypto.js';
 
+import {
+  loadConfig as sbLoadConfig, saveConfig as sbSaveConfig, clearConfig as sbClearConfig,
+  initClient as sbInitClient, getClient as sbGetClient,
+  signUp as sbSignUp, signIn as sbSignIn, signOut as sbSignOut,
+  getSession as sbGetSession, getUser as sbGetUser,
+  pushAllData as sbPushAll, pullAllData as sbPullAll,
+  pushPhotos as sbPushPhotos, pullPhotos as sbPullPhotos,
+  uploadPhotoHighRes as sbUploadHiRes
+} from './supabase.js';
+
 const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
 
 /* ══════ WEATHER KEY HELPER ══════ */
@@ -398,6 +408,13 @@ function App(){
   const[recUser,setRecUser]=useState(function(){try{return localStorage.getItem("wa_rec_user")||""}catch(e){return""}});
   const[recPass,setRecPass]=useState("");
   const[recStatus,setRecStatus]=useState("");
+  /* ── Cloud Sync state ── */
+  const[sbUrl,setSbUrl]=useState(function(){var c=sbLoadConfig();return c?c.url:""});
+  const[sbKey,setSbKey]=useState(function(){var c=sbLoadConfig();return c?c.anonKey:""});
+  const[sbBucket,setSbBucket]=useState(function(){var c=sbLoadConfig();return c&&c.bucket?c.bucket:"photos"});
+  const[cloudUser,setCloudUser]=useState(null);
+  const[cloudStatus,setCloudStatus]=useState("");
+  const[syncStatus,setSyncStatus]=useState("");
   const[showSettings,setShowSettings]=useState(false);
   const[forecast,setForecast]=useState([]);
   const[planDay,setPlanDay]=useState(0);
@@ -608,6 +625,14 @@ function App(){
 
   /* SW lifecycle: auto-reload when new SW takes over */
   useEffect(function(){if(!("serviceWorker" in navigator))return;var reloading=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(!reloading){reloading=true;window.location.reload()}});navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.type==="SW_ACTIVATED"){console.log("[WA] New SW active:",e.data.cache)}if(e.data&&e.data.type==="CACHES_CLEARED"){window.location.reload()}})},[]);
+  /* Cloud Sync: check for existing session on mount */
+  useEffect(function(){(async function(){try{var cfg=sbLoadConfig();if(!cfg||!cfg.url||!cfg.anonKey)return;sbInitClient(cfg.url,cfg.anonKey);var session=await sbGetSession();if(session&&session.user){setCloudUser(session.user);setCloudStatus("signed in as "+session.user.email)}}catch(e){console.warn("[CloudSync] session check:",e)}})()},[]);
+  /* Cloud Sync: upload original-quality photo in background when signed in */
+  const cloudUploadPhoto=useCallback(function(photoKey,fileOrBlob){
+    if(!cloudUser)return;var cfg=sbLoadConfig();if(!cfg)return;
+    var bucket=cfg.bucket||"photos";
+    sbUploadHiRes(photoKey,fileOrBlob,bucket).catch(function(e){console.warn("[CloudSync] hi-res upload:",e)});
+  },[cloudUser]);
   useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(err){setLoc({lat:31.7683,lon:35.2137,name:"Jerusalem (default)"})},{timeout:8000,maximumAge:300000})}catch(e){console.warn("[WA]",e)}},[]);
   useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7");var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch failed:",e);setWxErr(true)}})()},[loc]);
 
@@ -777,6 +802,8 @@ function App(){
         /* High-res for storage display, moderate for AI API submission */
         var compressed=await compressImage(rawUrl,800,0.7);
         var thumb=await compressImage(rawUrl,1200,0.82);
+        /* Cloud: upload original quality in background */
+        cloudUploadPhoto("wd_"+pid,f);
         var parts=compressed.split(",");var b64=parts.length>1?parts[1]:compressed;
         var aiResult=await aiID(b64,"image/jpeg",apiKeyRef.current);
         if(aiResult&&Array.isArray(aiResult)&&aiResult.length>0){
@@ -823,6 +850,8 @@ function App(){
           var rawUrl=await new Promise(function(r,j){var x=new FileReader();x.onload=function(){r(x.result)};x.onerror=function(){j(x.error||new Error("Read failed"))};x.readAsDataURL(arr[fi])});
           var compressed=await compressImage(rawUrl,600,0.6);
           var thumb=await compressImage(rawUrl,400,0.5);
+          /* Cloud: upload original quality in background */
+          cloudUploadPhoto("w_scan_"+Date.now()+"_"+fi,arr[fi]);
           var _cp=compressed.split(",");var b64=_cp.length>1?_cp[1]:compressed;
           var result=await aiWatchID(b64,"image/jpeg",apiKeyRef.current);
           if(result&&result.brand){
@@ -1078,7 +1107,7 @@ function App(){
       var setNStF=function(k,v){setNSt(function(p){var o=Object.assign({},p);o[k]=v;if(k==="type"){var td=STRAP_TYPES.find(function(t){return t.id===v});o.material=td&&td.mats[0]?td.mats[0]:"";o.color=v==="bracelet"?"silver":""}return o})};
       var addStrap=function(){if(!nSt.type)return;var s={type:nSt.type,color:nSt.color||"",material:nSt.material||""};if(nSt.photoUrl)s.photoUrl=nSt.photoUrl;setF(function(p){var ns=(p.straps||[]).concat([s]);return Object.assign({},p,{straps:ns,br:ns.some(function(x){return x.type==="bracelet"}),sc:ns.filter(function(x){return x.type!=="bracelet"}).map(function(x){return x.color})})});setAddSt(false);setNSt({type:"leather",color:"",material:"calf leather",photoUrl:null})};
       var rmStrap=function(si){setF(function(p){var ns=(p.straps||[]).filter(function(_,i){return i!==si});return Object.assign({},p,{straps:ns,br:ns.some(function(x){return x.type==="bracelet"}),sc:ns.filter(function(x){return x.type!=="bracelet"}).map(function(x){return x.color})})})};
-      var handleWPhoto=async function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=async function(e){var fl=e.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,800,0.8);set("photoUrl",compressed)};inp.click()};
+      var handleWPhoto=async function(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=async function(e){var fl=e.target.files[0];if(!fl)return;var raw=await new Promise(function(r){var x=new FileReader();x.onload=function(){r(x.result)};x.readAsDataURL(fl)});var compressed=await compressImage(raw,800,0.8);set("photoUrl",compressed);cloudUploadPhoto("w_"+w.id,fl)};inp.click()};
       return React.createElement(Modal,{onClose:function(){setEditW(null)}},
         React.createElement("div",{style:{display:"flex",gap:12,alignItems:"center",marginBottom:14}},
           React.createElement("div",{onClick:handleWPhoto,style:{width:52,height:52,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",flexShrink:0,border:"2px solid "+(f.photoUrl?"var(--gold)":"var(--border)"),background:f.photoUrl?"none":f.c+"20"}},
@@ -1398,6 +1427,111 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         recStatus&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:recStatus.includes("error")?"var(--warn)":recStatus.includes("\u2713")?"var(--good)":"var(--info)",marginBottom:6,fontWeight:500}},recStatus),
         React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:16,border:"1px solid var(--border)"}},
           React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"AES-256-GCM encryption · PBKDF2 310K iterations · Your password never leaves this device · .wabackup files are unreadable without your credentials"))),
+
+      /* ══ Cloud Sync Section ══ */
+      React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
+        React.createElement("label",{className:"lbl"},"☁️ Cloud Sync (Supabase)"),
+        React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:8}},"Sync your data across devices via your own Supabase project. Photos upload in original quality."),
+
+        /* Config inputs */
+        React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6,marginBottom:8}},
+          React.createElement("input",{className:"inp",type:"text",value:sbUrl,onChange:function(e){setSbUrl(e.target.value)},placeholder:"Supabase URL (https://xxx.supabase.co)",style:{fontSize:11,padding:"8px 12px"}}),
+          React.createElement("input",{className:"inp",type:"password",value:sbKey,onChange:function(e){setSbKey(e.target.value)},placeholder:"Supabase anon key",style:{fontSize:11,padding:"8px 12px",fontFamily:"monospace"}}),
+          React.createElement("input",{className:"inp",type:"text",value:sbBucket,onChange:function(e){setSbBucket(e.target.value)},placeholder:"Storage bucket (default: photos)",style:{fontSize:11,padding:"8px 12px"}})),
+
+        /* Save config */
+        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+          React.createElement("button",{onClick:function(){
+            if(!sbUrl.trim()||!sbKey.trim()){showToast("Enter Supabase URL and anon key","var(--warn)");return}
+            sbSaveConfig({url:sbUrl.trim(),anonKey:sbKey.trim(),bucket:sbBucket.trim()||"photos"});
+            sbInitClient(sbUrl.trim(),sbKey.trim());
+            showToast("Supabase config saved","var(--good)");
+          },style:{flex:1,background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--bg)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"💾 Save Config"),
+          sbUrl&&React.createElement("button",{onClick:function(){
+            sbClearConfig();setSbUrl("");setSbKey("");setSbBucket("photos");setCloudUser(null);setCloudStatus("");
+            showToast("Cloud config cleared","var(--good)");
+          },style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"8px 12px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:10}},"Clear")),
+
+        /* Auth: Login / Sign Up / Logout */
+        cloudUser?React.createElement("div",{style:{background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.2)",borderRadius:8,padding:"10px",marginBottom:8}},
+          React.createElement("div",{style:{fontSize:11,fontFamily:"var(--f)",color:"var(--good)",fontWeight:500,marginBottom:6}},"✓ Signed in as "+cloudUser.email),
+          React.createElement("button",{onClick:async function(){
+            try{await sbSignOut();setCloudUser(null);setCloudStatus("");showToast("Signed out","var(--good)")}catch(e){showToast("Sign out error: "+e.message,"var(--warn)")}
+          },style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"6px 12px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:9}},"Sign Out"))
+        :React.createElement("div",{style:{marginBottom:8}},
+          React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:6}},"Use your Recovery Credentials (above) as username + password to login or sign up:"),
+          React.createElement("div",{style:{display:"flex",gap:8}},
+            React.createElement("button",{onClick:async function(){
+              if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
+              if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
+              var email=recUser.trim().includes("@")?recUser.trim():recUser.trim()+"@watchadvisor.local";
+              setCloudStatus("signing in...");
+              try{
+                sbInitClient(sbUrl.trim(),sbKey.trim());
+                var d=await sbSignIn(email,recPass.trim());
+                if(d.user){setCloudUser(d.user);setCloudStatus("signed in");showToast("Signed in as "+d.user.email,"var(--good)")}
+              }catch(e){
+                setCloudStatus("error: "+e.message);showToast("Login failed: "+e.message,"var(--warn)",4000);
+              }
+            },style:{flex:1,background:"rgba(122,184,216,0.08)",border:"1px solid rgba(122,184,216,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"#7ab8d8",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"🔑 Login"),
+            React.createElement("button",{onClick:async function(){
+              if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
+              if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
+              var email=recUser.trim().includes("@")?recUser.trim():recUser.trim()+"@watchadvisor.local";
+              setCloudStatus("creating account...");
+              try{
+                sbInitClient(sbUrl.trim(),sbKey.trim());
+                var d=await sbSignUp(email,recPass.trim());
+                if(d.user){setCloudUser(d.user);setCloudStatus("account created");showToast("Account created for "+d.user.email,"var(--good)")}
+              }catch(e){
+                setCloudStatus("error: "+e.message);showToast("Sign up failed: "+e.message,"var(--warn)",4000);
+              }
+            },style:{flex:1,background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"📝 Sign Up"))),
+
+        /* Sync buttons — only show when signed in */
+        cloudUser&&React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+          React.createElement("button",{onClick:async function(){
+            setSyncStatus("pushing data...");
+            try{
+              var payload={watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme,strapLog:strapLog};
+              await sbPushAll(payload);
+              setSyncStatus("pushing photos...");
+              var allItems=[].concat(W,wd);
+              var bucket=sbBucket.trim()||"photos";
+              var photoCount=await sbPushPhotos(allItems,bucket,function(done,total){setSyncStatus("photos "+done+"/"+total+"...")});
+              setSyncStatus("");showToast("Pushed to cloud ("+photoCount+" photos)","var(--good)",3000);
+            }catch(e){setSyncStatus("push error: "+e.message);showToast("Push failed: "+e.message,"var(--warn)",4000)}
+          },style:{flex:1,background:"rgba(122,184,216,0.08)",border:"1px solid rgba(122,184,216,0.25)",borderRadius:8,padding:"10px",cursor:"pointer",color:"#7ab8d8",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"⬆️ Push to Cloud"),
+          React.createElement("button",{onClick:async function(){
+            setSyncStatus("pulling data...");
+            try{
+              var cloud=await sbPullAll();
+              var imported=[];
+              if(cloud.watches&&Array.isArray(cloud.watches)){var mw=cloud.watches.filter(function(w){return w&&w.id&&w.n}).map(migrateStraps);if(mw.length){setW(mw);ps("w_"+SK,mw);imported.push(mw.length+" watches")}}
+              if(cloud.wardrobe&&Array.isArray(cloud.wardrobe)){var vwd=cloud.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}
+              if(cloud.outfits&&Array.isArray(cloud.outfits)){setSaved(cloud.outfits);ps("of_"+SK,cloud.outfits);imported.push(cloud.outfits.length+" outfits")}
+              if(cloud.wearLog&&Array.isArray(cloud.wearLog)){var vwl=cloud.wearLog.filter(function(e2){return e2&&e2.date&&e2.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}
+              if(cloud.weekCtx&&Array.isArray(cloud.weekCtx)&&cloud.weekCtx.length===7){setWeekCtx(cloud.weekCtx);ps("wa_weekctx",cloud.weekCtx)}
+              if(cloud.userCx&&Array.isArray(cloud.userCx)){setUserCx(cloud.userCx);ps("wa_usercx_"+SK,cloud.userCx)}
+              if(cloud.rotLock&&Array.isArray(cloud.rotLock)){setRotLock(cloud.rotLock);ps("wa_rotlock_"+SK,cloud.rotLock)}
+              if(cloud.selfieHistory&&Array.isArray(cloud.selfieHistory)){setSelfieHistory(cloud.selfieHistory);ps("wa_selfie_"+SK,cloud.selfieHistory);imported.push(cloud.selfieHistory.length+" selfies")}
+              if(cloud.strapLog&&Array.isArray(cloud.strapLog)){setStrapLog(cloud.strapLog);ps("wa_strap_log",cloud.strapLog)}
+              if(cloud.theme){setTheme(cloud.theme);ps("wa_theme",cloud.theme)}
+              /* Pull photos */
+              setSyncStatus("pulling photos...");
+              var allItems=[].concat(cloud.watches||[],cloud.wardrobe||[]);
+              var bucket=sbBucket.trim()||"photos";
+              var photoCount=await sbPullPhotos(allItems,bucket,function(done,total){setSyncStatus("photos "+done+"/"+total+"...")});
+              setSyncStatus("");showToast("Pulled from cloud: "+imported.join(", ")+(photoCount?" + "+photoCount+" photos":""),"var(--good)",4000);
+            }catch(e){setSyncStatus("pull error: "+e.message);showToast("Pull failed: "+e.message,"var(--warn)",4000)}
+          },style:{flex:1,background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:8,padding:"10px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"⬇️ Pull from Cloud")),
+
+        /* Status indicators */
+        (cloudStatus||syncStatus)&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:(cloudStatus+syncStatus).includes("error")?"var(--warn)":"var(--sub)",marginBottom:6,fontWeight:500}},syncStatus||cloudStatus),
+
+        React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:0,border:"1px solid var(--border)"}},
+          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"Requires your own Supabase project (free tier works). See SUPABASE_SETUP.md for instructions. Data is stored per-user with Row Level Security."))),
+
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
