@@ -7,9 +7,15 @@ function idbGet(k){return idbOpen().then(function(db){return new Promise(functio
 function d2b(d){var p=d.split(","),m=p[0].match(/:(.*?);/)[1],r=atob(p[1]),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return new Blob([a],{type:m})}
 async function savePhoto(k,dataUrl){try{revokePhoto("idb:"+k);await idbPut(k,d2b(dataUrl));var b=await idbGet(k);if(b){_pc["idb:"+k]=URL.createObjectURL(b)}return "idb:"+k}catch(e){console.warn("[IDB]",e);return dataUrl}}
 var _PLACEHOLDER="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+/* ══════ PROGRESSIVE PHOTO LOADING ══════ */
+/* Returns low-res placeholder immediately, queues full-res load.
+   When full-res blob resolves, creates ObjectURL and dispatches wa-photo-ready.
+   _pc[ref] holds the resolved ObjectURL. _pc["_q"+ref] guards against duplicate fetches. */
 function ph(s){if(!s)return _PLACEHOLDER;if(s.startsWith("idb:")){var v=_pc[s];if(v)return v;/* Lazy resolve: trigger async fetch so next render picks it up */if(!_pc["_q"+s]){_pc["_q"+s]=1;idbOpen().then(function(db){var t=db.transaction("imgs","readonly");var r=t.objectStore("imgs").get(s.slice(4));r.onsuccess=function(){if(r.result){_pc[s]=URL.createObjectURL(r.result);/* Trigger React re-render via global event */window.dispatchEvent(new Event("wa-photo-ready"))}delete _pc["_q"+s]};r.onerror=function(){delete _pc["_q"+s]}}).catch(function(){delete _pc["_q"+s]})}return _PLACEHOLDER}return s}
+
 function revokePhoto(ref){if(ref&&ref.startsWith("idb:")&&_pc[ref]){try{URL.revokeObjectURL(_pc[ref])}catch(e){}delete _pc[ref]}}
-function revokeAllPhotos(){for(var k in _pc){try{URL.revokeObjectURL(_pc[k])}catch(e){}}; _pc={}}
+function revokeAllPhotos(){for(var k in _pc){if(!k.startsWith("_q")){try{URL.revokeObjectURL(_pc[k])}catch(e){}}}; _pc={}}
 async function preloadPhotos(items){var refs=[];for(var it of items){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))refs.push(it.photoUrl);if(it.straps)for(var s of it.straps)if(s.photoUrl&&s.photoUrl.startsWith("idb:"))refs.push(s.photoUrl)}if(!refs.length)return;var loaded=0;try{var db=await idbOpen();var tx=db.transaction("imgs","readonly");var st=tx.objectStore("imgs");await Promise.all(refs.map(function(ref){if(_pc[ref])return;return new Promise(function(ok){var r=st.get(ref.slice(4));r.onsuccess=function(){if(r.result){_pc[ref]=URL.createObjectURL(r.result);loaded++}ok()};r.onerror=ok})}))}catch(e){console.warn("[IDB] preload:",e)}if(loaded>0){window.dispatchEvent(new Event("wa-photo-ready"))}}
 async function migrateToIDB(items,pfx){var ch=false;for(var it of items){if(it.photoUrl&&it.photoUrl.startsWith("data:")){it.photoUrl=await savePhoto(pfx+"_"+it.id,it.photoUrl);ch=true}if(it.straps)for(var j=0;j<it.straps.length;j++){if(it.straps[j].photoUrl&&it.straps[j].photoUrl.startsWith("data:")){it.straps[j].photoUrl=await savePhoto(pfx+"_"+it.id+"_s"+j,it.straps[j].photoUrl);ch=true}}}return ch}
 async function photoAsDataUrl(ref){if(!ref||!ref.startsWith("idb:"))return ref;try{var b=await idbGet(ref.slice(4));if(!b)return null;return new Promise(function(ok){var r=new FileReader();r.onload=function(){ok(r.result)};r.readAsDataURL(b)})}catch(e){return null}}
@@ -39,6 +45,24 @@ async function getOriginalBlob(key) {
       r.onerror = function () { ok(null); };
     });
   } catch (e) { return null; }
+}
+
+/* ══════ LOW-RES THUMBNAIL GENERATION ══════ */
+/* Creates a tiny (80px) preview blob for progressive loading.
+   Stored as "thumb_" + key in IDB. */
+async function saveThumb(key, dataUrl) {
+  try {
+    var thumbData = await compressImage(dataUrl, 80, 0.4);
+    await idbPut("thumb_" + key, d2b(thumbData));
+  } catch (e) { /* non-critical */ }
+}
+
+async function getThumb(key) {
+  try {
+    var blob = await idbGet("thumb_" + key);
+    if (blob) return URL.createObjectURL(blob);
+  } catch (e) { /* non-critical */ }
+  return null;
 }
 
 /* ══════ IMAGE COMPRESSION ══════ */
@@ -126,5 +150,6 @@ export {
   idbOpen, idbPut, idbGet, d2b, savePhoto, ph, revokePhoto, revokeAllPhotos,
   preloadPhotos, migrateToIDB, photoAsDataUrl,
   computeDHash, hammingDist, sampleDominantColor, compressImage,
-  saveOriginalBlob, getOriginalBlob
+  saveOriginalBlob, getOriginalBlob,
+  saveThumb, getThumb
 };
