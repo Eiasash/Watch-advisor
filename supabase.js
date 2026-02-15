@@ -590,9 +590,28 @@ async function uploadPhotoOriginal(photoKey, fileOrBlob, bucket) {
 async function pushAllData(payload) { return pushSnapshot(payload); }
 async function pullAllData() { return pullSnapshot(); }
 
+/* ── Auto-init at module load when env vars / localStorage config present ── */
+/* This ensures the client is ready immediately on hosted deploys (Vercel/Netlify)
+   where VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set as env vars. */
+(function _autoInit() {
+  try {
+    var cfg = loadConfig();
+    if (cfg && cfg.url && cfg.anonKey && !_sb) {
+      initClient(cfg.url, cfg.anonKey);
+    }
+  } catch (e) { /* not critical — getClient() will lazy-init later */ }
+})();
+
+/* ── Quick check: is cloud configured? ── */
+function isConfigured() {
+  if (_sb) return true;
+  var cfg = loadConfig();
+  return !!(cfg && cfg.url && cfg.anonKey);
+}
+
 export {
   loadConfig, saveConfig, clearConfig,
-  initClient, getClient,
+  initClient, getClient, isConfigured,
   signUp, signIn, signOut, getSession, getUser,
   onAuthStateChange,
   pushSnapshot, pullSnapshot, mergePayloads,

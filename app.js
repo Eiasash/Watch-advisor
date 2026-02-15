@@ -40,7 +40,7 @@ import { encryptApiKey, decryptApiKey } from './crypto.js';
 
 import {
   loadConfig as sbLoadConfig, saveConfig as sbSaveConfig, clearConfig as sbClearConfig,
-  initClient as sbInitClient, getClient as sbGetClient,
+  initClient as sbInitClient, getClient as sbGetClient, isConfigured as sbIsConfigured,
   signUp as sbSignUp, signIn as sbSignIn, signOut as sbSignOut,
   getSession as sbGetSession, getUser as sbGetUser,
   onAuthStateChange as sbOnAuthStateChange,
@@ -1677,20 +1677,26 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1},onClick:function(){setAuthMode(authMode==="login"?"signup":"login");setAuthError("")}},authMode==="login"?"Create Account":"Back to Login")),
         React.createElement("button",{onClick:function(){setShowAuthModal(false)},style:{width:"100%",marginTop:10,background:"none",border:"none",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:11,padding:"8px"}},"Cancel"))),
 
-    /* ═══ SYNC STATUS BAR ═══ */
-    (cloudUser||sbLoadConfig())&&React.createElement("div",{className:"sync-bar"},
-      React.createElement("div",{className:"sync-dot "+(syncIndicator.status==="pushing"||syncIndicator.status==="pulling"?"syncing":syncIndicator.online?"online":"offline")}),
-      React.createElement("span",{style:{color:syncIndicator.online?"var(--sync-good)":"var(--sync-err)"}},syncIndicator.online?"Online":"Offline"),
-      cloudUser?React.createElement("span",{style:{color:"var(--sub)"}}," · "+cloudUser.email.split("@")[0]):React.createElement("span",{style:{color:"var(--dim)"}}," · Signed out"),
-      syncIndicator.status==="pushing"&&React.createElement("span",{style:{color:"var(--sync-warn)"}}," · Syncing..."),
-      syncIndicator.status==="pulling"&&React.createElement("span",{style:{color:"var(--sync-warn)"}}," · Pulling..."),
-      syncIndicator.status==="error"&&React.createElement("span",{style:{color:"var(--sync-err)"}}," · Sync error"),
-      syncIndicator.lastSync&&React.createElement("span",{style:{color:"var(--dim)",marginLeft:4,fontSize:8}},""+new Date(syncIndicator.lastSync).toLocaleTimeString()),
-      cloudUser&&React.createElement("button",{onClick:function(){sbSyncNow(_buildPayload).catch(function(e){console.warn("[Sync]",e)})},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:8,minHeight:22}},"↻ Sync"),
-      !cloudUser&&React.createElement("button",{onClick:function(){setShowAuthModal(true)},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"Sign In")),
+    /* ═══ SYNC STATUS BAR (always visible) ═══ */
+    React.createElement("div",{className:"sync-bar"},
+      sbIsConfigured()?[
+        React.createElement("div",{key:"dot",className:"sync-dot "+(syncIndicator.status==="pushing"||syncIndicator.status==="pulling"?"syncing":syncIndicator.online?"online":"offline")}),
+        React.createElement("span",{key:"net",style:{color:syncIndicator.online?"var(--sync-good)":"var(--sync-err)"}},syncIndicator.online?"Online":"Offline"),
+        cloudUser?React.createElement("span",{key:"usr",style:{color:"var(--sub)"}}," · "+cloudUser.email.split("@")[0]):React.createElement("span",{key:"out",style:{color:"var(--dim)"}}," · Signed out"),
+        syncIndicator.status==="pushing"&&React.createElement("span",{key:"push",style:{color:"var(--sync-warn)"}}," · Syncing..."),
+        syncIndicator.status==="pulling"&&React.createElement("span",{key:"pull",style:{color:"var(--sync-warn)"}}," · Pulling..."),
+        syncIndicator.status==="error"&&React.createElement("span",{key:"err",style:{color:"var(--sync-err)"}}," · Sync error"),
+        syncIndicator.lastSync&&React.createElement("span",{key:"ts",style:{color:"var(--dim)",marginLeft:4,fontSize:8}},""+new Date(syncIndicator.lastSync).toLocaleTimeString()),
+        cloudUser&&React.createElement("button",{key:"sync",onClick:function(){sbSyncNow(_buildPayload).catch(function(e){console.warn("[Sync]",e)})},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--sub)",fontFamily:"var(--f)",fontSize:8,minHeight:22}},"↻ Sync"),
+        !cloudUser&&React.createElement("button",{key:"signin",onClick:function(){setShowAuthModal(true)},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"Sign In")
+      ]:[
+        React.createElement("div",{key:"dot",className:"sync-dot offline"}),
+        React.createElement("span",{key:"msg",style:{color:"var(--dim)",fontSize:9}},"Cloud not configured"),
+        React.createElement("button",{key:"cfg",onClick:function(){setShowSettings(true)},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"Setup")
+      ]),
 
     /* HEADER */
-    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0",marginTop:(cloudUser||sbLoadConfig())?28:0}},
+    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0",marginTop:28}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
           React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
