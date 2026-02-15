@@ -3,6 +3,8 @@
    Offline queue for photos. Auto-sync with debounce. Merge with timestamps.
    Vite env var support: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY */
 
+import { createClient } from '@supabase/supabase-js';
+
 var _sb = null;
 var _sbConfig = null;
 var _syncState = { status: "idle", lastSync: null, error: null, online: navigator.onLine };
@@ -66,11 +68,7 @@ function clearConfig() {
 /* ── Client initialization ── */
 function initClient(url, anonKey) {
   if (!url || !anonKey) return null;
-  if (!window.supabase || !window.supabase.createClient) {
-    console.warn("[CloudSync] Supabase JS not loaded");
-    return null;
-  }
-  _sb = window.supabase.createClient(url, anonKey);
+  _sb = createClient(url, anonKey);
   _sbConfig = { url: url, anonKey: anonKey };
   return _sb;
 }

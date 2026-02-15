@@ -156,13 +156,9 @@ img[src*="R0lGODlhAQAB"]{background:linear-gradient(90deg,var(--card) 25%,var(--
 </head>
 <body>
 <div id="root"><div id="crash-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px;text-align:center;font-family:'DM Sans',sans-serif;color:#7a7484"><div style="font-size:40px;margin-bottom:16px">⌚</div><div style="font-size:14px;color:#e0dcd4;margin-bottom:8px">Loading Watch Advisor…</div><div style="font-size:10px;color:#4a4458;margin-bottom:24px">If this stays visible, the app failed to load.</div><button onclick="if(navigator.serviceWorker&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:'CLEAR_ALL_CACHES'})}else{window.location.href='./?v='+Date.now()}" style="background:none;border:1px solid rgba(200,90,58,0.4);border-radius:8px;padding:10px 20px;color:#c85a3a;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">💣 Force Update</button></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script type="module" src="app.js"></script>
-<!-- Supabase connection + auth test (remove after verifying) -->
-<script type="module" src="./src/test-connection.js"></script>
-<script type="module" src="./src/test-auth.js"></script>
 
 <script>
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('[WA] SW:',e)})}
