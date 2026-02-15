@@ -1,6 +1,7 @@
 /* ══════ supabase.js — Cloud Sync via Supabase (Auth + Snapshot DB + Storage) ══════ */
 /* Snapshot-based sync: single user_snapshots table with JSONB payload.
-   Offline queue for photos. Auto-sync with debounce. Merge with timestamps. */
+   Offline queue for photos. Auto-sync with debounce. Merge with timestamps.
+   Vite env var support: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY */
 
 var _sb = null;
 var _sbConfig = null;
@@ -8,6 +9,8 @@ var _syncState = { status: "idle", lastSync: null, error: null, online: navigato
 var _syncListeners = [];
 var _pushTimer = null;
 var _lastCloudPull = 0;
+var _isSyncing = false; /* guard against infinite sync loops */
+var _reconnectTimer = null;
 
 /* ── Sync state management ── */
 function getSyncState() { return Object.assign({}, _syncState); }
@@ -17,16 +20,39 @@ function _notifySync(patch) {
 }
 function onSyncChange(fn) { _syncListeners.push(fn); return function () { _syncListeners = _syncListeners.filter(function (f) { return f !== fn; }); }; }
 
-/* Track online/offline */
+/* Track online/offline + auto-sync on reconnect */
 if (typeof window !== "undefined") {
-  window.addEventListener("online", function () { _notifySync({ online: true }); _processPhotoQueue(); });
-  window.addEventListener("offline", function () { _notifySync({ online: false }); });
+  window.addEventListener("online", function () {
+    _notifySync({ online: true });
+    _processPhotoQueue();
+    /* Auto-sync on reconnect: debounce 2s to avoid rapid fire */
+    if (_reconnectTimer) clearTimeout(_reconnectTimer);
+    _reconnectTimer = setTimeout(function () {
+      _reconnectTimer = null;
+      syncNow().catch(function (e) { console.warn("[CloudSync] reconnect sync:", e); });
+    }, 2000);
+  });
+  window.addEventListener("offline", function () { _notifySync({ online: false, status: "offline" }); });
+}
+
+/* ── Vite env var support ── */
+/* Try Vite env vars first (import.meta.env), fall back to localStorage config */
+function _getEnvConfig() {
+  try {
+    var url = typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_SUPABASE_URL;
+    var key = typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (url && key) return { url: url, anonKey: key };
+  } catch (e) { /* not in Vite context */ }
+  return null;
 }
 
 /* ── Config persistence ── */
 var SB_CONFIG_KEY = "wa_supabase_config";
 
 function loadConfig() {
+  /* Vite env vars take priority */
+  var envCfg = _getEnvConfig();
+  if (envCfg) return envCfg;
   try { var raw = localStorage.getItem(SB_CONFIG_KEY); if (raw) return JSON.parse(raw); } catch (e) { /* ignore */ }
   return null;
 }
@@ -76,6 +102,7 @@ async function signIn(email, password) {
 async function signOut() {
   var sb = getClient();
   if (!sb) return;
+  cancelPush();
   await sb.auth.signOut();
   _notifySync({ status: "signed-out", lastSync: null, error: null });
 }
@@ -92,6 +119,18 @@ async function getUser() {
   return session ? session.user : null;
 }
 
+/* ── Auth state change listener ── */
+/* Registers a callback for auth state changes (sign in/out/token refresh).
+   Returns unsubscribe function. */
+function onAuthStateChange(callback) {
+  var sb = getClient();
+  if (!sb) return function () {};
+  var { data } = sb.auth.onAuthStateChange(function (event, session) {
+    callback(event, session);
+  });
+  return data && data.subscription ? function () { data.subscription.unsubscribe(); } : function () {};
+}
+
 /* ── Snapshot-based Data Sync ── */
 /* Table: user_snapshots
    - user_id uuid PK references auth.users(id)
@@ -105,6 +144,8 @@ async function pushSnapshot(payload) {
   if (!sb) throw new Error("Supabase not configured");
   var user = await getUser();
   if (!user) throw new Error("Not signed in");
+  if (_isSyncing) return; /* prevent re-entrant sync */
+  _isSyncing = true;
   _notifySync({ status: "pushing" });
   try {
     var { error } = await sb.from("user_snapshots").upsert({
@@ -118,6 +159,8 @@ async function pushSnapshot(payload) {
   } catch (e) {
     _notifySync({ status: "error", error: e.message });
     throw e;
+  } finally {
+    _isSyncing = false;
   }
 }
 
@@ -126,6 +169,8 @@ async function pullSnapshot() {
   if (!sb) throw new Error("Supabase not configured");
   var user = await getUser();
   if (!user) throw new Error("Not signed in");
+  if (_isSyncing) return null; /* prevent re-entrant sync */
+  _isSyncing = true;
   _notifySync({ status: "pulling" });
   try {
     var { data, error } = await sb.from("user_snapshots")
@@ -139,6 +184,32 @@ async function pullSnapshot() {
   } catch (e) {
     _notifySync({ status: "error", error: e.message });
     throw e;
+  } finally {
+    _isSyncing = false;
+  }
+}
+
+/* ── syncNow() — manual trigger for immediate push ── */
+/* Flushes any pending debounced payload immediately.
+   If no pending, pushes the last known payload if provided. */
+async function syncNow(payloadFn) {
+  /* Clear any pending debounced push */
+  if (_pushTimer) { clearTimeout(_pushTimer); _pushTimer = null; }
+  var payload = _pendingPayload;
+  _pendingPayload = null;
+  if (!payload && payloadFn) payload = payloadFn;
+  if (!payload) return;
+  payload = typeof payload === "function" ? payload() : payload;
+  if (!payload) return;
+  try {
+    var user = await getUser();
+    if (!user || !navigator.onLine) {
+      _notifySync({ status: navigator.onLine ? "idle" : "offline" });
+      return;
+    }
+    await pushSnapshot(payload);
+  } catch (e) {
+    console.warn("[CloudSync] syncNow failed:", e);
   }
 }
 
@@ -257,7 +328,7 @@ function schedulePush(payloadFn) {
     /* Only push if we have a session */
     getUser().then(function (user) {
       if (!user) return;
-      if (!navigator.onLine) { _notifySync({ status: "offline-queued" }); return; }
+      if (!navigator.onLine) { _notifySync({ status: "offline" }); return; }
       pushSnapshot(payload).catch(function (e) {
         console.warn("[CloudSync] auto-push failed:", e);
       });
@@ -525,8 +596,9 @@ export {
   loadConfig, saveConfig, clearConfig,
   initClient, getClient,
   signUp, signIn, signOut, getSession, getUser,
+  onAuthStateChange,
   pushSnapshot, pullSnapshot, mergePayloads,
-  schedulePush, cancelPush,
+  schedulePush, cancelPush, syncNow,
   getSyncState, onSyncChange,
   uploadPhoto, downloadPhoto, listPhotos,
   pushPhotos, pullPhotos,
