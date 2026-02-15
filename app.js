@@ -1514,11 +1514,10 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
             React.createElement("button",{onClick:async function(){
               if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
               if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
-              var email=recUser.trim().includes("@")?recUser.trim():recUser.trim()+"@watchadvisor.local";
               setCloudStatus("signing in...");
               try{
                 sbInitClient(sbUrl.trim(),sbKey.trim());
-                var d=await sbSignIn(email,recPass.trim());
+                var d=await sbSignIn(recUser.trim(),recPass.trim());
                 if(d.user){setCloudUser(d.user);setCloudStatus("signed in");showToast("Signed in as "+d.user.email,"var(--good)")}
               }catch(e){
                 setCloudStatus("error: "+e.message);showToast("Login failed: "+e.message,"var(--warn)",4000);
@@ -1527,11 +1526,10 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
             React.createElement("button",{onClick:async function(){
               if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
               if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
-              var email=recUser.trim().includes("@")?recUser.trim():recUser.trim()+"@watchadvisor.local";
               setCloudStatus("creating account...");
               try{
                 sbInitClient(sbUrl.trim(),sbKey.trim());
-                var d=await sbSignUp(email,recPass.trim());
+                var d=await sbSignUp(recUser.trim(),recPass.trim());
                 if(d.user){setCloudUser(d.user);setCloudStatus("account created");showToast("Account created for "+d.user.email,"var(--good)")}
               }catch(e){
                 setCloudStatus("error: "+e.message);showToast("Sign up failed: "+e.message,"var(--warn)",4000);
@@ -1642,11 +1640,10 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         authError&&React.createElement("div",{style:{background:"rgba(200,90,58,0.1)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:10,fontFamily:"var(--f)",color:"var(--warn)"}},authError),
         React.createElement("input",{className:"inp",type:"text",value:authUser,onChange:function(e){setAuthUser(e.target.value)},placeholder:"Username or email",autoComplete:"username"}),
         React.createElement("input",{className:"inp",type:"password",value:authPass,onChange:function(e){setAuthPass(e.target.value)},placeholder:"Password",autoComplete:authMode==="login"?"current-password":"new-password",onKeyDown:function(e){if(e.key==="Enter"){
-          var email=authUser.trim().includes("@")?authUser.trim():authUser.trim()+"@watchadvisor.local";
           setAuthLoading(true);setAuthError("");
           var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
           var fn=authMode==="login"?sbSignIn:sbSignUp;
-          fn(email,authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
+          fn(authUser.trim(),authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
             /* Auto-pull on login */
             sbPullSnapshot().then(function(cloud){if(cloud){var lp=_buildPayload();var merged=sbMerge(lp,cloud);_applyPayload(merged)}}).catch(function(e){console.warn("[CloudSync]",e)})
           }}).catch(function(e){setAuthError(e.message)}).finally(function(){setAuthLoading(false)})
@@ -1654,11 +1651,10 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         React.createElement("div",{className:"auth-actions"},
           React.createElement("button",{className:"btn "+(authMode==="login"?"btn-gold":"btn-ghost"),disabled:authLoading,style:{flex:1},onClick:function(){
             if(!authUser.trim()||!authPass.trim()){setAuthError("Enter username and password");return}
-            var email=authUser.trim().includes("@")?authUser.trim():authUser.trim()+"@watchadvisor.local";
             setAuthLoading(true);setAuthError("");
             var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
             var fn=authMode==="login"?sbSignIn:sbSignUp;
-            fn(email,authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
+            fn(authUser.trim(),authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
               sbPullSnapshot().then(function(cloud){if(cloud){var lp=_buildPayload();var merged=sbMerge(lp,cloud);_applyPayload(merged)}}).catch(function(e){console.warn("[CloudSync]",e)})
             }}).catch(function(e){setAuthError(e.message)}).finally(function(){setAuthLoading(false)})
           }},authLoading?"...":authMode==="login"?"Sign In":"Sign Up"),

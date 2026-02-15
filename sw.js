@@ -1,9 +1,10 @@
-const CACHE = "wa-v26.0";
+const CACHE = "wa-v26.1";
 const MODULES = [
   "./", "./index.html",
   "./app.js", "./data.js", "./engine.js",
   "./utils.js", "./ai.js", "./photos.js", "./crypto.js",
   "./supabase.js",
+  "./src/cloudSync.js", "./src/auth.js", "./src/photoQueue.js",
   "./manifest.json", "./icon-192.png", "./icon-512.png"
 ];
 

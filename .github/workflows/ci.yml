@@ -20,7 +20,7 @@ jobs:
 
       - name: Parse-check every JS module
         run: |
-          for f in app.js data.js engine.js utils.js ai.js photos.js crypto.js supabase.js sw.js; do
+          for f in app.js data.js engine.js utils.js ai.js photos.js crypto.js supabase.js sw.js src/cloudSync.js src/auth.js src/photoQueue.js; do
             node --check "$f" && echo "✅ $f" || { echo "❌ $f FAILED"; exit 1; }
           done
 
