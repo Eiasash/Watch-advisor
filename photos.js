@@ -14,6 +14,33 @@ async function preloadPhotos(items){var refs=[];for(var it of items){if(it.photo
 async function migrateToIDB(items,pfx){var ch=false;for(var it of items){if(it.photoUrl&&it.photoUrl.startsWith("data:")){it.photoUrl=await savePhoto(pfx+"_"+it.id,it.photoUrl);ch=true}if(it.straps)for(var j=0;j<it.straps.length;j++){if(it.straps[j].photoUrl&&it.straps[j].photoUrl.startsWith("data:")){it.straps[j].photoUrl=await savePhoto(pfx+"_"+it.id+"_s"+j,it.straps[j].photoUrl);ch=true}}}return ch}
 async function photoAsDataUrl(ref){if(!ref||!ref.startsWith("idb:"))return ref;try{var b=await idbGet(ref.slice(4));if(!b)return null;return new Promise(function(ok){var r=new FileReader();r.onload=function(){ok(r.result)};r.readAsDataURL(b)})}catch(e){return null}}
 
+/* ══════ ORIGINAL BLOB STORAGE ══════ */
+/* Stores original file blob in IDB without compression, keyed as "orig_" + key.
+   Used when user wants full-resolution offline cache + cloud upload. */
+async function saveOriginalBlob(key, blob) {
+  try {
+    var db = await idbOpen();
+    await new Promise(function (ok, no) {
+      var tx = db.transaction("imgs", "readwrite");
+      tx.objectStore("imgs").put(blob, "orig_" + key);
+      tx.oncomplete = function () { ok(); };
+      tx.onerror = function () { no(tx.error); };
+    });
+  } catch (e) { console.warn("[IDB] saveOriginalBlob:", e); }
+}
+
+async function getOriginalBlob(key) {
+  try {
+    var db = await idbOpen();
+    return new Promise(function (ok) {
+      var tx = db.transaction("imgs", "readonly");
+      var r = tx.objectStore("imgs").get("orig_" + key);
+      r.onsuccess = function () { ok(r.result || null); };
+      r.onerror = function () { ok(null); };
+    });
+  } catch (e) { return null; }
+}
+
 /* ══════ IMAGE COMPRESSION ══════ */
 /* ══════ PERCEPTUAL HASH (dHash 8×8) ══════ */
 function computeDHash(dataUrl){
@@ -98,5 +125,6 @@ function compressImage(dataUrl,maxDim,quality){
 export {
   idbOpen, idbPut, idbGet, d2b, savePhoto, ph, revokePhoto, revokeAllPhotos,
   preloadPhotos, migrateToIDB, photoAsDataUrl,
-  computeDHash, hammingDist, sampleDominantColor, compressImage
+  computeDHash, hammingDist, sampleDominantColor, compressImage,
+  saveOriginalBlob, getOriginalBlob
 };

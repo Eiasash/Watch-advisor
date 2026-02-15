@@ -31,7 +31,8 @@ import {
 import {
   savePhoto, ph, revokePhoto, revokeAllPhotos,
   preloadPhotos, migrateToIDB, photoAsDataUrl,
-  computeDHash, hammingDist, sampleDominantColor, compressImage
+  computeDHash, hammingDist, sampleDominantColor, compressImage,
+  saveOriginalBlob, getOriginalBlob
 } from './photos.js';
 
 import { encryptApiKey, decryptApiKey } from './crypto.js';
@@ -41,9 +42,13 @@ import {
   initClient as sbInitClient, getClient as sbGetClient,
   signUp as sbSignUp, signIn as sbSignIn, signOut as sbSignOut,
   getSession as sbGetSession, getUser as sbGetUser,
-  pushAllData as sbPushAll, pullAllData as sbPullAll,
+  pushSnapshot as sbPushSnapshot, pullSnapshot as sbPullSnapshot,
+  mergePayloads as sbMerge,
+  schedulePush as sbSchedulePush, cancelPush as sbCancelPush,
+  getSyncState as sbGetSyncState, onSyncChange as sbOnSyncChange,
   pushPhotos as sbPushPhotos, pullPhotos as sbPullPhotos,
-  uploadPhotoHighRes as sbUploadHiRes
+  uploadPhotoOriginal as sbUploadOriginal, queuePhotoUpload as sbQueuePhoto,
+  pushAllData as sbPushAll, pullAllData as sbPullAll
 } from './supabase.js';
 
 const{useState,useRef,useMemo,useEffect,useCallback,memo}=React;
@@ -415,6 +420,14 @@ function App(){
   const[cloudUser,setCloudUser]=useState(null);
   const[cloudStatus,setCloudStatus]=useState("");
   const[syncStatus,setSyncStatus]=useState("");
+  const[showAuthModal,setShowAuthModal]=useState(false);
+  const[authMode,setAuthMode]=useState("login"); /* "login"|"signup" */
+  const[authUser,setAuthUser]=useState("");
+  const[authPass,setAuthPass]=useState("");
+  const[authError,setAuthError]=useState("");
+  const[authLoading,setAuthLoading]=useState(false);
+  const[syncIndicator,setSyncIndicator]=useState(function(){return sbGetSyncState()});
+  const TEXT_SIZES=[{label:"90%",value:0.9},{label:"100%",value:1},{label:"110%",value:1.1},{label:"125%",value:1.25},{label:"140%",value:1.4}];
   const[showSettings,setShowSettings]=useState(false);
   const[forecast,setForecast]=useState([]);
   const[planDay,setPlanDay]=useState(0);
@@ -614,10 +627,12 @@ function App(){
 
   useEffect(function(){if(theme==="light")document.body.classList.add("light");else document.body.classList.remove("light");return function(){document.body.classList.remove("light")}},[theme]);
 
-  /* ── Accessibility: UI scale (Android-friendly). Stored in wa_uiscale ── */
+  /* ── Accessibility: UI scale via CSS variable (Android-friendly). Stored in wa_uiscale ── */
   useEffect(function(){
     try{ps("wa_uiscale",uiScale)}catch(e){}
     try{
+      document.documentElement.style.setProperty("--uiScale",String(uiScale));
+      /* Also set zoom as fallback for browsers that support it */
       var z=(uiScale&&uiScale!==1)?String(uiScale):"";
       document.documentElement.style.zoom=z;
     }catch(e){}
@@ -625,14 +640,25 @@ function App(){
 
   /* SW lifecycle: auto-reload when new SW takes over */
   useEffect(function(){if(!("serviceWorker" in navigator))return;var reloading=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(!reloading){reloading=true;window.location.reload()}});navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.type==="SW_ACTIVATED"){console.log("[WA] New SW active:",e.data.cache)}if(e.data&&e.data.type==="CACHES_CLEARED"){window.location.reload()}})},[]);
-  /* Cloud Sync: check for existing session on mount */
-  useEffect(function(){(async function(){try{var cfg=sbLoadConfig();if(!cfg||!cfg.url||!cfg.anonKey)return;sbInitClient(cfg.url,cfg.anonKey);var session=await sbGetSession();if(session&&session.user){setCloudUser(session.user);setCloudStatus("signed in as "+session.user.email)}}catch(e){console.warn("[CloudSync] session check:",e)}})()},[]);
-  /* Cloud Sync: upload original-quality photo in background when signed in */
+  /* Cloud Sync: check for existing session on mount + subscribe to sync state */
+  useEffect(function(){
+    var unsub=sbOnSyncChange(function(state){setSyncIndicator(Object.assign({},state))});
+    (async function(){try{var cfg=sbLoadConfig();if(!cfg||!cfg.url||!cfg.anonKey)return;sbInitClient(cfg.url,cfg.anonKey);var session=await sbGetSession();if(session&&session.user){setCloudUser(session.user);setCloudStatus("signed in as "+session.user.email);
+      /* Auto-pull on login if session exists */
+      try{var cloud=await sbPullSnapshot();if(cloud){var localPayload=_buildPayload();var merged=sbMerge(localPayload,cloud);_applyPayload(merged)}}catch(pe){console.warn("[CloudSync] auto-pull:",pe)}
+    }}catch(e){console.warn("[CloudSync] session check:",e)}}
+    )();
+    return unsub;
+  },[]);
+  /* Cloud Sync: upload original-quality photo in background when signed in.
+     Also saves original blob to IDB for offline cache. */
   const cloudUploadPhoto=useCallback(function(photoKey,fileOrBlob){
-    if(!cloudUser)return;var cfg=sbLoadConfig();if(!cfg)return;
-    var bucket=cfg.bucket||"photos";
-    sbUploadHiRes(photoKey,fileOrBlob,bucket).catch(function(e){console.warn("[CloudSync] hi-res upload:",e)});
-  },[cloudUser]);
+    /* Always save original blob locally for offline use */
+    saveOriginalBlob(photoKey,fileOrBlob).catch(function(e){console.warn("[IDB] orig save:",e)});
+    /* Upload to cloud (queues if offline) */
+    var cfg=sbLoadConfig();var bucket=cfg&&cfg.bucket?cfg.bucket:"photos";
+    sbUploadOriginal(photoKey,fileOrBlob,bucket).catch(function(e){console.warn("[CloudSync] upload:",e)});
+  },[]);
   useEffect(function(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition(function(p){setLoc({lat:p.coords.latitude,lon:p.coords.longitude,name:"Your Location"})},function(err){setLoc({lat:31.7683,lon:35.2137,name:"Jerusalem (default)"})},{timeout:8000,maximumAge:300000})}catch(e){console.warn("[WA]",e)}},[]);
   useEffect(function(){(async function(){try{var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,apparent_temperature,wind_speed_10m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code,precipitation_probability_max,uv_index_max,wind_speed_10m_max&timezone=auto&forecast_days=7");var d=await r.json();if(d.current){var cwmo=getWMO(d.current.weather_code);setWx({temp:Math.round(d.current.temperature_2m),feels:Math.round(d.current.apparent_temperature),wind:Math.round(d.current.wind_speed_10m),hum:d.current.relative_humidity_2m,code:d.current.weather_code,cond:cwmo})}if(d.daily&&d.daily.time)setForecast(d.daily.time.map(function(dt,i){var wmo=getWMO(d.daily.weather_code?d.daily.weather_code[i]:0);return{date:dt,high:Math.round(d.daily.temperature_2m_max[i]),low:Math.round(d.daily.temperature_2m_min[i]),feelsHigh:Math.round(d.daily.apparent_temperature_max[i]),feelsLow:Math.round(d.daily.apparent_temperature_min[i]),feelsAvg:Math.round((d.daily.apparent_temperature_max[i]+d.daily.apparent_temperature_min[i])/2),code:d.daily.weather_code?d.daily.weather_code[i]:0,cond:wmo,rainPct:d.daily.precipitation_probability_max?d.daily.precipitation_probability_max[i]:0,uv:d.daily.uv_index_max?Math.round(d.daily.uv_index_max[i]):0,wind:d.daily.wind_speed_10m_max?Math.round(d.daily.wind_speed_10m_max[i]):0}}))}catch(e){console.error("Weather fetch failed:",e);setWxErr(true)}})()},[loc]);
 
@@ -725,6 +751,33 @@ function App(){
     });
     return unique;
   },[W]);
+
+  /* ═══ PAYLOAD HELPERS for cloud sync ═══ */
+  const _buildPayload=useCallback(function(){
+    return{watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme,strapLog:strapLog,_weekCtxUpdated:Date.now(),_userCxUpdated:Date.now(),_rotLockUpdated:Date.now(),_themeUpdated:Date.now(),_version:(Date.now())}
+  },[W,wd,saved,wearLog,weekCtx,userCx,rotLock,selfieHistory,theme,strapLog]);
+
+  const _applyPayload=useCallback(function(payload){
+    if(!payload)return;
+    try{
+      if(payload.watches&&Array.isArray(payload.watches)){var mw=payload.watches.filter(function(w){return w&&w.id&&w.n}).map(migrateStraps);if(mw.length){setW(mw);ps("w_"+SK,mw)}}
+      if(payload.wardrobe&&Array.isArray(payload.wardrobe)){var vwd=payload.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd)}}
+      if(payload.outfits&&Array.isArray(payload.outfits)){setSaved(payload.outfits);ps("of_"+SK,payload.outfits)}
+      if(payload.wearLog&&Array.isArray(payload.wearLog)){var vwl=payload.wearLog.filter(function(e2){return e2&&e2.date&&e2.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl)}
+      if(payload.weekCtx&&Array.isArray(payload.weekCtx)&&payload.weekCtx.length===7){setWeekCtx(payload.weekCtx);ps("wa_weekctx",payload.weekCtx)}
+      if(payload.userCx&&Array.isArray(payload.userCx)){setUserCx(payload.userCx);ps("wa_usercx_"+SK,payload.userCx)}
+      if(payload.rotLock&&Array.isArray(payload.rotLock)){setRotLock(payload.rotLock);ps("wa_rotlock_"+SK,payload.rotLock)}
+      if(payload.selfieHistory&&Array.isArray(payload.selfieHistory)){setSelfieHistory(payload.selfieHistory);ps("wa_selfie_"+SK,payload.selfieHistory)}
+      if(payload.strapLog&&Array.isArray(payload.strapLog)){setStrapLog(payload.strapLog);ps("wa_strap_log",payload.strapLog)}
+      if(payload.theme){setTheme(payload.theme);ps("wa_theme",payload.theme)}
+    }catch(e){console.warn("[CloudSync] apply payload error:",e)}
+  },[ps]);
+
+  /* ═══ AUTO-SYNC: schedule push on every local state change ═══ */
+  useEffect(function(){
+    if(!cloudUser)return;
+    sbSchedulePush(function(){return{watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme,strapLog:strapLog,_weekCtxUpdated:Date.now(),_userCxUpdated:Date.now(),_rotLockUpdated:Date.now(),_themeUpdated:Date.now(),_version:Date.now()}});
+  },[W,wd,saved,wearLog,weekCtx,userCx,rotLock,selfieHistory,theme,strapLog,cloudUser]);
 
   const saveAll=useCallback(async function(){
     try{
@@ -1354,17 +1407,14 @@ function App(){
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:"var(--dim)",margin:"0 0 6px"}},"Cost: ~$0.01 per photo (Sonnet vision)"),
         React.createElement("p",{style:{fontSize:10,fontFamily:"var(--f)",color:apiKey?"var(--good)":"var(--warn)",margin:0,fontWeight:500}},apiKey?"✓ Key configured — AI classification active":"✗ No key — manual classification only outside Claude.ai")),
             React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
-        React.createElement("label",{className:"lbl"},"Accessibility"),
-        React.createElement("div",{style:{fontSize:11,color:"var(--sub)",margin:"6px 0 10px"}},"UI / font scale (helps on small Android screens)."),
+        React.createElement("label",{className:"lbl"},"Text Size"),
+        React.createElement("div",{style:{fontSize:11,color:"var(--sub)",margin:"6px 0 10px"}},"Scale text and spacing for readability. Pinch-zoom is also enabled."),
+        React.createElement("div",{style:{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}},
+          TEXT_SIZES.map(function(ts){return React.createElement("button",{key:ts.value,className:"text-size-btn"+(uiScale===ts.value?" active":""),onClick:function(){setUiScale(ts.value)}},ts.label)})),
         React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-          React.createElement("span",{style:{fontSize:11,color:"var(--sub)",minWidth:70}},"Size"),
+          React.createElement("span",{style:{fontSize:11,color:"var(--sub)",minWidth:50}},"Custom"),
           React.createElement("input",{type:"range",min:0.85,max:1.6,step:0.05,value:uiScale,onChange:function(e){setUiScale(parseFloat(e.target.value)||1)},style:{flex:1}}),
-          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--mono)",minWidth:52,textAlign:"right"}},Math.round(uiScale*100)+"%")
-        ),
-        React.createElement("div",{style:{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}},
-          React.createElement("button",{className:"btn btn-ghost",onClick:function(){setUiScale(1)}},"Reset"),
-          React.createElement("div",{style:{fontSize:10,color:"var(--dim)",alignSelf:"center"}},"Pinch-zoom is enabled too.")
-        )
+          React.createElement("span",{style:{fontSize:11,fontFamily:"var(--mono)",minWidth:52,textAlign:"right"}},Math.round(uiScale*100)+"%"))
       ),
 
 React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)"}},
@@ -1389,7 +1439,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
             if(!recUser.trim()||!recPass.trim()){showToast("Enter username and password first","var(--warn)");return}
             setRecStatus("encrypting...");
             try{
-              var data=JSON.stringify({version:"v25.9",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
+              var data=JSON.stringify({version:"v26.0",user:recUser.trim(),ts:Date.now(),watches:W,wardrobe:wd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});
               var encrypted=await encryptData(data,recUser.trim()+"::"+recPass.trim());
               var blob=new Blob([encrypted],{type:"application/octet-stream"});
               var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-"+recUser.trim()+".wabackup";a.click();
@@ -1530,12 +1580,12 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         (cloudStatus||syncStatus)&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:(cloudStatus+syncStatus).includes("error")?"var(--warn)":"var(--sub)",marginBottom:6,fontWeight:500}},syncStatus||cloudStatus),
 
         React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:0,border:"1px solid var(--border)"}},
-          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"Requires your own Supabase project (free tier works). See SUPABASE_SETUP.md for instructions. Data is stored per-user with Row Level Security."))),
+          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"Requires your own Supabase project (free tier works). See README.md for instructions. Data is stored per-user with Row Level Security."))),
 
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
         React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}},
-          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.9",watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}catch(e){console.error("[Export]",e)}}},"‍📤 Export"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v26.0",watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watch-advisor-backup.json";a.click()}catch(e){console.error("[Export]",e)}}},"‍📤 Export"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(typeof d!=="object"||d===null||Array.isArray(d)){showToast("Invalid backup file: expected JSON object","var(--warn)",3000);return}var imported=[];if(d.watches&&Array.isArray(d.watches)){var valid=d.watches.filter(function(w){return w&&typeof w==="object"&&w.id&&w.n});if(valid.length){var mw=valid.map(migrateStraps);setW(mw);ps("w_"+SK,mw);imported.push(valid.length+" watches")}}if(d.wardrobe&&Array.isArray(d.wardrobe)){var vwd=d.wardrobe.filter(function(i){return i&&typeof i==="object"&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}if(d.outfits&&Array.isArray(d.outfits)){setSaved(d.outfits);ps("of_"+SK,d.outfits);imported.push(d.outfits.length+" outfits")}if(d.wearLog&&Array.isArray(d.wearLog)){var vwl=d.wearLog.filter(function(e){return e&&e.date&&e.watchId});setWearLog(vwl);ps("wa_wearlog_"+SK,vwl);imported.push(vwl.length+" wear logs")}if(d.weekCtx&&Array.isArray(d.weekCtx)&&d.weekCtx.length===7){setWeekCtx(d.weekCtx);ps("wa_weekctx",d.weekCtx)}if(d.userCx&&Array.isArray(d.userCx)&&d.userCx.length){setUserCx(d.userCx);ps("wa_usercx_"+SK,d.userCx)}if(d.rotLock&&Array.isArray(d.rotLock)){setRotLock(d.rotLock);ps("wa_rotlock_"+SK,d.rotLock)}if(d.selfieHistory&&Array.isArray(d.selfieHistory)){setSelfieHistory(d.selfieHistory);ps("wa_selfie_"+SK,d.selfieHistory);imported.push(d.selfieHistory.length+" selfie checks")}if(d.theme&&(d.theme==="dark"||d.theme==="light")){setTheme(d.theme);ps("wa_theme",d.theme)}showToast(imported.length?"✅ Imported: "+imported.join(", "):"No valid data found in file",imported.length?"var(--good)":"var(--warn)",3500)}catch(e){showToast("Invalid file: "+String(e.message||e).slice(0,100),"var(--warn)",3500)}};r.readAsText(f)};inp.click()}},"📥 Import"),
           React.createElement("button",{className:"btn btn-ghost",style:{flex:1,fontSize:11,padding:"10px 14px",minHeight:40},onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".md,.txt";inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var parsed=parseWatchLog(r.result,W);if(parsed&&parsed.length){setW(parsed);ps("w_"+SK,parsed);showToast("✅ Imported "+parsed.length+" watches from markdown!","var(--good)",3000)}else{showToast("No watches found in file","var(--warn)",3000)}}catch(ex){console.error(ex);showToast("Parse error: "+ex.message,"var(--warn)",3000)}};r.readAsText(f)};inp.click()}},"📄 Import .md")))),
 
@@ -1544,7 +1594,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
     React.createElement("div",{style:{position:"fixed",bottom:20,right:16,zIndex:89,pointerEvents:"none",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}},
     React.createElement("button",{onClick:function(){setShowQuickWear(!showQuickWear)},style:{pointerEvents:"auto",width:44,height:44,borderRadius:"50%",background:todayWorn?"linear-gradient(135deg,var(--good),#5a9e5a)":"linear-gradient(135deg,#7ab8d8,#5a8eae)",border:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.25)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff",transition:"transform .15s"},title:todayWorn?"Change today's watch":"Log today's watch"},todayWorn?"✓":"⌚"),
     React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",pointerEvents:"auto"}},
-      React.createElement("button",{onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v25.9",ts:Date.now(),watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}catch(e){console.error("[Export]",e)}},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",},title:"Quick backup (JSON)"},"📤"),
+      React.createElement("button",{onClick:async function(){try{var ew=JSON.parse(JSON.stringify(W)),ewd=JSON.parse(JSON.stringify(wd));for(var it of ewd){if(it.photoUrl&&it.photoUrl.startsWith("idb:"))it.photoUrl=await photoAsDataUrl(it.photoUrl)||null}for(var w of ew){if(w.photoUrl&&w.photoUrl.startsWith("idb:"))w.photoUrl=await photoAsDataUrl(w.photoUrl)||null;if(w.straps)for(var s of w.straps){if(s.photoUrl&&s.photoUrl.startsWith("idb:"))s.photoUrl=await photoAsDataUrl(s.photoUrl)||null}}var data=JSON.stringify({version:"v26.0",ts:Date.now(),watches:ew,wardrobe:ewd,outfits:saved,wearLog:wearLog,weekCtx:weekCtx,userCx:userCx,rotLock:rotLock,selfieHistory:selfieHistory,theme:theme});var blob=new Blob([data],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wa-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}catch(e){console.error("[Export]",e)}},style:{width:36,height:36,borderRadius:"50%",background:"var(--card)",border:"1px solid var(--border)",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--dim)",transition:"transform .15s",},title:"Quick backup (JSON)"},"📤"),
     React.createElement("button",{onClick:saveAll,"aria-label":"Save all changes",style:{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),#a8882a)",border:"none",boxShadow:"0 4px 16px rgba(201,168,76,0.35)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"var(--bg)",transition:"transform .15s"}},"💾"))),
     /* Quick Wear FAB */
     
@@ -1583,8 +1633,51 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
       React.createElement("button",{onClick:undoDeleteFn,style:{background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:8,padding:"6px 16px",cursor:"pointer",color:"#fff",fontFamily:"var(--f)",fontSize:12,fontWeight:700,minHeight:30}},"↩ Undo"),
       React.createElement("button",{onClick:function(){if(undoTimerRef.current){clearTimeout(undoTimerRef.current);undoTimerRef.current=null}setUndoDelete(null)},style:{background:"none",border:"none",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",padding:"4px"}},"✕")),
 
+    /* ═══ AUTH MODAL ═══ */
+    showAuthModal&&React.createElement("div",{className:"auth-modal",onClick:function(e){if(e.target===e.currentTarget)setShowAuthModal(false)}},
+      React.createElement("div",{className:"auth-card"},
+        React.createElement("div",{style:{fontSize:36,textAlign:"center",marginBottom:8}},"⌚"),
+        React.createElement("h2",null,authMode==="login"?"Sign In":"Create Account"),
+        React.createElement("div",{className:"auth-sub"},authMode==="login"?"Sign in to sync across devices":"Create an account to enable cloud sync"),
+        authError&&React.createElement("div",{style:{background:"rgba(200,90,58,0.1)",border:"1px solid rgba(200,90,58,0.3)",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:10,fontFamily:"var(--f)",color:"var(--warn)"}},authError),
+        React.createElement("input",{className:"inp",type:"text",value:authUser,onChange:function(e){setAuthUser(e.target.value)},placeholder:"Username or email",autoComplete:"username"}),
+        React.createElement("input",{className:"inp",type:"password",value:authPass,onChange:function(e){setAuthPass(e.target.value)},placeholder:"Password",autoComplete:authMode==="login"?"current-password":"new-password",onKeyDown:function(e){if(e.key==="Enter"){
+          var email=authUser.trim().includes("@")?authUser.trim():authUser.trim()+"@watchadvisor.local";
+          setAuthLoading(true);setAuthError("");
+          var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
+          var fn=authMode==="login"?sbSignIn:sbSignUp;
+          fn(email,authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
+            /* Auto-pull on login */
+            sbPullSnapshot().then(function(cloud){if(cloud){var lp=_buildPayload();var merged=sbMerge(lp,cloud);_applyPayload(merged)}}).catch(function(e){console.warn("[CloudSync]",e)})
+          }}).catch(function(e){setAuthError(e.message)}).finally(function(){setAuthLoading(false)})
+        }}}),
+        React.createElement("div",{className:"auth-actions"},
+          React.createElement("button",{className:"btn "+(authMode==="login"?"btn-gold":"btn-ghost"),disabled:authLoading,style:{flex:1},onClick:function(){
+            if(!authUser.trim()||!authPass.trim()){setAuthError("Enter username and password");return}
+            var email=authUser.trim().includes("@")?authUser.trim():authUser.trim()+"@watchadvisor.local";
+            setAuthLoading(true);setAuthError("");
+            var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
+            var fn=authMode==="login"?sbSignIn:sbSignUp;
+            fn(email,authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
+              sbPullSnapshot().then(function(cloud){if(cloud){var lp=_buildPayload();var merged=sbMerge(lp,cloud);_applyPayload(merged)}}).catch(function(e){console.warn("[CloudSync]",e)})
+            }}).catch(function(e){setAuthError(e.message)}).finally(function(){setAuthLoading(false)})
+          }},authLoading?"...":authMode==="login"?"Sign In":"Sign Up"),
+          React.createElement("button",{className:"btn btn-ghost",style:{flex:1},onClick:function(){setAuthMode(authMode==="login"?"signup":"login");setAuthError("")}},authMode==="login"?"Create Account":"Back to Login")),
+        React.createElement("button",{onClick:function(){setShowAuthModal(false)},style:{width:"100%",marginTop:10,background:"none",border:"none",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:11,padding:"8px"}},"Cancel"))),
+
+    /* ═══ SYNC STATUS BAR ═══ */
+    (cloudUser||sbLoadConfig())&&React.createElement("div",{className:"sync-bar"},
+      React.createElement("div",{className:"sync-dot "+(syncIndicator.online?"online":"offline")}),
+      React.createElement("span",{style:{color:syncIndicator.online?"var(--sync-good)":"var(--sync-err)"}},syncIndicator.online?"Online":"Offline"),
+      cloudUser?React.createElement("span",{style:{color:"var(--sub)"}}," · "+cloudUser.email.split("@")[0]):React.createElement("span",{style:{color:"var(--dim)"}}," · Signed out"),
+      syncIndicator.status==="pushing"&&React.createElement("span",{style:{color:"var(--sync-warn)"}}," · Syncing..."),
+      syncIndicator.status==="pulling"&&React.createElement("span",{style:{color:"var(--sync-warn)"}}," · Pulling..."),
+      syncIndicator.status==="error"&&React.createElement("span",{style:{color:"var(--sync-err)"}}," · Error"),
+      syncIndicator.lastSync&&React.createElement("span",{style:{color:"var(--dim)",marginLeft:"auto"}},"Last sync: "+new Date(syncIndicator.lastSync).toLocaleTimeString()),
+      !cloudUser&&React.createElement("button",{onClick:function(){setShowAuthModal(true)},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"Sign In")),
+
     /* HEADER */
-    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0"}},
+    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0",marginTop:(cloudUser||sbLoadConfig())?28:0}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
           React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
@@ -1594,12 +1687,13 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
             canGoFwd&&React.createElement("button",{onClick:navFwd,style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"var(--gold)",fontSize:14,minHeight:32,transition:"all .2s cubic-bezier(.22,.68,0,1)",opacity:1},title:"Forward"},"›")),
           React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},
             React.createElement("button",{className:"theme-toggle",onClick:function(){var nt=theme==="dark"?"light":"dark";setTheme(nt);ps("wa_theme",nt)},title:theme==="dark"?"Switch to Day mode":"Switch to Night mode"},theme==="dark"?"☀️":"🌙"),
+            cloudUser?React.createElement("button",{onClick:async function(){try{await sbSignOut();setCloudUser(null);setCloudStatus("");showToast("Signed out","var(--good)")}catch(e){showToast("Sign out error: "+e.message,"var(--warn)")}},style:{background:"none",border:"1px solid rgba(122,184,122,0.3)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--good)",fontSize:11,fontFamily:"var(--f)",minHeight:32},title:"Sign out"},"👤"):sbLoadConfig()&&React.createElement("button",{onClick:function(){setShowAuthModal(true)},style:{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--dim)",fontSize:11,fontFamily:"var(--f)",minHeight:32},title:"Sign in"},"👤"),
             React.createElement("button",{onClick:function(){setShowSettings(true)},style:{background:"none",border:"1px solid "+(apiKey?"rgba(122,184,122,0.3)":"var(--border)"),borderRadius:8,padding:"6px 10px",cursor:"pointer",color:apiKey?"var(--good)":"var(--dim)",fontSize:14,minHeight:32}},apiKey?"🔑":"⚙️"))),
         React.createElement("div",{role:"tablist",style:{display:"flex",gap:0,marginTop:6},className:"hscroll"},
           [{id:"today",l:"📅 TODAY",c:0},{id:"wardrobe",l:"👕 CLOSET",c:wd.length},{id:"fits",l:"✨ FITS",c:0},{id:"insights",l:"🔮 INSIGHTS",c:0},{id:"watches",l:"⌚ WATCHES",c:actW.length},{id:"saved",l:"💾 SAVED",c:saved.length}].map(function(t){
             return React.createElement("button",{key:t.id,role:"tab","aria-selected":view===t.id&&!selFit,onClick:function(){if(view!==t.id||selFit)navTo(t.id,null)},style:{background:"none",border:"none",borderBottom:view===t.id&&!selFit?"2px solid var(--gold)":"2px solid transparent",color:view===t.id&&!selFit?"var(--gold)":"var(--dim)",padding:"10px 14px",fontFamily:"var(--f)",fontSize:10,fontWeight:500,letterSpacing:"0.1em",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}},
               t.l+(t.c>0?" "+t.c:""))})),
-        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("button",{onClick:function(){if("serviceWorker" in navigator&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:"CLEAR_ALL_CACHES"})}else{window.location.href="./?v="+Date.now()}},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:8}},"💣 Force"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v25.9")))),
+        React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginTop:2,paddingBottom:2}},React.createElement("button",{onClick:function(){if("serviceWorker" in navigator){navigator.serviceWorker.getRegistration().then(function(reg){if(reg){reg.update().then(function(){if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});window.location.reload()}else{window.location.reload()}}).catch(function(){window.location.reload()})}else{window.location.reload()}})}else{window.location.reload()}},style:{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:8}},"🔄 Update"),React.createElement("button",{onClick:function(){if("serviceWorker" in navigator&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:"CLEAR_ALL_CACHES"})}else{window.location.href="./?v="+Date.now()}},style:{background:"none",border:"1px solid rgba(200,90,58,0.3)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"var(--warn)",fontFamily:"var(--f)",fontSize:8}},"💣 Force"),React.createElement("span",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)"}},"v26.0")))),
 
     React.createElement("div",{ref:mainRef,style:{maxWidth:860,margin:"0 auto",padding:"0 16px"}},
 
