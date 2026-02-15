@@ -131,6 +131,33 @@ function onAuthStateChange(callback) {
   return data && data.subscription ? function () { data.subscription.unsubscribe(); } : function () {};
 }
 
+/* ── Snapshot payload normalization ── */
+/* Guarantees a safe default shape so callers never crash on missing fields.
+   Always returns an object with at least: watches[], wardrobe[], outfits[],
+   wearLog[], strapLog[], selfieHistory[], weekCtx (7-element), userCx[],
+   rotLock[], theme {}, and numeric _version. Preserves any existing fields. */
+function normalizeSnapshotPayload(p) {
+  if (!p || typeof p !== "object" || Array.isArray(p)) p = {};
+  var out = Object.assign({}, p);
+  /* Array collections — default to [] */
+  if (!Array.isArray(out.watches))       out.watches = [];
+  if (!Array.isArray(out.wardrobe))      out.wardrobe = [];
+  if (!Array.isArray(out.outfits))       out.outfits = [];
+  if (!Array.isArray(out.wearLog))       out.wearLog = [];
+  if (!Array.isArray(out.strapLog))      out.strapLog = [];
+  if (!Array.isArray(out.selfieHistory)) out.selfieHistory = [];
+  if (!Array.isArray(out.userCx))        out.userCx = [];
+  if (!Array.isArray(out.rotLock))       out.rotLock = [];
+  /* weekCtx must be a 7-element array */
+  if (!Array.isArray(out.weekCtx) || out.weekCtx.length !== 7)
+    out.weekCtx = out.weekCtx && Array.isArray(out.weekCtx) ? out.weekCtx : [];
+  /* theme defaults to empty object */
+  if (!out.theme || typeof out.theme !== "object") out.theme = {};
+  /* version defaults */
+  if (typeof out._version !== "number" || !isFinite(out._version)) out._version = 1;
+  return out;
+}
+
 /* ── Snapshot-based Data Sync ── */
 /* Table: user_snapshots
    - user_id uuid PK references auth.users(id)
@@ -180,7 +207,11 @@ async function pullSnapshot() {
     if (error) throw error;
     _lastCloudPull = Date.now();
     _notifySync({ status: "idle", lastSync: Date.now(), error: null });
-    return data ? data.payload : null;
+    if (!data) {
+      console.info("[CloudSync] No cloud snapshot yet");
+      return null;
+    }
+    return normalizeSnapshotPayload(data.payload);
   } catch (e) {
     _notifySync({ status: "error", error: e.message });
     throw e;
@@ -253,8 +284,8 @@ function _mergeLogsBySignature(local, cloud, sigFn) {
 }
 
 function mergePayloads(local, cloud) {
-  if (!cloud) return local;
-  if (!local) return cloud;
+  local = normalizeSnapshotPayload(local);
+  cloud = normalizeSnapshotPayload(cloud);
   var merged = {};
 
   /* Watches: merge by id */
@@ -598,6 +629,7 @@ export {
   signUp, signIn, signOut, getSession, getUser,
   onAuthStateChange,
   pushSnapshot, pullSnapshot, mergePayloads,
+  normalizeSnapshotPayload,
   schedulePush, cancelPush, syncNow,
   getSyncState, onSyncChange,
   uploadPhoto, downloadPhoto, listPhotos,

@@ -1568,6 +1568,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
             setSyncStatus("pulling data...");
             try{
               var cloud=await sbPullAll();
+              if(!cloud){setSyncStatus("");showToast("No cloud snapshot yet — push first to create one","var(--sub)",3000);return}
               var imported=[];
               if(cloud.watches&&Array.isArray(cloud.watches)){var mw=cloud.watches.filter(function(w){return w&&w.id&&w.n}).map(migrateStraps);if(mw.length){setW(mw);ps("w_"+SK,mw);imported.push(mw.length+" watches")}}
               if(cloud.wardrobe&&Array.isArray(cloud.wardrobe)){var vwd=cloud.wardrobe.filter(function(i){return i&&i.id});if(vwd.length){setWd(vwd);ps("wd_"+SK,vwd);imported.push(vwd.length+" wardrobe items")}}
@@ -1578,13 +1579,13 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
               if(cloud.rotLock&&Array.isArray(cloud.rotLock)){setRotLock(cloud.rotLock);ps("wa_rotlock_"+SK,cloud.rotLock)}
               if(cloud.selfieHistory&&Array.isArray(cloud.selfieHistory)){setSelfieHistory(cloud.selfieHistory);ps("wa_selfie_"+SK,cloud.selfieHistory);imported.push(cloud.selfieHistory.length+" selfies")}
               if(cloud.strapLog&&Array.isArray(cloud.strapLog)){setStrapLog(cloud.strapLog);ps("wa_strap_log",cloud.strapLog)}
-              if(cloud.theme){setTheme(cloud.theme);ps("wa_theme",cloud.theme)}
+              if(cloud.theme&&typeof cloud.theme==="object"&&Object.keys(cloud.theme).length){setTheme(cloud.theme);ps("wa_theme",cloud.theme)}
               /* Pull photos */
               setSyncStatus("pulling photos...");
               var allItems=[].concat(cloud.watches||[],cloud.wardrobe||[]);
               var bucket=sbBucket.trim()||"photos";
               var photoCount=await sbPullPhotos(allItems,bucket,function(done,total){setSyncStatus("photos "+done+"/"+total+"...")});
-              setSyncStatus("");showToast("Pulled from cloud: "+imported.join(", ")+(photoCount?" + "+photoCount+" photos":""),"var(--good)",4000);
+              setSyncStatus("");showToast("Pulled from cloud: "+(imported.length?imported.join(", "):"empty snapshot")+(photoCount?" + "+photoCount+" photos":""),"var(--good)",4000);
             }catch(e){setSyncStatus("pull error: "+e.message);showToast("Pull failed: "+e.message,"var(--warn)",4000)}
           },style:{flex:1,background:"rgba(122,184,122,0.08)",border:"1px solid rgba(122,184,122,0.25)",borderRadius:8,padding:"10px",cursor:"pointer",color:"var(--good)",fontFamily:"var(--f)",fontSize:11,fontWeight:600,minHeight:36}},"⬇️ Pull from Cloud")),
 
