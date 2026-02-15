@@ -136,7 +136,7 @@ function onAuthStateChange(callback) {
    - user_id uuid PK references auth.users(id)
    - payload jsonb not null
    - updated_at timestamptz not null default now()
-   - version int not null default 1
+   - version bigint not null default 1
 */
 
 async function pushSnapshot(payload) {
