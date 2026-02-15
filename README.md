@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS user_snapshots (
   user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   payload    jsonb NOT NULL DEFAULT '{}'::jsonb,
   updated_at timestamptz NOT NULL DEFAULT now(),
-  version    int NOT NULL DEFAULT 1
+  version    bigint NOT NULL DEFAULT 1
 );
 
 -- Enable Row Level Security
