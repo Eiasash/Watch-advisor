@@ -38,6 +38,7 @@ import {
 import { encryptApiKey, decryptApiKey } from './crypto.js';
 
 import {
+  SB_DEFAULT_URL, SB_DEFAULT_KEY,
   loadConfig as sbLoadConfig, saveConfig as sbSaveConfig, clearConfig as sbClearConfig,
   initClient as sbInitClient, getClient as sbGetClient,
   signUp as sbSignUp, signIn as sbSignIn, signOut as sbSignOut,
@@ -414,9 +415,9 @@ function App(){
   const[recPass,setRecPass]=useState("");
   const[recStatus,setRecStatus]=useState("");
   /* ── Cloud Sync state ── */
-  const[sbUrl,setSbUrl]=useState(function(){var c=sbLoadConfig();return c?c.url:""});
-  const[sbKey,setSbKey]=useState(function(){var c=sbLoadConfig();return c?c.anonKey:""});
-  const[sbBucket,setSbBucket]=useState(function(){var c=sbLoadConfig();return c&&c.bucket?c.bucket:"photos"});
+  const[sbUrl,setSbUrl]=useState(function(){var c=sbLoadConfig();return(c&&c.url)||SB_DEFAULT_URL});
+  const[sbKey,setSbKey]=useState(function(){var c=sbLoadConfig();return(c&&c.anonKey)||SB_DEFAULT_KEY});
+  const[sbBucket,setSbBucket]=useState(function(){var c=sbLoadConfig();return(c&&c.bucket)||"photos"});
   const[cloudUser,setCloudUser]=useState(null);
   const[cloudStatus,setCloudStatus]=useState("");
   const[syncStatus,setSyncStatus]=useState("");
@@ -643,7 +644,7 @@ function App(){
   /* Cloud Sync: check for existing session on mount + subscribe to sync state */
   useEffect(function(){
     var unsub=sbOnSyncChange(function(state){setSyncIndicator(Object.assign({},state))});
-    (async function(){try{var cfg=sbLoadConfig();if(!cfg||!cfg.url||!cfg.anonKey)return;sbInitClient(cfg.url,cfg.anonKey);var session=await sbGetSession();if(session&&session.user){setCloudUser(session.user);setCloudStatus("signed in as "+session.user.email);
+    (async function(){try{var session=await sbGetSession();if(session&&session.user){setCloudUser(session.user);setCloudStatus("signed in as "+session.user.email);
       /* Auto-pull on login if session exists */
       try{var cloud=await sbPullSnapshot();if(cloud){var localPayload=_buildPayload();var merged=sbMerge(localPayload,cloud);_applyPayload(merged)}}catch(pe){console.warn("[CloudSync] auto-pull:",pe)}
     }}catch(e){console.warn("[CloudSync] session check:",e)}}
@@ -1512,11 +1513,9 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
           React.createElement("p",{style:{fontSize:9,fontFamily:"var(--f)",color:"var(--dim)",marginBottom:6}},"Use your Recovery Credentials (above) as username + password to login or sign up:"),
           React.createElement("div",{style:{display:"flex",gap:8}},
             React.createElement("button",{onClick:async function(){
-              if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
               if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
               setCloudStatus("signing in...");
               try{
-                sbInitClient(sbUrl.trim(),sbKey.trim());
                 var d=await sbSignIn(recUser.trim(),recPass.trim());
                 if(d.user){setCloudUser(d.user);setCloudStatus("signed in");showToast("Signed in as "+d.user.email,"var(--good)")}
               }catch(e){
@@ -1524,11 +1523,9 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
               }
             },style:{flex:1,background:"rgba(122,184,216,0.08)",border:"1px solid rgba(122,184,216,0.25)",borderRadius:8,padding:"8px",cursor:"pointer",color:"#7ab8d8",fontFamily:"var(--f)",fontSize:10,fontWeight:600,minHeight:32}},"🔑 Login"),
             React.createElement("button",{onClick:async function(){
-              if(!sbUrl.trim()||!sbKey.trim()){showToast("Save Supabase config first","var(--warn)");return}
               if(!recUser.trim()||!recPass.trim()){showToast("Enter Recovery Credentials above first","var(--warn)");return}
               setCloudStatus("creating account...");
               try{
-                sbInitClient(sbUrl.trim(),sbKey.trim());
                 var d=await sbSignUp(recUser.trim(),recPass.trim());
                 if(d.user){setCloudUser(d.user);setCloudStatus("account created");showToast("Account created for "+d.user.email,"var(--good)")}
               }catch(e){
@@ -1578,7 +1575,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         (cloudStatus||syncStatus)&&React.createElement("div",{style:{fontSize:10,fontFamily:"var(--f)",color:(cloudStatus+syncStatus).includes("error")?"var(--warn)":"var(--sub)",marginBottom:6,fontWeight:500}},syncStatus||cloudStatus),
 
         React.createElement("div",{style:{background:"var(--bg)",borderRadius:8,padding:"8px 10px",marginBottom:0,border:"1px solid var(--border)"}},
-          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"Requires your own Supabase project (free tier works). See README.md for instructions. Data is stored per-user with Row Level Security."))),
+          React.createElement("p",{style:{fontSize:8,fontFamily:"var(--f)",color:"var(--dim)",margin:0}},"Cloud sync is pre-configured. Just sign in or create an account to start syncing. Data is stored per-user with Row Level Security."))),
 
       React.createElement("div",{style:{marginTop:0,paddingTop:12,borderTop:"1px solid var(--border)"}},
         React.createElement("label",{className:"lbl"},"Data Management"),
@@ -1641,7 +1638,6 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         React.createElement("input",{className:"inp",type:"text",value:authUser,onChange:function(e){setAuthUser(e.target.value)},placeholder:"Username or email",autoComplete:"username"}),
         React.createElement("input",{className:"inp",type:"password",value:authPass,onChange:function(e){setAuthPass(e.target.value)},placeholder:"Password",autoComplete:authMode==="login"?"current-password":"new-password",onKeyDown:function(e){if(e.key==="Enter"){
           setAuthLoading(true);setAuthError("");
-          var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
           var fn=authMode==="login"?sbSignIn:sbSignUp;
           fn(authUser.trim(),authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
             /* Auto-pull on login */
@@ -1652,7 +1648,6 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
           React.createElement("button",{className:"btn "+(authMode==="login"?"btn-gold":"btn-ghost"),disabled:authLoading,style:{flex:1},onClick:function(){
             if(!authUser.trim()||!authPass.trim()){setAuthError("Enter username and password");return}
             setAuthLoading(true);setAuthError("");
-            var cfg=sbLoadConfig();if(cfg)sbInitClient(cfg.url,cfg.anonKey);
             var fn=authMode==="login"?sbSignIn:sbSignUp;
             fn(authUser.trim(),authPass).then(function(d){if(d.user){setCloudUser(d.user);setCloudStatus("signed in as "+d.user.email);setShowAuthModal(false);setAuthError("");showToast(authMode==="login"?"Signed in as "+d.user.email:"Account created!","var(--good)");
               sbPullSnapshot().then(function(cloud){if(cloud){var lp=_buildPayload();var merged=sbMerge(lp,cloud);_applyPayload(merged)}}).catch(function(e){console.warn("[CloudSync]",e)})
@@ -1662,7 +1657,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
         React.createElement("button",{onClick:function(){setShowAuthModal(false)},style:{width:"100%",marginTop:10,background:"none",border:"none",cursor:"pointer",color:"var(--dim)",fontFamily:"var(--f)",fontSize:11,padding:"8px"}},"Cancel"))),
 
     /* ═══ SYNC STATUS BAR ═══ */
-    (cloudUser||sbLoadConfig())&&React.createElement("div",{className:"sync-bar"},
+    React.createElement("div",{className:"sync-bar"},
       React.createElement("div",{className:"sync-dot "+(syncIndicator.online?"online":"offline")}),
       React.createElement("span",{style:{color:syncIndicator.online?"var(--sync-good)":"var(--sync-err)"}},syncIndicator.online?"Online":"Offline"),
       cloudUser?React.createElement("span",{style:{color:"var(--sub)"}}," · "+cloudUser.email.split("@")[0]):React.createElement("span",{style:{color:"var(--dim)"}}," · Signed out"),
@@ -1673,7 +1668,7 @@ React.createElement("div",{style:{marginTop:16,paddingTop:12,borderTop:"1px soli
       !cloudUser&&React.createElement("button",{onClick:function(){setShowAuthModal(true)},style:{marginLeft:"auto",background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 10px",cursor:"pointer",color:"var(--gold)",fontFamily:"var(--f)",fontSize:9,minHeight:24}},"Sign In")),
 
     /* HEADER */
-    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0",marginTop:(cloudUser||sbLoadConfig())?28:0}},
+    React.createElement("div",{style:{background:theme==="light"?"linear-gradient(180deg,#f0efe8,var(--bg))":"linear-gradient(180deg,var(--card),var(--bg))",borderBottom:"1px solid var(--border)",padding:"max(env(safe-area-inset-top,12px),12px) 16px 0",marginTop:28}},
       React.createElement("div",{style:{maxWidth:860,margin:"0 auto"}},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
           React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},

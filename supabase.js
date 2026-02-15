@@ -3,6 +3,7 @@
    All app.js imports resolve through this single entry point. */
 
 import {
+  SB_DEFAULT_URL, SB_DEFAULT_KEY,
   loadConfig, saveConfig, clearConfig,
   initClient, getClient,
   getSession, getUser,
@@ -26,6 +27,7 @@ var pushAllData = pushSnapshot;
 var pullAllData = pullSnapshot;
 
 export {
+  SB_DEFAULT_URL, SB_DEFAULT_KEY,
   loadConfig, saveConfig, clearConfig,
   initClient, getClient,
   signUp, signIn, signOut, getSession, getUser,

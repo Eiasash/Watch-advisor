@@ -10,6 +10,10 @@ var _pendingPayload = null;
 
 var SB_CONFIG_KEY = "wa_supabase_config";
 
+/* ── Built-in Supabase defaults ── */
+var SB_DEFAULT_URL = "https://oaojkanozbfpofbewtfq.supabase.co";
+var SB_DEFAULT_KEY = "sb_publishable_HvifswT9kzu3qUI3XbkNWg_aKtfYdUw";
+
 /* ── Sync state management ── */
 
 function getSyncState() { return Object.assign({}, _syncState); }
@@ -57,7 +61,9 @@ function initClient(url, anonKey) {
 function getClient() {
   if (_sb) return _sb;
   var cfg = loadConfig();
-  if (cfg && cfg.url && cfg.anonKey) return initClient(cfg.url, cfg.anonKey);
+  var url = (cfg && cfg.url) || SB_DEFAULT_URL;
+  var key = (cfg && cfg.anonKey) || SB_DEFAULT_KEY;
+  if (url && key) return initClient(url, key);
   return null;
 }
 
@@ -242,6 +248,7 @@ function scheduleCloudSave(payloadFn) {
 }
 
 export {
+  SB_DEFAULT_URL, SB_DEFAULT_KEY,
   loadConfig, saveConfig, clearConfig,
   initClient, getClient,
   getSession, getUser,
