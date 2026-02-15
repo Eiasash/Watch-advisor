@@ -7,12 +7,13 @@
 <meta name="theme-color" content="#12101a">
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="manifest" href="./manifest.json">
-<title>Watch Advisor v25.9</title>
+<title>Watch Advisor v26.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#07060a;--card:#0d0c14;--card2:#12101a;--card3:#14121e;--border:#1c1828;--gold:#c9a84c;--text:#e0dcd4;--sub:#7a7484;--dim:#4a4458;--warn:#c85a3a;--good:#7ab87a;--badge-good:#0a1a0a;--badge-warn:#1a0a0a;--badge-neutral:#0a0a1a;--del-text:#6a3a3a;--del-border:#2a1a1a;--rep-border:#2a2520;--f:'DM Sans',sans-serif;--sf:'Cormorant Garamond',Georgia,serif}
-html,body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+:root{--bg:#07060a;--card:#0d0c14;--card2:#12101a;--card3:#14121e;--border:#1c1828;--gold:#c9a84c;--text:#e0dcd4;--sub:#7a7484;--dim:#4a4458;--warn:#c85a3a;--good:#7ab87a;--badge-good:#0a1a0a;--badge-warn:#1a0a0a;--badge-neutral:#0a0a1a;--del-text:#6a3a3a;--del-border:#2a1a1a;--rep-border:#2a2520;--f:'DM Sans',sans-serif;--sf:'Cormorant Garamond',Georgia,serif;--uiScale:1;--base-font:14px;--sync-good:#7ab87a;--sync-warn:#c9a84c;--sync-err:#c85a3a}
+html{font-size:calc(var(--base-font) * var(--uiScale))}
+body{background:var(--bg);color:var(--text);font-family:var(--sf);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 body.modal-open{overflow:hidden}
 /* Safety: ensure modal class gets cleaned up */
 body:not(.modal-open){position:static}
@@ -28,7 +29,7 @@ input,select,textarea{font-size:1rem!important}
 .fu{animation:fadeUp .35s cubic-bezier(.22,.68,0,1) both}.sp{animation:spin 1s linear infinite}.pu{animation:pulse 1.5s ease infinite}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}.hscroll::-webkit-scrollbar{display:none}
-.chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:12px;font-size:11px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);white-space:nowrap;transition:background .15s,border-color .15s,color .15s;min-height:32px;user-select:none}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:12px;font-size:11px;font-family:var(--f);cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--sub);white-space:nowrap;transition:background .15s,border-color .15s,color .15s;min-height:44px;user-select:none}
 .chip.on{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:var(--gold)}
 .chip:active{transform:scale(0.95)}
 .inp{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%}
@@ -36,12 +37,12 @@ input,select,textarea{font-size:1rem!important}
 .sel{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%}
 .lbl{font-size:9px;font-family:var(--f);color:var(--dim);letter-spacing:0.1em;margin-bottom:4px;display:block;text-transform:uppercase}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;flex-direction:column;justify-content:flex-end;animation:fadeIn .15s ease-out;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
-.modal-body{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp .3s cubic-bezier(.22,.68,0,1)}
+.modal-body{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px);max-height:92vh;max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp .3s cubic-bezier(.22,.68,0,1)}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 14px}
 .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s,box-shadow .15s;flex-shrink:0}
 .swatch:active{transform:scale(0.9)}
 .swatch.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.3)}
-.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;user-select:none;transition:transform .15s cubic-bezier(.22,.68,0,1),box-shadow .2s ease}
+.btn{border:none;border-radius:10px;padding:14px;cursor:pointer;font-family:var(--f);font-size:14px;font-weight:600;width:100%;text-align:center;min-height:48px;user-select:none;transition:transform .15s cubic-bezier(.22,.68,0,1),box-shadow .2s ease;touch-action:manipulation}
 .btn:active{transform:scale(0.97)}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a8882a);color:var(--bg)}
 .btn-ghost{background:none;border:1px solid var(--border);color:var(--sub)}
@@ -92,6 +93,26 @@ body.light .skeleton{background:linear-gradient(90deg,#f0efe8 25%,#e0dcd4 50%,#f
 @keyframes tabSlide{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 /* ══ UX v25.0: Unworn badge ══ */
 .unworn-badge{position:absolute;top:6px;right:6px;background:rgba(200,90,58,0.85);color:#fff;font-size:8px;font-family:var(--f);padding:2px 6px;border-radius:8px;font-weight:700;letter-spacing:0.03em;pointer-events:none;z-index:2;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+/* ══ v26.0: Sync status bar ══ */
+.sync-bar{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;gap:6px;padding:4px 12px;font-family:var(--f);font-size:9px;background:var(--card);border-bottom:1px solid var(--border);min-height:28px;padding-top:max(env(safe-area-inset-top,4px),4px)}
+.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sync-dot.online{background:var(--sync-good)}
+.sync-dot.offline{background:var(--sync-err)}
+.sync-dot.syncing{background:var(--sync-warn);animation:pulse 1s ease infinite}
+body.light .sync-bar{background:#fff;border-color:#e0dcd4}
+/* ══ v26.0: Auth modal ══ */
+.auth-modal{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.85);animation:fadeIn .15s ease-out;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px 24px;max-width:380px;width:100%;animation:fadeUp .25s cubic-bezier(.22,.68,0,1)}
+.auth-card h2{font-size:18px;font-weight:600;color:var(--gold);margin-bottom:4px;text-align:center}
+.auth-card .auth-sub{font-size:10px;font-family:var(--f);color:var(--sub);text-align:center;margin-bottom:16px}
+.auth-card .inp{margin-bottom:10px;min-height:44px}
+.auth-card .auth-actions{display:flex;gap:8px;margin-top:14px}
+body.light .auth-modal{background:rgba(0,0,0,0.4)}
+body.light .auth-card{background:#fff;border-color:#e0dcd4}
+/* ══ v26.0: Text size presets ══ */
+.text-size-btn{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:44px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--sub);font-family:var(--f);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.text-size-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,0.08)}
+body.light .text-size-btn.active{border-color:#b8962a;color:#b8962a;background:rgba(184,150,42,0.08)}
 </style>
 </head>
 <body>
